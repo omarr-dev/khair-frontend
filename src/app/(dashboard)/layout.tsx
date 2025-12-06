@@ -12,6 +12,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
+  SidebarRail,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import {
@@ -121,6 +122,7 @@ export default function DashboardLayout({
                 </DropdownMenu>
               </div>
             </SidebarFooter>
+            <SidebarRail />
           </Sidebar>
           <main className="flex-1 overflow-auto">
             <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-6">

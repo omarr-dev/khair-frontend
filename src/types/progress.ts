@@ -2,8 +2,8 @@ export interface ProgressRecord {
   id: number;
   studentId: number;
   studentName: string;
-  teacherId: number;
-  teacherName: string;
+  teacherId?: number | null;
+  teacherName?: string | null;
   halaqaId: number;
   halaqaName: string;
   date: string;
@@ -53,6 +53,7 @@ export interface Halaqa {
   description?: string;
   location?: string;
   timeSlot?: string;
+  activeDays?: string; // "0,1,3,4" = Sun,Mon,Wed,Thu
   isActive: boolean;
   studentCount: number;
   teacherCount: number;

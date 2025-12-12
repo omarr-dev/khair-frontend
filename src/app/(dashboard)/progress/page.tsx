@@ -29,12 +29,25 @@ import {
 import { Calendar, BookOpen, Users, GraduationCap, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function ProgressPage() {
   const [halaqat, setHalaqat] = useState<Halaqa[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [todayProgress, setTodayProgress] = useState<DailyProgressSummary | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [recordToDelete, setRecordToDelete] = useState<ProgressRecord | null>(null);
   const { user } = useAuth();
   
   // Form state
@@ -57,6 +70,31 @@ export default function ProgressPage() {
       fetchStudentsByHalaqa(selectedHalaqa);
     }
   }, [selectedHalaqa]);
+
+  // Clear toVerse when fromVerse changes if toVerse is now invalid
+  useEffect(() => {
+    if (fromVerse && toVerse && parseInt(toVerse) < parseInt(fromVerse)) {
+      setToVerse("");
+    }
+  }, [fromVerse]);
+
+  // Pre-fill surah and fromVerse when student is selected
+  useEffect(() => {
+    if (selectedStudent) {
+      const student = students.find(s => s.id === parseInt(selectedStudent));
+      if (student) {
+        const currentSurah = surahs.find(s => s.id === student.currentSurahNumber);
+        if (currentSurah) {
+          setSelectedSurah(currentSurah.name);
+          // Pre-fill fromVerse with currentVerse + 1 (the next verse to memorize)
+          const startVerse = student.currentVerse + 1;
+          if (startVerse <= currentSurah.versesCount) {
+            setFromVerse(startVerse.toString());
+          }
+        }
+      }
+    }
+  }, [selectedStudent, students]);
 
   const fetchHalaqat = async () => {
     try {
@@ -87,14 +125,18 @@ export default function ProgressPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user?.teacherId) {
+      toast.error("لا يمكن تحديد هوية المعلم. يرجى تسجيل الخروج والدخول مرة أخرى.");
+      return;
+    }
+    
     setLoading(true);
 
     try {
-      const selectedSurahData = surahs.find(s => s.name === selectedSurah);
-      
       const data: CreateProgressRecord = {
         studentId: parseInt(selectedStudent),
-        teacherId: user?.teacherId || 1, // TODO: Get actual teacher ID
+        teacherId: user.teacherId,
         halaqaId: parseInt(selectedHalaqa),
         date: new Date().toISOString(),
         type: parseInt(progressType) as 0 | 1,
@@ -106,6 +148,7 @@ export default function ProgressPage() {
       };
 
       await progressApi.create(data);
+      toast.success("تم حفظ التقدم بنجاح");
       
       // Reset form
       setSelectedStudent("");
@@ -117,19 +160,29 @@ export default function ProgressPage() {
       fetchTodayProgress();
     } catch (error) {
       console.error("Error creating progress record:", error);
+      toast.error("حدث خطأ أثناء حفظ التقدم");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (confirm("هل أنت متأكد من حذف هذا السجل؟")) {
-      try {
-        await progressApi.delete(id);
-        fetchTodayProgress();
-      } catch (error) {
-        console.error("Error deleting progress record:", error);
-      }
+  const openDeleteDialog = (record: ProgressRecord) => {
+    setRecordToDelete(record);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!recordToDelete) return;
+
+    try {
+      await progressApi.delete(recordToDelete.id);
+      toast.success("تم حذف السجل بنجاح");
+      fetchTodayProgress();
+      setIsDeleteDialogOpen(false);
+      setRecordToDelete(null);
+    } catch (error) {
+      console.error("Error deleting progress record:", error);
+      toast.error("حدث خطأ أثناء حذف السجل");
     }
   };
 
@@ -219,16 +272,16 @@ export default function ProgressPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="surah">السورة</Label>
-                <Select value={selectedSurah} onValueChange={setSelectedSurah}>
+                <Select value={selectedSurah} onValueChange={setSelectedSurah} disabled={true}>
                   <SelectTrigger>
                     <SelectValue placeholder="اختر السورة" />
                   </SelectTrigger>
                   <SelectContent>
-                    {surahs.map((surah) => (
-                      <SelectItem key={surah.id} value={surah.name}>
-                        {surah.name}
+                    {selectedSurah && (
+                      <SelectItem value={selectedSurah}>
+                        {selectedSurah}
                       </SelectItem>
-                    ))}
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -237,26 +290,37 @@ export default function ProgressPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="fromVerse">من الآية</Label>
-                <Input
-                  id="fromVerse"
-                  type="number"
-                  min="1"
-                  value={fromVerse}
-                  onChange={(e) => setFromVerse(e.target.value)}
-                  required
-                />
+                <Select value={fromVerse} onValueChange={setFromVerse} disabled={true}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر الآية" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {fromVerse && (
+                      <SelectItem value={fromVerse}>
+                        {fromVerse}
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="toVerse">إلى الآية</Label>
-                <Input
-                  id="toVerse"
-                  type="number"
-                  min="1"
-                  value={toVerse}
-                  onChange={(e) => setToVerse(e.target.value)}
-                  required
-                />
+                <Select value={toVerse} onValueChange={setToVerse} disabled={!selectedSurah || !fromVerse}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر الآية" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {selectedSurah && fromVerse && Array.from(
+                      { length: (surahs.find(s => s.name === selectedSurah)?.versesCount || 0) - parseInt(fromVerse) + 1 },
+                      (_, i) => parseInt(fromVerse) + i
+                    ).map((verse) => (
+                      <SelectItem key={verse} value={verse.toString()}>
+                        {verse}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -285,7 +349,7 @@ export default function ProgressPage() {
               />
             </div>
 
-            <Button type="submit" disabled={loading || !selectedStudent}>
+            <Button type="submit" disabled={loading || !selectedStudent || !selectedHalaqa || !selectedSurah || !fromVerse || !toVerse}>
               {loading ? "جاري الحفظ..." : "حفظ التقدم"}
             </Button>
           </form>
@@ -366,7 +430,7 @@ export default function ProgressPage() {
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => handleDelete(record.id)}
+                          onClick={() => openDeleteDialog(record)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -379,6 +443,28 @@ export default function ProgressPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
+            <AlertDialogDescription>
+              هل أنت متأكد من حذف سجل التقدم للطالب &quot;{recordToDelete?.studentName}&quot;؟ 
+              لا يمكن التراجع عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              حذف
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -137,8 +137,8 @@
     text-align: left;
   }
 
-  /* Smooth transitions for theme changes */
-  * {
-    @apply transition-colors duration-300;
+  /* Smooth transitions for theme changes - only on color properties */
+  html.transitioning * {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important;
   }
 }

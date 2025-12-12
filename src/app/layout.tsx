@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { AuthProvider } from "@/lib/auth-context";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "جمعية خير - نظام إدارة الحلقات القرآنية",
@@ -26,6 +27,17 @@ export default function RootLayout({
         >
           <AuthProvider>
             {children}
+            <Toaster 
+              position="top-center" 
+              richColors 
+              closeButton 
+              dir="rtl"
+              toastOptions={{
+                style: {
+                  fontFamily: 'Cairo, Noto Sans Arabic, sans-serif',
+                },
+              }}
+            />
           </AuthProvider>
         </ThemeProvider>
       </body>

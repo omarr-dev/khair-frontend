@@ -23,3 +23,10 @@ export interface UpdateTeacherDto {
   phoneNumber?: string;
   qualification?: string;
 }
+
+export interface TeacherHalaqa {
+  halaqaId: number;
+  halaqaName: string;
+  assignedDate: string;
+  isPrimary: boolean;
+}

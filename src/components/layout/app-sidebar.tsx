@@ -20,17 +20,14 @@ import {
   Users,
   UserCheck,
   BookOpen,
-  CalendarCheck,
   ChartBar,
-  GraduationCap,
   LogOut,
   Menu,
   ChevronLeft,
-  X,
   UsersRound,
   ClipboardCheck,
 } from "lucide-react";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/components/providers";
 
 // Menu items for teachers - only Home and My Students
 const teacherMenuItems = [
@@ -44,7 +41,6 @@ const supervisorMenuItems = [
   { title: "الحلقات", href: "/halaqat", icon: BookOpen },
   { title: "المعلمين", href: "/teachers", icon: UserCheck },
   { title: "الطلاب", href: "/students", icon: Users },
-  { title: "المتابعة اليومية", href: "/progress", icon: GraduationCap },
   { title: "حضور المعلمين", href: "/teacher-attendance", icon: ClipboardCheck },
   { title: "التقارير", href: "/reports", icon: ChartBar },
 ];

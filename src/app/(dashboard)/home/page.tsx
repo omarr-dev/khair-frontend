@@ -2,18 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/components/providers";
+import { statisticsApi } from "@/services";
 import { 
-  statisticsApi, 
   DashboardStats, 
   SupervisorDashboard, 
   AttendanceTrend,
-  ProgressTrend
-} from "@/lib/api";
+  ProgressTrend,
+  HalaqaRanking,
+  AtRiskStudent
+} from "@/types/statistics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MotivationCard } from "@/components/shared/motivation-card";
 import {
   Users,
   UserCheck,
@@ -24,8 +27,8 @@ import {
   AlertTriangle,
   Trophy,
   Eye,
-  ArrowUp,
   ArrowDown,
+  ChevronLeft,
 } from "lucide-react";
 import {
   LineChart,
@@ -47,6 +50,8 @@ export default function HomePage() {
   const [supervisorDashboard, setSupervisorDashboard] = useState<SupervisorDashboard | null>(null);
   const [attendanceTrends, setAttendanceTrends] = useState<AttendanceTrend[]>([]);
   const [progressTrends, setProgressTrends] = useState<ProgressTrend[]>([]);
+  const [topHalaqat, setTopHalaqat] = useState<HalaqaRanking[]>([]);
+  const [atRiskStudents, setAtRiskStudents] = useState<AtRiskStudent[]>([]);
   const [loading, setLoading] = useState(true);
 
   const isSupervisor = user?.role === "Supervisor";
@@ -61,8 +66,14 @@ export default function HomePage() {
 
   const fetchTeacherData = async () => {
     try {
-      const response = await statisticsApi.getDashboardStats();
-      setStats(response.data);
+      const [statsRes, topHalaqatRes, atRiskRes] = await Promise.all([
+        statisticsApi.getDashboardStats(),
+        statisticsApi.getTopHalaqat(),
+        statisticsApi.getMyAtRiskStudents(5),
+      ]);
+      setStats(statsRes.data);
+      setTopHalaqat(topHalaqatRes.data);
+      setAtRiskStudents(atRiskRes.data);
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
     } finally {
@@ -117,16 +128,22 @@ export default function HomePage() {
     return (
       <div className="space-y-6">
         {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">أهلاً {user?.fullName}</h1>
+        <div className="mb-4">
+          <h1 className="text-3xl font-bold mb-2">حيَّاك الله، {user?.fullName}</h1>
           <p className="text-muted-foreground">
-            لوحة تحكم المشرف - نظرة شاملة على أداء الحلقات
+            لوحة التحكم - نظرة شاملة على أداء الحلقات
           </p>
         </div>
 
+        {/* Motivation Card with System-wide Stats */}
+        <MotivationCard />
+
         {/* Quick Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
+          <Card 
+            className="cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => router.push('/halaqat')}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">الحلقات</CardTitle>
               <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
@@ -139,7 +156,10 @@ export default function HomePage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card 
+            className="cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => router.push('/students')}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">الطلاب</CardTitle>
               <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
@@ -152,20 +172,31 @@ export default function HomePage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card 
+            className="cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => router.push('/teachers')}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">نسبة الحضور اليوم</CardTitle>
-              <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
-                <TrendingUp className="h-4 w-4 text-orange-600" />
+              <CardTitle className="text-sm font-medium">المعلمين</CardTitle>
+              <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
+                <GraduationCap className="h-4 w-4 text-purple-600" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{supervisorDashboard.todayAttendanceRate}%</div>
-              <p className="text-xs text-muted-foreground">من الطلاب المسجلين</p>
+              <div className="text-2xl font-bold">{supervisorDashboard.totalTeachers}</div>
+              <p className="text-xs text-muted-foreground">إجمالي المعلمين</p>
             </CardContent>
           </Card>
 
-          <Card className={supervisorDashboard.studentsAtRisk > 0 ? "border-red-200 dark:border-red-900" : ""}>
+          <Card 
+            className={`cursor-pointer hover:shadow-md transition-shadow ${supervisorDashboard.studentsAtRisk > 0 ? "border-red-200 dark:border-red-900" : ""}`}
+            onClick={() => {
+              const atRiskSection = document.getElementById('at-risk-students');
+              if (atRiskSection) {
+                atRiskSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            }}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">طلاب يحتاجون متابعة</CardTitle>
               <div className={`p-2 rounded-lg ${supervisorDashboard.studentsAtRisk > 0 ? "bg-red-100 dark:bg-red-900/30" : "bg-gray-100 dark:bg-gray-900/30"}`}>
@@ -180,47 +211,6 @@ export default function HomePage() {
             </CardContent>
           </Card>
         </div>
-
-        {/* Today's Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              نشاط اليوم
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="flex items-center space-x-4 space-x-reverse">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <GraduationCap className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">حفظ جديد</p>
-                  <p className="text-2xl font-bold">{supervisorDashboard.todayMemorization}</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-4 space-x-reverse">
-                <div className="p-2 bg-secondary rounded-lg">
-                  <BookOpen className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">مراجعة</p>
-                  <p className="text-2xl font-bold">{supervisorDashboard.todayRevision}</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-4 space-x-reverse">
-                <div className="p-2 bg-muted rounded-lg">
-                  <UserCheck className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">المعلمين</p>
-                  <p className="text-2xl font-bold">{supervisorDashboard.totalTeachers}</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Charts Row */}
         <div className="grid gap-6 lg:grid-cols-2">
@@ -297,10 +287,15 @@ export default function HomePage() {
           {/* Top Halaqat */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Trophy className="h-5 w-5 text-yellow-500" />
-                أفضل الحلقات أداءً
-              </CardTitle>
+              <div className="flex flex-col gap-1">
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-yellow-500" />
+                  أفضل الحلقات أداءً
+                </CardTitle>
+                <p className="text-xs text-muted-foreground font-normal">
+                   المعادلة: حضور 60% + مقدار التسميع 40% • آخر أسبوع 📊
+                </p>
+              </div>
               <Button variant="ghost" size="sm" onClick={() => router.push('/halaqat')}>
                 عرض الكل
               </Button>
@@ -312,26 +307,8 @@ export default function HomePage() {
                 ) : (
                   supervisorDashboard.topHalaqat.map((halaqa, index) => (
                     <div key={halaqa.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                          index === 0 ? 'bg-yellow-100 text-yellow-700' :
-                          index === 1 ? 'bg-gray-200 text-gray-700' :
-                          index === 2 ? 'bg-orange-100 text-orange-700' :
-                          'bg-muted text-muted-foreground'
-                        }`}>
-                          {index + 1}
-                        </div>
-                        <div>
-                          <p className="font-medium">{halaqa.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {halaqa.studentCount} طالب • {halaqa.teacherCount} معلم
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-left">
-                        <p className="font-bold text-primary">{halaqa.attendanceRate}%</p>
-                        <p className="text-xs text-muted-foreground">{halaqa.weeklyProgress} تسميع</p>
-                      </div>
+                      <p className="font-medium">{halaqa.name}</p>
+                      <p className="font-bold text-primary text-lg">{halaqa.score}</p>
                     </div>
                   ))
                 )}
@@ -387,7 +364,7 @@ export default function HomePage() {
 
         {/* At-Risk Students */}
         {supervisorDashboard.atRiskStudents.length > 0 && (
-          <Card className="border-red-200 dark:border-red-900">
+          <Card id="at-risk-students" className="border-red-200 dark:border-red-900">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-red-600">
                 <AlertTriangle className="h-5 w-5" />
@@ -439,7 +416,7 @@ export default function HomePage() {
     );
   }
 
-  // Teacher Dashboard (original)
+  // Teacher Dashboard (enhanced)
   const statCards = stats ? [
     {
       title: "الحلقات",
@@ -481,101 +458,137 @@ export default function HomePage() {
     { label: "حضور اليوم", value: stats.todayAttendance, icon: Calendar },
   ] : [];
 
+  // Motivational Poem Component (same as before)
+  const MotivationalPoem = () => (
+    <div className="py-3 px-4 rounded-lg bg-muted/50">
+      <div className="flex justify-center gap-8 sm:gap-16 text-sm sm:text-base text-muted-foreground font-arabic">
+        <span>طوبى لمن حفظ الكتاب بصدره</span>
+        <span>فبدا وضيئاً كالنجوم تألقا</span>
+      </div>
+      <div className="flex justify-center gap-8 sm:gap-16 text-sm sm:text-base text-muted-foreground font-arabic">
+        <span>الله أكبر يا لها من نعمة</span>
+        <span>لما يقال إقرأ فرتّل وارتقى</span>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">أهلاً {user?.fullName}</h1>
-        <p className="text-muted-foreground">
-          مرحباً بك في لوحة التحكم الخاصة بالمعلمين
-        </p>
+      <div className="mb-4">
+        <h1 className="text-3xl font-bold mb-2">حيَّاك الله، {user?.fullName}</h1>
+  
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat) => (
-          <Card key={stat.title}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <div className={`p-2 rounded-lg ${stat.bgColor}`}>
-                <stat.icon className={`h-4 w-4 ${stat.color}`} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* Motivation Card with Stats */}
+      <MotivationCard />
 
-      {/* Today's Activity */}
-      <Card>
-        <CardHeader>
-          <CardTitle>نشاط اليوم</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
-            {todayStats.map((stat) => (
-              <div
-                key={stat.label}
-                className="flex items-center space-x-4 space-x-reverse"
-              >
-                <div className="p-2 bg-muted rounded-lg">
-                  <stat.icon className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    {stat.label}
-                  </p>
-                  <p className="text-2xl font-bold">{stat.value}</p>
-                </div>
+      {/* 2. Quick Access to My Students */}
+      <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 hover:shadow-md transition-shadow">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-primary/10">
+                <Users className="h-8 w-8 text-primary" />
               </div>
-            ))}
+              <div>
+                <h3 className="text-xl font-bold">طلابي</h3>
+                <p className="text-muted-foreground text-sm">
+                  إدارة الطلاب وتسجيل التقدم اليومي
+                </p>
+              </div>
+            </div>
+            <Button 
+              size="lg" 
+              onClick={() => router.push('/my-students')}
+              className="gap-2"
+            >
+              الذهاب للطلاب
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Quick Tips */}
+      {/* 4. Top 5 Halaqat */}
       <Card>
-        <CardHeader>
-          <CardTitle>نصائح سريعة</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="flex flex-col gap-1">
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-yellow-500" />
+              أفضل الحلقات أداءً
+            </CardTitle>
+            <p className="text-xs text-muted-foreground font-normal">
+             المعادلة: حضور 60% + مقدار التسميع 40% • آخر أسبوع 📊
+            </p>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center">
-              <div className="ml-4 space-y-1">
-                <p className="text-sm font-medium">
-                  📖 تأكد من تسجيل التقدم اليومي لجميع الطلاب
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  التسجيل المنتظم يساعد في متابعة تقدم الطلاب
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center">
-              <div className="ml-4 space-y-1">
-                <p className="text-sm font-medium">
-                  ✅ لا تنس تسجيل الحضور في بداية كل حلقة
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  الحضور المنتظم مؤشر مهم على التزام الطلاب
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center">
-              <div className="ml-4 space-y-1">
-                <p className="text-sm font-medium">
-                  📊 راجع التقارير أسبوعياً لتحليل الأداء
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  التقارير تساعد في تحديد نقاط القوة والضعف
-                </p>
-              </div>
-            </div>
+          <div className="space-y-3">
+            {topHalaqat.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4">لا توجد بيانات</p>
+            ) : (
+              topHalaqat.map((halaqa, index) => (
+                <div key={halaqa.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <p className="font-medium">{halaqa.name}</p>
+                  <p className="font-bold text-primary text-lg">{halaqa.score}</p>
+                </div>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
+
+      {/* At-Risk Students Alert (shows only if there are at-risk students) */}
+      {atRiskStudents.length > 0 && (
+        <Card className="border-red-200 dark:border-red-900">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
+              <AlertTriangle className="h-5 w-5" />
+              طلاب يحتاجون متابعة
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {atRiskStudents.map((student) => (
+                <div 
+                  key={student.id} 
+                  className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950/20 rounded-lg cursor-pointer hover:bg-red-100 dark:hover:bg-red-950/30 transition-colors"
+                  onClick={() => router.push(`/my-students/${student.id}`)}
+                >
+                  <div className="flex-1">
+                    <p className="font-medium">{student.fullName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {student.halaqaName}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    {student.attendanceRate < 70 && (
+                      <Badge variant="destructive" className="gap-1">
+                        <ArrowDown className="h-3 w-3" />
+                        {student.attendanceRate}% حضور
+                      </Badge>
+                    )}
+                    {student.consecutiveAbsences >= 3 && (
+                      <Badge variant="destructive">
+                        {student.consecutiveAbsences} غياب متتالي
+                      </Badge>
+                    )}
+                    {student.daysSinceLastProgress >= 7 && (
+                      <Badge variant="secondary">
+                        {student.daysSinceLastProgress} يوم بدون تسميع
+                      </Badge>
+                    )}
+                    <Button size="sm" variant="ghost">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

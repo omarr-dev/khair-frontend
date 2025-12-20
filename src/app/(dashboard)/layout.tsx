@@ -1,13 +1,13 @@
 "use client";
 
 import { ProtectedRoute } from "@/components/shared/protected-route";
-import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { ThemeToggle } from "@/components/providers";
 import {
   AppSidebar,
   AppSidebarLayout,
   AppSidebarProvider,
   AppSidebarTrigger,
-} from "@/components/ui/app-sidebar";
+} from "@/components/layout";
 
 export default function DashboardLayout({
   children,

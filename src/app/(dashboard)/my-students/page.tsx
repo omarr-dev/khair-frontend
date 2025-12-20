@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { studentApi, progressApi } from "@/lib/api";
+import { studentApi, progressApi } from "@/services";
 import { Student, UpdateMemorizationDto } from "@/types/student";
 import { CreateProgressRecord, ProgressRecord } from "@/types/progress";
 import { surahs } from "@/lib/quran-data";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,13 +81,6 @@ export default function MyStudentsPage() {
   const [editVerse, setEditVerse] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Validation error state
-  const [validationError, setValidationError] = useState<{
-    show: boolean;
-    message: string;
-    student: Student | null;
-  }>({ show: false, message: "", student: null });
-
   useEffect(() => {
     fetchStudents();
   }, []);
@@ -150,7 +143,6 @@ export default function MyStudentsPage() {
     }
 
     setSubmitting(true);
-    setValidationError({ show: false, message: "", student: null });
 
     try {
       const activeAssignment = progressStudent.assignments.find((a) => a.isActive);
@@ -186,17 +178,7 @@ export default function MyStudentsPage() {
       fetchStudents();
     } catch (error: any) {
       console.error("Error creating progress:", error);
-      
-      // Check for ALREADY_MEMORIZED error
-      if (error.response?.status === 409 && error.response?.data?.errorType === "ALREADY_MEMORIZED") {
-        setValidationError({
-          show: true,
-          message: error.response.data.message,
-          student: progressStudent,
-        });
-      } else {
-        toast.error(error.response?.data?.message || "حدث خطأ أثناء حفظ التسميع");
-      }
+      toast.error(error.response?.data?.message || "حدث خطأ أثناء حفظ التسميع");
     } finally {
       setSubmitting(false);
     }
@@ -223,7 +205,6 @@ export default function MyStudentsPage() {
       await studentApi.updateMemorization(editStudent.id, data);
       toast.success("تم تحديث موضع الحفظ بنجاح");
       setEditStudent(null);
-      setValidationError({ show: false, message: "", student: null });
       fetchStudents();
     } catch (error) {
       console.error("Error updating memorization:", error);
@@ -609,54 +590,6 @@ export default function MyStudentsPage() {
             </Button>
             <Button onClick={handleSaveMemorization} disabled={saving}>
               {saving ? "جاري الحفظ..." : "حفظ التغييرات"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Validation Error Dialog */}
-      <Dialog
-        open={validationError.show}
-        onOpenChange={() => setValidationError({ show: false, message: "", student: null })}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <X className="h-5 w-5" />
-              تنبيه - المقطع محفوظ مسبقاً
-            </DialogTitle>
-            <DialogDescription className="text-base">
-              {validationError.message}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="bg-muted p-4 rounded-lg text-sm">
-            <p className="mb-2">هل تريد تعديل موضع حفظ الطالب؟</p>
-            <p className="text-muted-foreground">
-              يمكنك تعديل الموضع الحالي للطالب إذا كان هناك خطأ في البيانات.
-            </p>
-          </div>
-
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setValidationError({ show: false, message: "", student: null })}
-              className="w-full sm:w-auto"
-            >
-              إلغاء
-            </Button>
-            <Button
-              onClick={() => {
-                if (validationError.student) {
-                  handleEditMemorization(validationError.student);
-                  setValidationError({ show: false, message: "", student: null });
-                  setProgressStudent(null);
-                }
-              }}
-              className="w-full sm:w-auto"
-            >
-              <Edit3 className="h-4 w-4 ml-2" />
-              تعديل موضع الحفظ
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { studentApi } from "@/lib/api";
+import { studentApi } from "@/services";
 import { StudentDetail, StudentProgressRecord, StudentAttendanceRecord } from "@/types/student";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

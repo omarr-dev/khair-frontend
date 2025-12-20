@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { statisticsApi, halaqatApi, exportApi, ReportStats } from "@/lib/api";
-import { Halaqa } from "@/types/progress";
-import { useAuth } from "@/lib/auth-context";
+import { statisticsApi, halaqatApi, exportApi } from "@/services";
+import { ReportStats } from "@/types/statistics";
+import { Halaqa } from "@/types/halaqa";
+import { useAuth } from "@/components/providers";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";

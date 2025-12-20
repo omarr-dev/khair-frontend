@@ -2,7 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { authApi, User, AuthResponse } from './api';
+import { authApi } from '@/services';
+import { User, AuthResponse } from '@/types/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -89,3 +90,4 @@ export function useAuth() {
   }
   return context;
 }
+

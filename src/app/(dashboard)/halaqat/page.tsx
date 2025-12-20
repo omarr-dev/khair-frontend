@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { halaqatApi, HalaqaHierarchy, TeacherInHalaqa, StudentInHalaqa } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
+import { halaqatApi } from "@/services";
+import { HalaqaHierarchy, TeacherInHalaqa, StudentInHalaqa } from "@/types/halaqa";
+import { useAuth } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

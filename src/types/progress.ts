@@ -46,16 +46,3 @@ export interface StudentProgressSummary {
   averageQuality: number;
   recentProgress: ProgressRecord[];
 }
-
-export interface Halaqa {
-  id: number;
-  name: string;
-  description?: string;
-  location?: string;
-  timeSlot?: string;
-  activeDays?: string; // "0,1,3,4" = Sun,Mon,Wed,Thu
-  isActive: boolean;
-  studentCount: number;
-  teacherCount: number;
-  createdAt: string;
-}

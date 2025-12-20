@@ -1,14 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { teacherAttendanceApi, exportApi } from "@/services";
 import { 
-  teacherAttendanceApi, 
-  exportApi,
   TodayTeacherAttendanceResponse, 
   TeacherAttendanceEntry,
   MonthlyAttendanceReport 
-} from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
+} from "@/types/teacher-attendance";
+import { useAuth } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -662,3 +661,8 @@ export default function TeacherAttendancePage() {
     </div>
   );
 }
+
+
+
+
+

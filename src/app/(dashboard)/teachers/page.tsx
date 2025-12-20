@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { teachersApi, halaqatApi, PaginatedResponse, TeacherFilterParams } from "@/lib/api";
+import { teachersApi, halaqatApi } from "@/services";
+import { PaginatedResponse, TeacherFilterParams } from "@/types/api";
 import { Teacher, TeacherHalaqa } from "@/types/teacher";
-import { Halaqa } from "@/types/progress";
-import { useAuth } from "@/lib/auth-context";
+import { Halaqa } from "@/types/halaqa";
+import { useAuth } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

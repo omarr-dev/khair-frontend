@@ -131,6 +131,12 @@
     text-align: right;
   }
 
+  /* Special font for Arabic poetry and quotes */
+  .font-arabic {
+    font-family: 'Tajawal', 'Cairo', 'Noto Sans Arabic', sans-serif;
+    font-weight: 500;
+  }
+
   /* Override for LTR elements like code blocks */
   pre, code {
     direction: ltr;

@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { studentApi, halaqatApi, teachersApi, PaginatedResponse, StudentFilterParams } from "@/lib/api";
+import { studentApi, halaqatApi, teachersApi } from "@/services";
+import { PaginatedResponse, StudentFilterParams } from "@/types/api";
 import { Student, CreateStudentDto, UpdateStudentDto, StudentAssignment } from "@/types/student";
-import { Halaqa } from "@/types/progress";
+import { Halaqa } from "@/types/halaqa";
 import { Teacher } from "@/types/teacher";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/components/providers";
+import { useDebounce } from "@/hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,25 +64,7 @@ import {
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { toast } from "sonner";
-import { useDebounce } from "@/hooks/use-mobile";
 import { useRouter } from "next/navigation";
-
-// Debounce hook
-function useDebounceValue<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-}
 
 export default function StudentsPage() {
   const router = useRouter();
@@ -114,7 +98,7 @@ export default function StudentsPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   // Debounced search
-  const debouncedSearch = useDebounceValue(searchTerm, 300);
+  const debouncedSearch = useDebounce(searchTerm, 300);
 
   // Form state
   const [firstName, setFirstName] = useState("");

@@ -59,3 +59,4 @@ export const studentApi = {
     api.get<StudentDetail>(`/students/${id}/details`),
 };
 
+

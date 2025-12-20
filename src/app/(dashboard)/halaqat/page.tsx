@@ -1,25 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { halaqatApi } from "@/services";
-import { HalaqaHierarchy, TeacherInHalaqa, StudentInHalaqa } from "@/types/halaqa";
 import { useAuth } from "@/components/providers";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,25 +11,44 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Plus,
-  Edit,
-  Trash2,
-  Users,
-  UserCheck,
-  MapPin,
-  Clock,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import { halaqatApi } from "@/services";
+import { HalaqaHierarchy } from "@/types/halaqa";
+import {
+  ArrowDown,
+  ArrowUp,
+  BookOpen,
   ChevronDown,
   ChevronUp,
-  BookOpen,
-  Search,
-  GraduationCap,
-  ArrowUp,
-  ArrowDown,
+  Clock,
+  Edit,
   Eye,
+  GraduationCap,
+  MapPin,
+  Plus,
+  Search,
+  Trash2,
+  UserCheck,
+  Users,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
 export default function HalaqatPage() {
   const router = useRouter();
@@ -56,18 +56,25 @@ export default function HalaqatPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingHalaqa, setEditingHalaqa] = useState<HalaqaHierarchy | null>(null);
+  const [editingHalaqa, setEditingHalaqa] = useState<HalaqaHierarchy | null>(
+    null
+  );
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [halaqaToDelete, setHalaqaToDelete] = useState<HalaqaHierarchy | null>(null);
+  const [halaqaToDelete, setHalaqaToDelete] = useState<HalaqaHierarchy | null>(
+    null
+  );
   const { user } = useAuth();
 
   // Collapsed state for halaqat and teachers
-  const [collapsedHalaqat, setCollapsedHalaqat] = useState<Set<number>>(new Set());
-  const [collapsedTeachers, setCollapsedTeachers] = useState<Set<string>>(new Set());
+  const [collapsedHalaqat, setCollapsedHalaqat] = useState<Set<number>>(
+    new Set()
+  );
+  const [collapsedTeachers, setCollapsedTeachers] = useState<Set<string>>(
+    new Set()
+  );
 
   // Form state
   const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
   const [timeSlot, setTimeSlot] = useState("");
 
@@ -81,7 +88,7 @@ export default function HalaqatPage() {
       const response = await halaqatApi.getHierarchy();
       setHalaqat(response.data);
       // Start with all halaqat collapsed for better overview
-      setCollapsedHalaqat(new Set(response.data.map(h => h.id)));
+      setCollapsedHalaqat(new Set(response.data.map((h) => h.id)));
     } catch (error) {
       console.error("Error fetching halaqat:", error);
       toast.error("حدث خطأ أثناء تحميل الحلقات");
@@ -92,7 +99,6 @@ export default function HalaqatPage() {
 
   const resetForm = () => {
     setName("");
-    setDescription("");
     setLocation("");
     setTimeSlot("");
     setEditingHalaqa(null);
@@ -101,7 +107,6 @@ export default function HalaqatPage() {
   const openEditDialog = (halaqa: HalaqaHierarchy) => {
     setEditingHalaqa(halaqa);
     setName(halaqa.name);
-    setDescription(halaqa.description || "");
     setLocation(halaqa.location || "");
     setTimeSlot(halaqa.timeSlot || "");
     setIsDialogOpen(true);
@@ -113,7 +118,6 @@ export default function HalaqatPage() {
       if (editingHalaqa) {
         await halaqatApi.update(editingHalaqa.id, {
           name,
-          description: description || undefined,
           location: location || undefined,
           timeSlot: timeSlot || undefined,
           isActive: editingHalaqa.isActive,
@@ -122,7 +126,6 @@ export default function HalaqatPage() {
       } else {
         await halaqatApi.create({
           name,
-          description: description || undefined,
           location: location || undefined,
           timeSlot: timeSlot || undefined,
         });
@@ -152,7 +155,9 @@ export default function HalaqatPage() {
       setIsDeleteDialogOpen(false);
       setHalaqaToDelete(null);
     } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { message?: string } } };
+      const axiosError = error as {
+        response?: { data?: { message?: string } };
+      };
       toast.error(axiosError.response?.data?.message || "حدث خطأ أثناء الحذف");
     }
   };
@@ -184,11 +189,19 @@ export default function HalaqatPage() {
     // Search in halaqa name
     if (halaqa.name.toLowerCase().includes(searchLower)) return true;
     // Search in teacher names
-    if (halaqa.teachers.some(t => t.fullName.toLowerCase().includes(searchLower))) return true;
+    if (
+      halaqa.teachers.some((t) =>
+        t.fullName.toLowerCase().includes(searchLower)
+      )
+    )
+      return true;
     // Search in student names
-    if (halaqa.teachers.some(t => 
-      t.students.some(s => s.fullName.toLowerCase().includes(searchLower))
-    )) return true;
+    if (
+      halaqa.teachers.some((t) =>
+        t.students.some((s) => s.fullName.toLowerCase().includes(searchLower))
+      )
+    )
+      return true;
     return false;
   });
 
@@ -220,10 +233,13 @@ export default function HalaqatPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">الحلقات</h1>
         {user?.role === "Supervisor" && (
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) resetForm();
-          }}>
+          <Dialog
+            open={isDialogOpen}
+            onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) resetForm();
+            }}
+          >
             <DialogTrigger asChild>
               <Button>
                 <Plus className="ml-2 h-4 w-4" />
@@ -247,17 +263,8 @@ export default function HalaqatPage() {
                       id="name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="مثال: حلقة الفجر"
+                      placeholder="مثال: حلقة النعمان بن مقرن"
                       required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="description">الوصف</Label>
-                    <Input
-                      id="description"
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="وصف مختصر للحلقة"
                     />
                   </div>
                   <div className="space-y-2">
@@ -266,7 +273,7 @@ export default function HalaqatPage() {
                       id="location"
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
-                      placeholder="مثال: المسجد الكبير"
+                      placeholder="مثال: المسجد الإسراء"
                     />
                   </div>
                   <div className="space-y-2">
@@ -275,7 +282,7 @@ export default function HalaqatPage() {
                       id="timeSlot"
                       value={timeSlot}
                       onChange={(e) => setTimeSlot(e.target.value)}
-                      placeholder="مثال: 5:30 - 7:00 صباحاً"
+                      placeholder="مثال: المغرب"
                     />
                   </div>
                 </div>
@@ -294,7 +301,9 @@ export default function HalaqatPage() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">إجمالي الحلقات</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              إجمالي الحلقات
+            </CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -304,11 +313,13 @@ export default function HalaqatPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">الحلقات النشطة</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              الحلقات النشطة
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {halaqat.filter(h => h.isActive).length}
+              {halaqat.filter((h) => h.isActive).length}
             </div>
           </CardContent>
         </Card>
@@ -325,7 +336,9 @@ export default function HalaqatPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">إجمالي المعلمين</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              إجمالي المعلمين
+            </CardTitle>
             <UserCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -458,9 +471,14 @@ export default function HalaqatPage() {
                               <UserCheck className="h-5 w-5" />
                             </div>
                             <div className="flex-1">
-                              <h3 className="font-semibold">{teacher.fullName}</h3>
+                              <h3 className="font-semibold">
+                                {teacher.fullName}
+                              </h3>
                               {teacher.phoneNumber && (
-                                <p className="text-sm text-muted-foreground" dir="ltr">
+                                <p
+                                  className="text-sm text-muted-foreground"
+                                  dir="ltr"
+                                >
                                   {teacher.phoneNumber}
                                 </p>
                               )}
@@ -471,7 +489,9 @@ export default function HalaqatPage() {
                             </Badge>
                           </div>
                           <div className="mr-2">
-                            {collapsedTeachers.has(`${halaqa.id}-${teacher.id}`) ? (
+                            {collapsedTeachers.has(
+                              `${halaqa.id}-${teacher.id}`
+                            ) ? (
                               <ChevronDown className="h-4 w-4" />
                             ) : (
                               <ChevronUp className="h-4 w-4" />
@@ -480,7 +500,9 @@ export default function HalaqatPage() {
                         </div>
 
                         {/* Level 3: Students (Nested under Teacher) */}
-                        {!collapsedTeachers.has(`${halaqa.id}-${teacher.id}`) && (
+                        {!collapsedTeachers.has(
+                          `${halaqa.id}-${teacher.id}`
+                        ) && (
                           <div className="space-y-1 pr-6 mr-4">
                             {teacher.students.length === 0 ? (
                               <div className="p-3 text-sm text-muted-foreground text-center bg-muted/30 rounded-lg mr-4">
@@ -491,7 +513,9 @@ export default function HalaqatPage() {
                                 <Card
                                   key={student.id}
                                   className="mr-4 cursor-pointer hover:shadow-md transition-shadow"
-                                  onClick={() => router.push(`/my-students/${student.id}`)}
+                                  onClick={() =>
+                                    router.push(`/my-students/${student.id}`)
+                                  }
                                 >
                                   <CardContent className="p-3">
                                     <div className="flex items-center justify-between">
@@ -501,28 +525,42 @@ export default function HalaqatPage() {
                                         </div>
                                         <div>
                                           <div className="flex items-center gap-2">
-                                            <span className="font-medium">{student.fullName}</span>
+                                            <span className="font-medium">
+                                              {student.fullName}
+                                            </span>
                                             <Badge
-                                              variant={student.memorizationDirection === "Forward" ? "default" : "secondary"}
+                                              variant={
+                                                student.memorizationDirection ===
+                                                "Forward"
+                                                  ? "default"
+                                                  : "secondary"
+                                              }
                                               className="text-xs"
                                             >
-                                              {student.memorizationDirection === "Forward" ? (
+                                              {student.memorizationDirection ===
+                                              "Forward" ? (
                                                 <ArrowDown className="h-2 w-2 ml-1" />
                                               ) : (
                                                 <ArrowUp className="h-2 w-2 ml-1" />
                                               )}
-                                              {student.memorizationDirection === "Forward" ? "من الفاتحة" : "من الناس"}
+                                              {student.memorizationDirection ===
+                                              "Forward"
+                                                ? "من الفاتحة"
+                                                : "من الناس"}
                                             </Badge>
                                           </div>
                                           <div className="flex items-center gap-3 text-xs text-muted-foreground">
                                             <span className="flex items-center gap-1">
                                               <BookOpen className="h-3 w-3" />
-                                              {student.currentSurahName || "الفاتحة"}
-                                              {student.currentVerse > 0 && ` - آية ${student.currentVerse}`}
+                                              {student.currentSurahName ||
+                                                "الفاتحة"}
+                                              {student.currentVerse > 0 &&
+                                                ` - آية ${student.currentVerse}`}
                                             </span>
                                             <span className="flex items-center gap-1">
                                               <GraduationCap className="h-3 w-3" />
-                                              {student.juzMemorized.toFixed(1)} جزء
+                                              {student.juzMemorized.toFixed(1)}{" "}
+                                              جزء
                                             </span>
                                           </div>
                                         </div>
@@ -548,18 +586,21 @@ export default function HalaqatPage() {
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
             <AlertDialogDescription>
-              هل أنت متأكد من حذف الحلقة &quot;{halaqaToDelete?.name}&quot;؟ 
-              لا يمكن التراجع عن هذا الإجراء.
+              هل أنت متأكد من حذف الحلقة &quot;{halaqaToDelete?.name}&quot;؟ لا
+              يمكن التراجع عن هذا الإجراء.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >

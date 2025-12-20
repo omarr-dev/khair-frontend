@@ -35,3 +35,4 @@ export const teachersApi = {
     api.delete(`/teachers/${teacherId}/halaqat/${halaqaId}`),
 };
 
+

@@ -1,7 +1,6 @@
 export interface Halaqa {
   id: number;
   name: string;
-  description?: string;
   location?: string;
   timeSlot?: string;
   activeDays?: string; // "0,1,3,4" = Sun,Mon,Wed,Thu
@@ -13,7 +12,6 @@ export interface Halaqa {
 
 export interface CreateHalaqaDto {
   name: string;
-  description?: string;
   location?: string;
   timeSlot?: string;
   activeDays?: string; // "0,1,3,4" = Sun,Mon,Wed,Thu
@@ -21,7 +19,6 @@ export interface CreateHalaqaDto {
 
 export interface UpdateHalaqaDto {
   name: string;
-  description?: string;
   location?: string;
   timeSlot?: string;
   activeDays?: string; // "0,1,3,4" = Sun,Mon,Wed,Thu
@@ -50,7 +47,6 @@ export interface TeacherInHalaqa {
 export interface HalaqaHierarchy {
   id: number;
   name: string;
-  description?: string;
   location?: string;
   timeSlot?: string;
   activeDays?: string;
@@ -59,4 +55,5 @@ export interface HalaqaHierarchy {
   teacherCount: number;
   teachers: TeacherInHalaqa[];
 }
+
 

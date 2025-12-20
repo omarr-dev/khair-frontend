@@ -26,3 +26,4 @@ export const progressApi = {
     api.delete(`/progress/${id}`),
 };
 
+

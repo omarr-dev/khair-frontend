@@ -22,3 +22,4 @@ export const halaqatApi = {
     api.delete(`/halaqat/${id}`),
 };
 
+

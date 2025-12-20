@@ -8,7 +8,7 @@ import { User, AuthResponse } from '@/types/auth';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (phoneNumber: string) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
@@ -40,15 +40,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth();
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (phoneNumber: string) => {
     try {
-      const response = await authApi.login(email, password);
+      const response = await authApi.login(phoneNumber);
       const data: AuthResponse = response.data;
-      
+
       localStorage.setItem('token', data.token);
       localStorage.setItem('refreshToken', data.refreshToken);
       setUser(data.user);
-      
+
       router.push('/');
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'فشل تسجيل الدخول');
@@ -90,4 +90,5 @@ export function useAuth() {
   }
   return context;
 }
+
 

@@ -1,16 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { useAuth, ThemeToggle } from "@/components/providers";
+import { ThemeToggle, useAuth } from "@/components/providers";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
 import { toast } from "sonner";
+import Image from "next/image";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -21,10 +28,11 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await login(email, password);
+      await login(phoneNumber);
       toast.success("تم تسجيل الدخول بنجاح");
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : "فشل تسجيل الدخول";
+      const errorMessage =
+        err instanceof Error ? err.message : "فشل تسجيل الدخول";
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -32,67 +40,94 @@ export default function LoginPage() {
     }
   };
 
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value);
-    if (error) setError(""); // Clear error when user starts typing
-  };
+  const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
 
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPassword(e.target.value);
+    // Remove all non-digit characters except +
+    value = value.replace(/[^\d+]/g, "");
+
+    // Auto-format with +966
+    if (!value.startsWith("+966")) {
+      if (value.startsWith("966")) {
+        value = "+" + value;
+      } else if (value.startsWith("0")) {
+        value = "+966" + value.substring(1);
+      } else if (value.startsWith("5")) {
+        value = "+966" + value;
+      } else if (value === "+") {
+        value = "+966";
+      } else if (value.length > 0) {
+        value = "+966" + value;
+      }
+    }
+
+    // Limit length to +966 + 9 digits = 13 characters
+    if (value.length > 13) {
+      value = value.substring(0, 13);
+    }
+
+    setPhoneNumber(value);
     if (error) setError(""); // Clear error when user starts typing
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="absolute top-4 left-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4 relative overflow-hidden">
+      {/* Decorative background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 right-20 w-72 h-72 bg-primary/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-20 left-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl"></div>
+      </div>
+
+      <div className="absolute top-4 left-4 z-10">
         <ThemeToggle />
       </div>
-      
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-3xl font-bold text-center">
+
+      <Card className="w-full max-w-md shadow-2xl border-primary/10 relative z-10 backdrop-blur-sm bg-background/95">
+        <CardHeader className="space-y-4 pb-6">
+          {/* Organization Logo */}
+          <div className="flex justify-center">
+            <div className="relative w-24 h-24">
+              <Image
+                src="/شعار الجمعية (1).png"
+                alt="شعار جمعية خير"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+          </div>
+
+          <CardTitle className="text-4xl font-bold text-center bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
             جمعية خير
           </CardTitle>
-          <CardDescription className="text-center text-lg">
+          <CardDescription className="text-center text-lg font-medium">
             نظام إدارة الحلقات القرآنية
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <CardContent className="pb-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="email">البريد الإلكتروني</Label>
+              <Label htmlFor="phoneNumber" className="text-base">رقم الجوال</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="أدخل بريدك الإلكتروني"
-                value={email}
-                onChange={handleEmailChange}
+                id="phoneNumber"
+                type="tel"
+                placeholder="+966 5XXXXXXXX"
+                value={phoneNumber}
+                onChange={handlePhoneNumberChange}
                 required
                 disabled={loading}
-                className="text-right"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">كلمة المرور</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="أدخل كلمة المرور"
-                value={password}
-                onChange={handlePasswordChange}
-                required
-                disabled={loading}
-                className="text-right"
+                className="text-right h-12 text-lg"
+                dir="ltr"
               />
             </div>
             {error && (
-              <div className="text-sm text-red-500 text-center">
+              <div className="text-sm text-red-500 text-center bg-red-50 dark:bg-red-950/30 p-3 rounded-md border border-red-200 dark:border-red-900">
                 {error}
               </div>
             )}
             <Button
               type="submit"
-              className="w-full"
+              className="w-full shadow-lg hover:shadow-xl transition-all duration-200"
               disabled={loading}
               size="lg"
             >
@@ -100,10 +135,9 @@ export default function LoginPage() {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="text-center text-sm text-muted-foreground">
-          <p className="w-full">
-            في حالة نسيان كلمة المرور، تواصل مع المشرف
-          </p>
+        <CardFooter className="text-center text-sm text-muted-foreground border-t pt-6 flex-col gap-3">
+          <p>مرحباً بك في نظام إدارة الحلقات القرآنية</p>
+       
         </CardFooter>
       </Card>
     </div>

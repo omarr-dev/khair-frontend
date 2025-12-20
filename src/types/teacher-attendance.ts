@@ -74,3 +74,4 @@ export interface MonthlyAttendanceReport {
   teachers: TeacherMonthlySummary[];
 }
 
+

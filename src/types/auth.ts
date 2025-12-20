@@ -1,9 +1,8 @@
 export interface User {
   id: number;
-  email: string;
+  phoneNumber: string;
   fullName: string;
   role: string;
-  phoneNumber?: string;
   teacherId?: number;
 }
 
@@ -13,4 +12,5 @@ export interface AuthResponse {
   expiresAt: string;
   user: User;
 }
+
 

@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { halaqatApi } from "@/services";
 import { HalaqaHierarchy } from "@/types/halaqa";
@@ -40,12 +39,21 @@ import {
   Eye,
   GraduationCap,
   MapPin,
+  MoreVertical,
   Plus,
   Search,
   Trash2,
   UserCheck,
   Users,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { HalaqatPageSkeleton } from "@/components/shared/loading-states";
+import { EmptyState } from "@/components/shared/empty-state";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -210,22 +218,7 @@ export default function HalaqatPage() {
   const totalTeachers = halaqat.reduce((sum, h) => sum + h.teacherCount, 0);
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <Skeleton className="h-9 w-32" />
-          <Skeleton className="h-10 w-40" />
-        </div>
-        <div className="grid gap-4 md:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-24" />
-          ))}
-        </div>
-        {[1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-20" />
-        ))}
-      </div>
-    );
+    return <HalaqatPageSkeleton />;
   }
 
   return (
@@ -246,7 +239,7 @@ export default function HalaqatPage() {
                 إضافة حلقة جديدة
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
                   {editingHalaqa ? "تعديل الحلقة" : "إضافة حلقة جديدة"}
@@ -258,13 +251,20 @@ export default function HalaqatPage() {
               <form onSubmit={handleSubmit}>
                 <div className="grid gap-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">اسم الحلقة</Label>
+                    <Label htmlFor="name">
+                      اسم الحلقة
+                      <span className="text-destructive mr-1" aria-label="مطلوب">
+                        *
+                      </span>
+                    </Label>
                     <Input
                       id="name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="مثال: حلقة النعمان بن مقرن"
                       required
+                      className="h-11"
+                      aria-required="true"
                     />
                   </div>
                   <div className="space-y-2">
@@ -274,6 +274,7 @@ export default function HalaqatPage() {
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
                       placeholder="مثال: المسجد الإسراء"
+                      className="h-11"
                     />
                   </div>
                   <div className="space-y-2">
@@ -283,11 +284,12 @@ export default function HalaqatPage() {
                       value={timeSlot}
                       onChange={(e) => setTimeSlot(e.target.value)}
                       placeholder="مثال: المغرب"
+                      className="h-11"
                     />
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button type="submit">
+                <DialogFooter className="gap-2">
+                  <Button type="submit" className="w-full sm:w-auto">
                     {editingHalaqa ? "تحديث" : "حفظ"}
                   </Button>
                 </DialogFooter>
@@ -298,7 +300,7 @@ export default function HalaqatPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -348,111 +350,189 @@ export default function HalaqatPage() {
       </div>
 
       {/* Search */}
-      <div className="relative">
-        <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div role="search" className="relative">
+        <Search
+          className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground"
+          aria-hidden="true"
+        />
         <Input
           placeholder="البحث عن حلقة، معلم، أو طالب..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="pr-10"
+          className="pr-10 h-11"
+          aria-label="البحث عن حلقة، معلم، أو طالب"
         />
       </div>
 
       {/* Hierarchical Tree View */}
       <div className="space-y-4">
         {filteredHalaqat.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              {searchTerm ? "لا توجد نتائج للبحث" : "لا توجد حلقات"}
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={searchTerm ? Search : BookOpen}
+            title={searchTerm ? "لا توجد نتائج للبحث" : "لا توجد حلقات"}
+            description={
+              searchTerm
+                ? "حاول البحث بكلمات مختلفة"
+                : "ابدأ بإضافة حلقة جديدة"
+            }
+            action={
+              !searchTerm && user?.role === "Supervisor"
+                ? {
+                    label: "إضافة حلقة جديدة",
+                    onClick: () => setIsDialogOpen(true),
+                  }
+                : undefined
+            }
+          />
         ) : (
           filteredHalaqat.map((halaqa) => (
             <div key={halaqa.id} className="space-y-2">
               {/* Level 1: Halaqa Header */}
               <div
                 className={cn(
-                  "flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors",
+                  "flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 sm:p-4 rounded-lg border cursor-pointer transition-colors",
                   "bg-primary/5 border-primary/20 hover:bg-primary/10"
                 )}
                 onClick={() => toggleHalaqa(halaqa.id)}
+                role="button"
+                tabIndex={0}
+                aria-expanded={!collapsedHalaqat.has(halaqa.id)}
+                aria-label={`حلقة ${halaqa.name}`}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    toggleHalaqa(halaqa.id);
+                  }
+                }}
               >
-                <div className="flex items-center gap-3 flex-1">
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <BookOpen className="h-6 w-6 text-primary" />
+                <div className="flex items-center gap-3 flex-1 w-full">
+                  <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-xl font-bold">{halaqa.name}</h2>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <h2 className="text-lg sm:text-xl font-bold">
+                        {halaqa.name}
+                      </h2>
                       {!halaqa.isActive && (
-                        <Badge variant="secondary">غير نشط</Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          غير نشط
+                        </Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
                       {halaqa.location && (
                         <span className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {halaqa.location}
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{halaqa.location}</span>
                         </span>
                       )}
                       {halaqa.timeSlot && (
                         <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
+                          <Clock className="h-3 w-3 shrink-0" />
                           {halaqa.timeSlot}
                         </span>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <Badge variant="secondary" className="gap-1">
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="secondary" className="gap-1 text-xs">
                       <UserCheck className="h-3 w-3" />
                       {halaqa.teacherCount} معلم
                     </Badge>
-                    <Badge variant="outline" className="gap-1">
+                    <Badge variant="outline" className="gap-1 text-xs">
                       <Users className="h-3 w-3" />
                       {halaqa.studentCount} طالب
                     </Badge>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 mr-4">
-                  {user?.role === "Supervisor" && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditDialog(halaqa);
-                        }}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openDeleteDialog(halaqa);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
-                  {collapsedHalaqat.has(halaqa.id) ? (
-                    <ChevronDown className="h-5 w-5 text-primary" />
-                  ) : (
-                    <ChevronUp className="h-5 w-5 text-primary" />
-                  )}
+                  <div className="flex items-center gap-2">
+                    {user?.role === "Supervisor" && (
+                      <>
+                        {/* Desktop action buttons */}
+                        <div className="hidden sm:flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditDialog(halaqa);
+                            }}
+                            aria-label={`تعديل ${halaqa.name}`}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openDeleteDialog(halaqa);
+                            }}
+                            aria-label={`حذف ${halaqa.name}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        {/* Mobile dropdown menu */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="sm:hidden h-8 w-8 p-0"
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label="خيارات الحلقة"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEditDialog(halaqa);
+                              }}
+                            >
+                              <Edit className="h-4 w-4 ml-2" />
+                              تعديل
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDeleteDialog(halaqa);
+                              }}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 ml-2" />
+                              حذف
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </>
+                    )}
+                    {collapsedHalaqat.has(halaqa.id) ? (
+                      <ChevronDown
+                        className="h-5 w-5 text-primary"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <ChevronUp
+                        className="h-5 w-5 text-primary"
+                        aria-hidden="true"
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* Level 2: Teachers (Nested under Halaqa) */}
               {!collapsedHalaqat.has(halaqa.id) && (
-                <div className="space-y-2 pr-6">
+                <div className="space-y-2 pr-2 sm:pr-4 lg:pr-6">
                   {halaqa.teachers.length === 0 ? (
-                    <div className="p-4 text-sm text-muted-foreground text-center bg-muted/50 rounded-lg mr-4">
+                    <div className="p-4 text-sm text-muted-foreground text-center bg-muted/50 rounded-lg mr-2 sm:mr-4">
                       لا يوجد معلمين في هذه الحلقة
                     </div>
                   ) : (
@@ -461,41 +541,43 @@ export default function HalaqatPage() {
                         {/* Teacher Header */}
                         <div
                           className={cn(
-                            "flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors mr-4",
+                            "flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 p-3 rounded-lg border cursor-pointer transition-colors mr-2 sm:mr-4",
                             "bg-secondary/30 border-secondary/50 hover:bg-secondary/50"
                           )}
                           onClick={() => toggleTeacher(halaqa.id, teacher.id)}
                         >
-                          <div className="flex items-center gap-3 flex-1">
-                            <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center">
+                          <div className="flex items-center gap-3 flex-1 w-full">
+                            <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
                               <UserCheck className="h-5 w-5" />
                             </div>
-                            <div className="flex-1">
-                              <h3 className="font-semibold">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold truncate">
                                 {teacher.fullName}
                               </h3>
                               {teacher.phoneNumber && (
                                 <p
-                                  className="text-sm text-muted-foreground"
+                                  className="hidden sm:block text-sm text-muted-foreground"
                                   dir="ltr"
                                 >
                                   {teacher.phoneNumber}
                                 </p>
                               )}
                             </div>
-                            <Badge variant="outline" className="gap-1">
+                          </div>
+                          <div className="flex items-center gap-2 w-full sm:w-auto justify-between">
+                            <Badge variant="outline" className="gap-1 text-xs">
                               <Users className="h-3 w-3" />
                               {teacher.studentCount} طالب
                             </Badge>
-                          </div>
-                          <div className="mr-2">
-                            {collapsedTeachers.has(
-                              `${halaqa.id}-${teacher.id}`
-                            ) ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronUp className="h-4 w-4" />
-                            )}
+                            <div>
+                              {collapsedTeachers.has(
+                                `${halaqa.id}-${teacher.id}`
+                              ) ? (
+                                <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                              ) : (
+                                <ChevronUp className="h-4 w-4" aria-hidden="true" />
+                              )}
+                            </div>
                           </div>
                         </div>
 
@@ -503,29 +585,38 @@ export default function HalaqatPage() {
                         {!collapsedTeachers.has(
                           `${halaqa.id}-${teacher.id}`
                         ) && (
-                          <div className="space-y-1 pr-6 mr-4">
+                          <div className="space-y-1 pr-2 sm:pr-4 lg:pr-6 mr-2 sm:mr-4">
                             {teacher.students.length === 0 ? (
-                              <div className="p-3 text-sm text-muted-foreground text-center bg-muted/30 rounded-lg mr-4">
+                              <div className="p-3 text-sm text-muted-foreground text-center bg-muted/30 rounded-lg mr-2 sm:mr-4">
                                 لا يوجد طلاب مسجلين لهذا المعلم
                               </div>
                             ) : (
                               teacher.students.map((student) => (
                                 <Card
                                   key={student.id}
-                                  className="mr-4 cursor-pointer hover:shadow-md transition-shadow"
+                                  className="mr-2 sm:mr-4 cursor-pointer hover:shadow-md transition-shadow focus-visible:ring-2 focus-visible:ring-primary"
                                   onClick={() =>
                                     router.push(`/my-students/${student.id}`)
                                   }
+                                  role="button"
+                                  tabIndex={0}
+                                  aria-label={`عرض تفاصيل الطالب ${student.fullName}`}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      router.push(`/my-students/${student.id}`);
+                                    }
+                                  }}
                                 >
-                                  <CardContent className="p-3">
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex items-center gap-3">
-                                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
+                                  <CardContent className="p-3 sm:p-4">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium shrink-0">
                                           {student.fullName.charAt(0)}
                                         </div>
-                                        <div>
-                                          <div className="flex items-center gap-2">
-                                            <span className="font-medium">
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1">
+                                            <span className="font-medium truncate">
                                               {student.fullName}
                                             </span>
                                             <Badge
@@ -535,7 +626,7 @@ export default function HalaqatPage() {
                                                   ? "default"
                                                   : "secondary"
                                               }
-                                              className="text-xs"
+                                              className="text-xs self-start sm:self-auto"
                                             >
                                               {student.memorizationDirection ===
                                               "Forward" ? (
@@ -549,15 +640,17 @@ export default function HalaqatPage() {
                                                 : "من الناس"}
                                             </Badge>
                                           </div>
-                                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-xs text-muted-foreground">
                                             <span className="flex items-center gap-1">
-                                              <BookOpen className="h-3 w-3" />
-                                              {student.currentSurahName ||
-                                                "الفاتحة"}
-                                              {student.currentVerse > 0 &&
-                                                ` - آية ${student.currentVerse}`}
+                                              <BookOpen className="h-3 w-3 shrink-0" />
+                                              <span className="truncate">
+                                                {student.currentSurahName ||
+                                                  "الفاتحة"}
+                                                {student.currentVerse > 0 &&
+                                                  ` - آية ${student.currentVerse}`}
+                                              </span>
                                             </span>
-                                            <span className="flex items-center gap-1">
+                                            <span className="flex items-center gap-1 shrink-0">
                                               <GraduationCap className="h-3 w-3" />
                                               {student.juzMemorized.toFixed(1)}{" "}
                                               جزء
@@ -565,7 +658,12 @@ export default function HalaqatPage() {
                                           </div>
                                         </div>
                                       </div>
-                                      <Button size="sm" variant="ghost">
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="hidden sm:flex shrink-0"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
                                         <Eye className="h-4 w-4" />
                                       </Button>
                                     </div>

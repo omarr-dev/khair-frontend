@@ -112,8 +112,8 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-2">
-        <ul className="space-y-1">
+      <nav className="flex-1 overflow-y-auto p-2" aria-label="القائمة الرئيسية">
+        <ul className="space-y-1" role="list">
           {menuItems.map((item) => {
             const isActive = pathname === item.href;
             return (
@@ -122,13 +122,15 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
                   href={item.href}
                   onClick={onItemClick}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                     isActive
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   )}
+                  aria-current={isActive ? "page" : undefined}
+                  aria-label={item.title}
                 >
-                  <item.icon className="h-5 w-5 shrink-0" />
+                  <item.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
                   {showText && <span>{item.title}</span>}
                 </Link>
               </li>
@@ -144,9 +146,10 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
             <Button
               variant="ghost"
               className={cn(
-                "flex w-full items-center gap-3 h-auto py-3",
+                "flex w-full items-center gap-3 h-auto py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                 showText ? "justify-start px-3" : "justify-center px-0"
               )}
+              aria-label={`قائمة المستخدم: ${user?.fullName}`}
             >
               <Avatar className="h-9 w-9 shrink-0">
                 <AvatarFallback className="bg-primary text-primary-foreground">
@@ -167,7 +170,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
             <DropdownMenuLabel>حسابي</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => logout()}>
-              <LogOut className="ml-2 h-4 w-4" />
+              <LogOut className="ml-2 h-4 w-4" aria-hidden="true" />
               <span>تسجيل الخروج</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -207,14 +210,17 @@ export function AppSidebar() {
       {/* Collapse toggle button */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -left-3 top-20 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-accent"
+        className="absolute -left-3 top-20 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         title={isCollapsed ? "توسيع" : "طي"}
+        aria-label={isCollapsed ? "توسيع القائمة الجانبية" : "طي القائمة الجانبية"}
+        aria-expanded={!isCollapsed}
       >
         <ChevronLeft
           className={cn(
             "h-4 w-4 transition-transform",
             isCollapsed ? "rotate-180" : ""
           )}
+          aria-hidden="true"
         />
       </button>
     </aside>

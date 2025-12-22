@@ -38,20 +38,25 @@ function MotivationalPoem() {
 
 interface StatBoxProps {
   icon: React.ElementType;
-  value: number;
+  value: number | null;
   label: string;
   iconColor: string;
   iconBgColor: string;
+  loading?: boolean;
 }
 
-function StatBox({ icon: Icon, value, label, iconColor, iconBgColor }: StatBoxProps) {
+function StatBox({ icon: Icon, value, label, iconColor, iconBgColor, loading = false }: StatBoxProps) {
   return (
     <div className="flex flex-col items-center text-center gap-2">
       <div className={cn("p-3 rounded-full", iconBgColor)}>
         <Icon className={cn("h-5 w-5", iconColor)} />
       </div>
-      <div className="text-3xl sm:text-4xl font-bold text-foreground">
-        {toArabicNumerals(value)}
+      <div className="text-3xl sm:text-4xl font-bold text-foreground min-h-[44px] flex items-center justify-center">
+        {loading || value === null ? (
+          <Skeleton className="h-10 w-16" />
+        ) : (
+          toArabicNumerals(value)
+        )}
       </div>
       <p className="text-xs sm:text-sm text-muted-foreground leading-tight max-w-[140px]">
         {label}
@@ -80,30 +85,12 @@ export function MotivationCard() {
     }
   };
 
-  if (loading) {
-    return (
-      <Card className="overflow-hidden bg-gradient-to-br from-primary/5 via-background to-secondary/10 border-primary/20">
-        <CardContent className="p-6">
-          <Skeleton className="h-20 w-full mb-4" />
-          <div className="flex justify-center gap-8">
-            <Skeleton className="h-24 w-32" />
-            <Skeleton className="h-24 w-32" />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!stats) {
-    return null;
-  }
-
   return (
     <Card className="overflow-hidden bg-gradient-to-br from-primary/5 via-background to-secondary/10 border-primary/20">
       <CardContent className="p-4 sm:p-6">
         {/* Motivational Poem */}
         <MotivationalPoem />
-        
+
         {/* Divider */}
         <div className="flex items-center gap-4 my-4">
           <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
@@ -112,8 +99,8 @@ export function MotivationCard() {
         </div>
 
         {/* Tabs for Today/Week */}
-        <Tabs 
-          value={activeTab} 
+        <Tabs
+          value={activeTab}
           onValueChange={(v) => setActiveTab(v as "today" | "week")}
           className="w-full"
         >
@@ -129,17 +116,19 @@ export function MotivationCard() {
             <div className="flex flex-row items-start justify-center gap-8 sm:gap-16 md:gap-24">
               <StatBox
                 icon={BookOpen}
-                value={stats.todayVersesMemorized}
+                value={stats?.todayVersesMemorized ?? null}
                 label="آية تم حفظها اليوم"
                 iconColor="text-emerald-600"
                 iconBgColor="bg-emerald-100 dark:bg-emerald-900/30"
+                loading={loading}
               />
               <StatBox
                 icon={Users}
-                value={stats.todayStudentsActive}
+                value={stats?.todayStudentsActive ?? null}
                 label="طالب يتعلمون كتاب الله"
                 iconColor="text-violet-600"
                 iconBgColor="bg-violet-100 dark:bg-violet-900/30"
+                loading={loading}
               />
             </div>
           </TabsContent>
@@ -149,17 +138,19 @@ export function MotivationCard() {
             <div className="flex flex-row items-start justify-center gap-8 sm:gap-16 md:gap-24">
               <StatBox
                 icon={BookOpen}
-                value={stats.weekVersesMemorized}
+                value={stats?.weekVersesMemorized ?? null}
                 label="آية تم حفظها هذا الأسبوع"
                 iconColor="text-emerald-600"
                 iconBgColor="bg-emerald-100 dark:bg-emerald-900/30"
+                loading={loading}
               />
               <StatBox
                 icon={Users}
-                value={stats.weekStudentsActive}
+                value={stats?.weekStudentsActive ?? null}
                 label="طالب يتعلمون كتاب الله"
                 iconColor="text-violet-600"
                 iconBgColor="bg-violet-100 dark:bg-violet-900/30"
+                loading={loading}
               />
             </div>
           </TabsContent>

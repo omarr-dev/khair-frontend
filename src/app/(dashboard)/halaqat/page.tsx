@@ -54,6 +54,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { HalaqatPageSkeleton } from "@/components/shared/loading-states";
 import { EmptyState } from "@/components/shared/empty-state";
+import { DaySelector, formatActiveDays } from "@/components/shared/day-selector";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -85,6 +86,7 @@ export default function HalaqatPage() {
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
   const [timeSlot, setTimeSlot] = useState("");
+  const [activeDays, setActiveDays] = useState("");
 
   useEffect(() => {
     fetchHalaqat();
@@ -109,6 +111,7 @@ export default function HalaqatPage() {
     setName("");
     setLocation("");
     setTimeSlot("");
+    setActiveDays("");
     setEditingHalaqa(null);
   };
 
@@ -117,6 +120,7 @@ export default function HalaqatPage() {
     setName(halaqa.name);
     setLocation(halaqa.location || "");
     setTimeSlot(halaqa.timeSlot || "");
+    setActiveDays(halaqa.activeDays || "");
     setIsDialogOpen(true);
   };
 
@@ -128,6 +132,7 @@ export default function HalaqatPage() {
           name,
           location: location || undefined,
           timeSlot: timeSlot || undefined,
+          activeDays: activeDays || undefined,
           isActive: editingHalaqa.isActive,
         });
         toast.success("تم تحديث الحلقة بنجاح");
@@ -136,6 +141,7 @@ export default function HalaqatPage() {
           name,
           location: location || undefined,
           timeSlot: timeSlot || undefined,
+          activeDays: activeDays || undefined,
         });
         toast.success("تم إضافة الحلقة بنجاح");
       }
@@ -287,6 +293,13 @@ export default function HalaqatPage() {
                       className="h-11"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label>أيام الحلقة النشطة</Label>
+                    <DaySelector
+                      selectedDays={activeDays}
+                      onChange={setActiveDays}
+                    />
+                  </div>
                 </div>
                 <DialogFooter className="gap-2">
                   <Button type="submit" className="w-full sm:w-auto">
@@ -432,6 +445,11 @@ export default function HalaqatPage() {
                           <Clock className="h-3 w-3 shrink-0" />
                           {halaqa.timeSlot}
                         </span>
+                      )}
+                      {halaqa.activeDays && (
+                        <Badge variant="outline" className="gap-1 text-xs">
+                          {formatActiveDays(halaqa.activeDays)}
+                        </Badge>
                       )}
                     </div>
                   </div>

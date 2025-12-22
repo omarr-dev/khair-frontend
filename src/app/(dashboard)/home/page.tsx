@@ -107,7 +107,7 @@ export default function HomePage() {
       <div className="space-y-6">
         {/* Welcome Section */}
         <div className="mb-4">
-          <h1 className="text-3xl font-bold mb-2">حيَّاك الله، {user?.fullName}</h1>
+          <h1 className="text-3xl font-bold mb-2">حيَّاك الله، {user?.fullName.split(' ')[0]}</h1>
           <p className="text-muted-foreground">
             لوحة التحكم - نظرة شاملة على أداء الحلقات
           </p>
@@ -384,8 +384,8 @@ export default function HomePage() {
     <div className="space-y-6">
       {/* Welcome Section */}
       <div className="mb-4">
-        <h1 className="text-3xl font-bold mb-2">حيَّاك الله، {user?.fullName}</h1>
-  
+        <h1 className="text-3xl font-bold mb-2">حيَّاك الله، {user?.fullName.split(' ')[0]}</h1>
+
       </div>
 
       {/* Motivation Card with Stats */}

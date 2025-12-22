@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatSaudiPhoneNumber } from "@/lib/phone-formatter";
 import {
   Dialog,
   DialogContent,
@@ -111,8 +112,6 @@ export default function TeachersPage() {
   const debouncedSearch = useDebounceValue(searchTerm, 300);
 
   // Form state
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [qualification, setQualification] = useState("");
@@ -161,8 +160,6 @@ export default function TeachersPage() {
   };
 
   const resetForm = () => {
-    setEmail("");
-    setPassword("");
     setFullName("");
     setPhoneNumber("");
     setQualification("");
@@ -240,13 +237,16 @@ export default function TeachersPage() {
     }
   };
 
+  const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formattedValue = formatSaudiPhoneNumber(e.target.value);
+    setPhoneNumber(formattedValue);
+  };
+
   const openEditDialog = (teacher: Teacher) => {
     setEditingTeacher(teacher);
-    setEmail(teacher.email);
     setFullName(teacher.fullName);
     setPhoneNumber(teacher.phoneNumber || "");
     setQualification(teacher.qualification || "");
-    setPassword("");
     setIsDialogOpen(true);
   };
 
@@ -262,10 +262,8 @@ export default function TeachersPage() {
         toast.success("تم تحديث بيانات المعلم بنجاح");
       } else {
         await teachersApi.create({
-          email,
-          password,
+          phoneNumber,
           fullName,
-          phoneNumber: phoneNumber || undefined,
           qualification: qualification || undefined,
         });
         toast.success("تم إضافة المعلم بنجاح");
@@ -345,37 +343,15 @@ export default function TeachersPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">البريد الإلكتروني</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="teacher@khair.com"
-                      required
-                      disabled={!!editingTeacher}
-                    />
-                  </div>
-                  {!editingTeacher && (
-                    <div className="space-y-2">
-                      <Label htmlFor="password">كلمة المرور</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="أدخل كلمة مرور قوية"
-                        required={!editingTeacher}
-                      />
-                    </div>
-                  )}
-                  <div className="space-y-2">
                     <Label htmlFor="phoneNumber">رقم الهاتف</Label>
                     <Input
                       id="phoneNumber"
+                      type="tel"
                       value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      onChange={handlePhoneNumberChange}
                       placeholder="05xxxxxxxx"
+                      required
+                      dir="ltr"
                     />
                   </div>
                   <div className="space-y-2">
@@ -431,7 +407,7 @@ export default function TeachersPage() {
               <div className="relative flex-1">
                 <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="البحث بالاسم أو البريد الإلكتروني..."
+                  placeholder="البحث بالاسم أو رقم الهاتف..."
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);

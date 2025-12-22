@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { toast } from "sonner";
 import Image from "next/image";
+import { formatSaudiPhoneNumber } from "@/lib/phone-formatter";
 
 export default function LoginPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -41,32 +42,8 @@ export default function LoginPage() {
   };
 
   const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value;
-
-    // Remove all non-digit characters except +
-    value = value.replace(/[^\d+]/g, "");
-
-    // Auto-format with +966
-    if (!value.startsWith("+966")) {
-      if (value.startsWith("966")) {
-        value = "+" + value;
-      } else if (value.startsWith("0")) {
-        value = "+966" + value.substring(1);
-      } else if (value.startsWith("5")) {
-        value = "+966" + value;
-      } else if (value === "+") {
-        value = "+966";
-      } else if (value.length > 0) {
-        value = "+966" + value;
-      }
-    }
-
-    // Limit length to +966 + 9 digits = 13 characters
-    if (value.length > 13) {
-      value = value.substring(0, 13);
-    }
-
-    setPhoneNumber(value);
+    const formattedValue = formatSaudiPhoneNumber(e.target.value);
+    setPhoneNumber(formattedValue);
     if (error) setError(""); // Clear error when user starts typing
   };
 

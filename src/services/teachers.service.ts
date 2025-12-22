@@ -16,7 +16,7 @@ export const teachersApi = {
   getByHalaqa: (halaqaId: number) => 
     api.get<Teacher[]>(`/teachers/halaqa/${halaqaId}`),
     
-  create: (data: { email: string; password: string; fullName: string; phoneNumber?: string; qualification?: string }) => 
+  create: (data: { phoneNumber: string; fullName: string; qualification?: string }) =>
     api.post<Teacher>('/teachers', data),
     
   update: (id: number, data: { fullName: string; phoneNumber?: string; qualification?: string }) => 

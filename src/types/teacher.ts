@@ -11,10 +11,8 @@ export interface Teacher {
 }
 
 export interface CreateTeacherDto {
-  email: string;
-  password: string;
+  phoneNumber: string;
   fullName: string;
-  phoneNumber?: string;
   qualification?: string;
 }
 

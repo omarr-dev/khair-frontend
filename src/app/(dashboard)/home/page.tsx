@@ -4,11 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers";
 import { statisticsApi } from "@/services";
-import { 
-  DashboardStats, 
-  SupervisorDashboard, 
-  AttendanceTrend,
-  ProgressTrend,
+import {
+  DashboardStats,
+  SupervisorDashboard,
   HalaqaRanking,
   AtRiskStudent
 } from "@/types/statistics";
@@ -30,26 +28,12 @@ import {
   ArrowDown,
   ChevronLeft,
 } from "lucide-react";
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
 
 export default function HomePage() {
   const { user } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [supervisorDashboard, setSupervisorDashboard] = useState<SupervisorDashboard | null>(null);
-  const [attendanceTrends, setAttendanceTrends] = useState<AttendanceTrend[]>([]);
-  const [progressTrends, setProgressTrends] = useState<ProgressTrend[]>([]);
   const [topHalaqat, setTopHalaqat] = useState<HalaqaRanking[]>([]);
   const [atRiskStudents, setAtRiskStudents] = useState<AtRiskStudent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,14 +67,8 @@ export default function HomePage() {
 
   const fetchSupervisorData = async () => {
     try {
-      const [dashboardRes, attendanceRes, progressRes] = await Promise.all([
-        statisticsApi.getSupervisorDashboard(),
-        statisticsApi.getAttendanceTrends(14),
-        statisticsApi.getProgressTrends(14),
-      ]);
+      const dashboardRes = await statisticsApi.getSupervisorDashboard();
       setSupervisorDashboard(dashboardRes.data);
-      setAttendanceTrends(attendanceRes.data);
-      setProgressTrends(progressRes.data);
     } catch (error) {
       console.error("Error fetching supervisor dashboard:", error);
     } finally {
@@ -208,76 +186,6 @@ export default function HomePage() {
                 {supervisorDashboard.studentsAtRisk}
               </div>
               <p className="text-xs text-muted-foreground">حضور منخفض أو توقف</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Charts Row */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Attendance Trend Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle>اتجاه الحضور (آخر 14 يوم)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {attendanceTrends.length > 0 ? (
-                <ResponsiveContainer width="100%" height={250}>
-                  <LineChart data={attendanceTrends}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="date" 
-                      tickFormatter={(value) => new Date(value).toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' })}
-                    />
-                    <YAxis domain={[0, 100]} />
-                    <Tooltip 
-                      formatter={(value: number) => [`${value}%`, 'نسبة الحضور']}
-                      labelFormatter={(label) => new Date(label).toLocaleDateString('ar-SA')}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="rate" 
-                      stroke="#3B82F6" 
-                      strokeWidth={2}
-                      name="نسبة الحضور"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-                  لا توجد بيانات
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Progress Trend Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle>التقدم اليومي (آخر 14 يوم)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {progressTrends.length > 0 ? (
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={progressTrends}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="date" 
-                      tickFormatter={(value) => new Date(value).toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' })}
-                    />
-                    <YAxis />
-                    <Tooltip 
-                      labelFormatter={(label) => new Date(label).toLocaleDateString('ar-SA')}
-                    />
-                    <Legend />
-                    <Bar dataKey="memorization" fill="#3B82F6" name="حفظ جديد" />
-                    <Bar dataKey="revision" fill="#10B981" name="مراجعة" />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-                  لا توجد بيانات
-                </div>
-              )}
             </CardContent>
           </Card>
         </div>

@@ -64,22 +64,6 @@ export interface SupervisorDashboard {
   atRiskStudents: AtRiskStudent[];
 }
 
-export interface AttendanceTrend {
-  date: string;
-  totalStudents: number;
-  present: number;
-  absent: number;
-  late: number;
-  rate: number;
-}
-
-export interface ProgressTrend {
-  date: string;
-  memorization: number;
-  revision: number;
-  totalVerses: number;
-}
-
 // System-wide statistics for motivation section
 export interface SystemWideStats {
   todayVersesMemorized: number;

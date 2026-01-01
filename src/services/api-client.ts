@@ -7,6 +7,8 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000, // 30 seconds timeout
+  timeoutErrorMessage: 'انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى',
 });
 
 // Request interceptor to add auth token
@@ -41,5 +43,6 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
 
 

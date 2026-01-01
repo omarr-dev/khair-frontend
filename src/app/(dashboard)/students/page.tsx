@@ -47,19 +47,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  Search, 
-  UserPlus, 
-  Edit, 
-  Trash2, 
-  Users, 
+import {
+  Search,
+  UserPlus,
+  Edit,
+  Trash2,
+  Users,
   Eye,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
   Filter,
-  X
+  X,
+  Loader2
 } from "lucide-react";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -81,7 +82,13 @@ export default function StudentsPage() {
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [isDeleteAssignmentDialogOpen, setIsDeleteAssignmentDialogOpen] = useState(false);
   const [assignmentToDelete, setAssignmentToDelete] = useState<StudentAssignment | null>(null);
+  const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
   const { user } = useAuth();
+
+  const handleNavigate = (studentId: number) => {
+    setNavigatingTo(studentId.toString());
+    router.push(`/my-students/${studentId}`);
+  };
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -111,7 +118,7 @@ export default function StudentsPage() {
   const [currentVerse, setCurrentVerse] = useState("0");
   const [selectedHalaqa, setSelectedHalaqa] = useState("");
   const [selectedTeacher, setSelectedTeacher] = useState("");
-  
+
   // Assignment form state
   const [assignHalaqa, setAssignHalaqa] = useState("");
   const [assignTeacher, setAssignTeacher] = useState("");
@@ -142,7 +149,7 @@ export default function StudentsPage() {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      
+
       const params: StudentFilterParams = {
         page,
         pageSize,
@@ -317,7 +324,7 @@ export default function StudentsPage() {
         await studentApi.create(data);
         toast.success("تم إضافة الطالب بنجاح");
       }
-      
+
       setIsDialogOpen(false);
       resetForm();
       fetchStudents();
@@ -437,8 +444,8 @@ export default function StudentsPage() {
                   {!editingStudent && (
                     <div className="space-y-2">
                       <Label>اتجاه الحفظ</Label>
-                      <Select 
-                        value={memorizationDirection} 
+                      <Select
+                        value={memorizationDirection}
                         onValueChange={(v) => setMemorizationDirection(v as "Forward" | "Backward")}
                       >
                         <SelectTrigger>
@@ -470,8 +477,8 @@ export default function StudentsPage() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="teacher">المعلم</Label>
-                        <Select 
-                          value={selectedTeacher} 
+                        <Select
+                          value={selectedTeacher}
                           onValueChange={setSelectedTeacher}
                           disabled={!selectedHalaqa}
                         >
@@ -550,8 +557,8 @@ export default function StudentsPage() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t">
                 <div className="space-y-2">
                   <Label>الحلقة</Label>
-                  <Select 
-                    value={filterHalaqa} 
+                  <Select
+                    value={filterHalaqa}
                     onValueChange={(v) => {
                       setFilterHalaqa(v);
                       setPage(1);
@@ -573,8 +580,8 @@ export default function StudentsPage() {
 
                 <div className="space-y-2">
                   <Label>ترتيب حسب</Label>
-                  <Select 
-                    value={sortBy} 
+                  <Select
+                    value={sortBy}
                     onValueChange={(v) => {
                       setSortBy(v);
                       setPage(1);
@@ -593,8 +600,8 @@ export default function StudentsPage() {
 
                 <div className="space-y-2">
                   <Label>اتجاه الترتيب</Label>
-                  <Select 
-                    value={sortOrder} 
+                  <Select
+                    value={sortOrder}
                     onValueChange={(v) => {
                       setSortOrder(v);
                       setPage(1);
@@ -647,13 +654,18 @@ export default function StudentsPage() {
                     </TableRow>
                   ) : (
                     students.map((student) => (
-                      <TableRow 
+                      <TableRow
                         key={student.id}
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => router.push(`/my-students/${student.id}`)}
+                        className={`cursor-pointer hover:bg-muted/50 ${navigatingTo === student.id.toString() ? 'opacity-70' : ''}`}
+                        onClick={() => handleNavigate(student.id)}
                       >
                         <TableCell className="font-medium">
-                          {student.fullName}
+                          <div className="flex items-center gap-2">
+                            {navigatingTo === student.id.toString() && (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            )}
+                            {student.fullName}
+                          </div>
                         </TableCell>
                         <TableCell>{formatDate(student.dateOfBirth)}</TableCell>
                         <TableCell>{student.guardianName || "-"}</TableCell>
@@ -673,8 +685,9 @@ export default function StudentsPage() {
                                 variant="outline"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  router.push(`/my-students/${student.id}`);
+                                  handleNavigate(student.id);
                                 }}
+                                loading={navigatingTo === student.id.toString()}
                               >
                                 <Eye className="h-4 w-4 ml-1" />
                                 تفاصيل الطالب
@@ -779,7 +792,7 @@ export default function StudentsPage() {
               يمكنك إضافة أو حذف تعيينات الطالب في الحلقات
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             {/* Current Assignments */}
             <div>
@@ -838,8 +851,8 @@ export default function StudentsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="assignTeacher">المعلم</Label>
-                  <Select 
-                    value={assignTeacher} 
+                  <Select
+                    value={assignTeacher}
                     onValueChange={setAssignTeacher}
                     disabled={!assignHalaqa}
                   >
@@ -870,13 +883,13 @@ export default function StudentsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
             <AlertDialogDescription>
-              هل أنت متأكد من حذف الطالب &quot;{studentToDelete?.fullName}&quot;؟ 
+              هل أنت متأكد من حذف الطالب &quot;{studentToDelete?.fullName}&quot;؟
               لا يمكن التراجع عن هذا الإجراء.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
@@ -898,7 +911,7 @@ export default function StudentsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleDeleteAssignment}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >

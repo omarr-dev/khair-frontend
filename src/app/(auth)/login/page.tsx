@@ -16,6 +16,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import Image from "next/image";
 import { formatSaudiPhoneNumber } from "@/lib/phone-formatter";
+import { extractErrorMessage } from "@/lib/error-handler";
 
 export default function LoginPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -32,8 +33,7 @@ export default function LoginPage() {
       await login(phoneNumber);
       toast.success("تم تسجيل الدخول بنجاح");
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error ? err.message : "فشل تسجيل الدخول";
+      const errorMessage = extractErrorMessage(err, "فشل تسجيل الدخول");
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {

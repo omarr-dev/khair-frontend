@@ -45,6 +45,7 @@ import {
   Trash2,
   UserCheck,
   Users,
+  Loader2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -72,7 +73,13 @@ export default function HalaqatPage() {
   const [halaqaToDelete, setHalaqaToDelete] = useState<HalaqaHierarchy | null>(
     null
   );
+  const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
   const { user } = useAuth();
+
+  const handleNavigate = (studentId: number) => {
+    setNavigatingTo(studentId.toString());
+    router.push(`/my-students/${studentId}`);
+  };
 
   // Collapsed state for halaqat and teachers
   const [collapsedHalaqat, setCollapsedHalaqat] = useState<Set<number>>(
@@ -391,9 +398,9 @@ export default function HalaqatPage() {
             action={
               !searchTerm && user?.role === "Supervisor"
                 ? {
-                    label: "إضافة حلقة جديدة",
-                    onClick: () => setIsDialogOpen(true),
-                  }
+                  label: "إضافة حلقة جديدة",
+                  onClick: () => setIsDialogOpen(true),
+                }
                 : undefined
             }
           />
@@ -603,94 +610,98 @@ export default function HalaqatPage() {
                         {!collapsedTeachers.has(
                           `${halaqa.id}-${teacher.id}`
                         ) && (
-                          <div className="space-y-1 pr-2 sm:pr-4 lg:pr-6 mr-2 sm:mr-4">
-                            {teacher.students.length === 0 ? (
-                              <div className="p-3 text-sm text-muted-foreground text-center bg-muted/30 rounded-lg mr-2 sm:mr-4">
-                                لا يوجد طلاب مسجلين لهذا المعلم
-                              </div>
-                            ) : (
-                              teacher.students.map((student) => (
-                                <Card
-                                  key={student.id}
-                                  className="mr-2 sm:mr-4 cursor-pointer hover:shadow-md transition-shadow focus-visible:ring-2 focus-visible:ring-primary"
-                                  onClick={() =>
-                                    router.push(`/my-students/${student.id}`)
-                                  }
-                                  role="button"
-                                  tabIndex={0}
-                                  aria-label={`عرض تفاصيل الطالب ${student.fullName}`}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter" || e.key === " ") {
-                                      e.preventDefault();
-                                      router.push(`/my-students/${student.id}`);
+                            <div className="space-y-1 pr-2 sm:pr-4 lg:pr-6 mr-2 sm:mr-4">
+                              {teacher.students.length === 0 ? (
+                                <div className="p-3 text-sm text-muted-foreground text-center bg-muted/30 rounded-lg mr-2 sm:mr-4">
+                                  لا يوجد طلاب مسجلين لهذا المعلم
+                                </div>
+                              ) : (
+                                teacher.students.map((student) => (
+                                  <Card
+                                    key={student.id}
+                                    className={`mr-2 sm:mr-4 cursor-pointer hover:shadow-md transition-shadow focus-visible:ring-2 focus-visible:ring-primary ${navigatingTo === student.id.toString() ? 'opacity-70' : ''}`}
+                                    onClick={() =>
+                                      handleNavigate(student.id)
                                     }
-                                  }}
-                                >
-                                  <CardContent className="p-3 sm:p-4">
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                      <div className="flex items-start gap-3 flex-1 min-w-0">
-                                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium shrink-0">
-                                          {student.fullName.charAt(0)}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1">
-                                            <span className="font-medium truncate">
-                                              {student.fullName}
-                                            </span>
-                                            <Badge
-                                              variant={
-                                                student.memorizationDirection ===
-                                                "Forward"
-                                                  ? "default"
-                                                  : "secondary"
-                                              }
-                                              className="text-xs self-start sm:self-auto"
-                                            >
-                                              {student.memorizationDirection ===
-                                              "Forward" ? (
-                                                <ArrowDown className="h-2 w-2 ml-1" />
-                                              ) : (
-                                                <ArrowUp className="h-2 w-2 ml-1" />
-                                              )}
-                                              {student.memorizationDirection ===
-                                              "Forward"
-                                                ? "من الفاتحة"
-                                                : "من الناس"}
-                                            </Badge>
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-label={`عرض تفاصيل الطالب ${student.fullName}`}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        handleNavigate(student.id);
+                                      }
+                                    }}
+                                  >
+                                    <CardContent className="p-3 sm:p-4">
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                                          <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium shrink-0">
+                                            {navigatingTo === student.id.toString() ? (
+                                              <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                              student.fullName.charAt(0)
+                                            )}
                                           </div>
-                                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-xs text-muted-foreground">
-                                            <span className="flex items-center gap-1">
-                                              <BookOpen className="h-3 w-3 shrink-0" />
-                                              <span className="truncate">
-                                                {student.currentSurahName ||
-                                                  "الفاتحة"}
-                                                {student.currentVerse > 0 &&
-                                                  ` - آية ${student.currentVerse}`}
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1">
+                                              <span className="font-medium truncate">
+                                                {student.fullName}
                                               </span>
-                                            </span>
-                                            <span className="flex items-center gap-1 shrink-0">
-                                              <GraduationCap className="h-3 w-3" />
-                                              {student.juzMemorized.toFixed(1)}{" "}
-                                              جزء
-                                            </span>
+                                              <Badge
+                                                variant={
+                                                  student.memorizationDirection ===
+                                                    "Forward"
+                                                    ? "default"
+                                                    : "secondary"
+                                                }
+                                                className="text-xs self-start sm:self-auto"
+                                              >
+                                                {student.memorizationDirection ===
+                                                  "Forward" ? (
+                                                  <ArrowDown className="h-2 w-2 ml-1" />
+                                                ) : (
+                                                  <ArrowUp className="h-2 w-2 ml-1" />
+                                                )}
+                                                {student.memorizationDirection ===
+                                                  "Forward"
+                                                  ? "من الفاتحة"
+                                                  : "من الناس"}
+                                              </Badge>
+                                            </div>
+                                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-xs text-muted-foreground">
+                                              <span className="flex items-center gap-1">
+                                                <BookOpen className="h-3 w-3 shrink-0" />
+                                                <span className="truncate">
+                                                  {student.currentSurahName ||
+                                                    "الفاتحة"}
+                                                  {student.currentVerse > 0 &&
+                                                    ` - آية ${student.currentVerse}`}
+                                                </span>
+                                              </span>
+                                              <span className="flex items-center gap-1 shrink-0">
+                                                <GraduationCap className="h-3 w-3" />
+                                                {student.juzMemorized.toFixed(1)}{" "}
+                                                جزء
+                                              </span>
+                                            </div>
                                           </div>
                                         </div>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="hidden sm:flex shrink-0"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <Eye className="h-4 w-4" />
+                                        </Button>
                                       </div>
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        className="hidden sm:flex shrink-0"
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
-                                        <Eye className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              ))
-                            )}
-                          </div>
-                        )}
+                                    </CardContent>
+                                  </Card>
+                                ))
+                              )}
+                            </div>
+                          )}
                       </div>
                     ))
                   )}

@@ -42,7 +42,7 @@ import {
   Eye,
 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { extractErrorMessage } from "@/lib/error-handler";
 
 // Helper function to get surah name by number
 const getSurahName = (number: number) => {
@@ -63,7 +63,8 @@ export default function MyStudentsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [collapsedHalaqas, setCollapsedHalaqas] = useState<Set<string>>(new Set());
-  
+  const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
+
   // Progress form state
   const [progressStudent, setProgressStudent] = useState<Student | null>(null);
   const [progressType, setProgressType] = useState<"0" | "1">("0");
@@ -73,13 +74,18 @@ export default function MyStudentsPage() {
   const [quality, setQuality] = useState<"0" | "1" | "2" | "3">("0");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  
+
   // Edit memorization dialog state
   const [editStudent, setEditStudent] = useState<Student | null>(null);
   const [editDirection, setEditDirection] = useState<"Forward" | "Backward">("Forward");
   const [editSurah, setEditSurah] = useState("");
   const [editVerse, setEditVerse] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const handleNavigate = (studentId: string | number) => {
+    setNavigatingTo(studentId.toString());
+    router.push(`/my-students/${studentId}`);
+  };
 
   useEffect(() => {
     fetchStudents();
@@ -99,7 +105,8 @@ export default function MyStudentsPage() {
       setStudents(response.data);
     } catch (error) {
       console.error("Error fetching students:", error);
-      toast.error("حدث خطأ أثناء تحميل الطلاب");
+      const errorMessage = extractErrorMessage(error, "حدث خطأ أثناء تحميل الطلاب");
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -113,12 +120,12 @@ export default function MyStudentsPage() {
   const groupedStudents: HalaqaGroup[] = filteredStudents.reduce((groups, student) => {
     const halaqaName = student.currentHalaqa || "بدون حلقة";
     let group = groups.find(g => g.halaqaName === halaqaName);
-    
+
     if (!group) {
       group = { halaqaName, students: [] };
       groups.push(group);
     }
-    
+
     group.students.push(student);
     return groups;
   }, [] as HalaqaGroup[]);
@@ -136,7 +143,7 @@ export default function MyStudentsPage() {
   const handleProgressSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!progressStudent) return;
-    
+
     if (!user?.teacherId) {
       toast.error("لا يمكن تحديد هوية المعلم. يرجى تسجيل الخروج والدخول مرة أخرى.");
       return;
@@ -178,7 +185,8 @@ export default function MyStudentsPage() {
       fetchStudents();
     } catch (error: any) {
       console.error("Error creating progress:", error);
-      toast.error(error.response?.data?.message || "حدث خطأ أثناء حفظ التسميع");
+      const errorMessage = extractErrorMessage(error, "حدث خطأ أثناء حفظ التسميع");
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -208,7 +216,8 @@ export default function MyStudentsPage() {
       fetchStudents();
     } catch (error) {
       console.error("Error updating memorization:", error);
-      toast.error("حدث خطأ أثناء تحديث موضع الحفظ");
+      const errorMessage = extractErrorMessage(error, "حدث خطأ أثناء تحديث موضع الحفظ");
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -271,7 +280,7 @@ export default function MyStudentsPage() {
           groupedStudents.map((group) => (
             <div key={group.halaqaName} className="space-y-3">
               {/* Halaqa Header */}
-              <div 
+              <div
                 className="flex items-center justify-between p-4 bg-primary/5 border border-primary/10 rounded-lg cursor-pointer hover:bg-primary/10 transition-colors"
                 onClick={() => toggleHalaqa(group.halaqaName)}
               >
@@ -299,16 +308,16 @@ export default function MyStudentsPage() {
                   {group.students.map((student) => (
                     <Card
                       key={student.id}
-                      className="transition-all duration-200 hover:shadow-md"
+                      className="transition-all duration-200 hover:shadow-md hover:scale-[1.01] animate-in fade-in slide-in-from-bottom-2"
                     >
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between gap-4">
                           {/* Student Info */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-2">
-                              <h3 
+                              <h3
                                 className="font-semibold text-lg truncate cursor-pointer hover:text-primary transition-colors"
-                                onClick={() => router.push(`/my-students/${student.id}`)}
+                                onClick={() => handleNavigate(student.id)}
                               >
                                 {student.fullName}
                               </h3>
@@ -348,7 +357,8 @@ export default function MyStudentsPage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => router.push(`/my-students/${student.id}`)}
+                              onClick={() => handleNavigate(student.id)}
+                              loading={navigatingTo === student.id.toString()}
                               title="عرض الملف الشخصي"
                             >
                               <Eye className="h-4 w-4" />
@@ -499,8 +509,12 @@ export default function MyStudentsPage() {
               >
                 إلغاء
               </Button>
-              <Button type="submit" disabled={submitting || !selectedSurah || !fromVerse || !toVerse}>
-                {submitting ? "جاري الحفظ..." : "حفظ التسميع"}
+              <Button
+                type="submit"
+                disabled={!selectedSurah || !fromVerse || !toVerse}
+                loading={submitting}
+              >
+                حفظ التسميع
               </Button>
             </DialogFooter>
           </form>
@@ -588,8 +602,8 @@ export default function MyStudentsPage() {
             <Button variant="outline" onClick={() => setEditStudent(null)}>
               إلغاء
             </Button>
-            <Button onClick={handleSaveMemorization} disabled={saving}>
-              {saving ? "جاري الحفظ..." : "حفظ التغييرات"}
+            <Button onClick={handleSaveMemorization} loading={saving}>
+              حفظ التغييرات
             </Button>
           </DialogFooter>
         </DialogContent>

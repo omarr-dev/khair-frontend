@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers";
 import { statisticsApi } from "@/services";
+import { extractErrorMessage } from "@/lib/error-handler";
+import { toast } from "sonner";
 import {
   DashboardStats,
   SupervisorDashboard,
@@ -27,6 +29,7 @@ import {
   Eye,
   ArrowDown,
   ChevronLeft,
+  Loader2,
 } from "lucide-react";
 
 export default function HomePage() {
@@ -37,8 +40,14 @@ export default function HomePage() {
   const [topHalaqat, setTopHalaqat] = useState<HalaqaRanking[]>([]);
   const [atRiskStudents, setAtRiskStudents] = useState<AtRiskStudent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
 
   const isSupervisor = user?.role === "Supervisor";
+
+  const handleNavigate = (path: string) => {
+    setNavigatingTo(path);
+    router.push(path);
+  };
 
   useEffect(() => {
     if (isSupervisor) {
@@ -60,6 +69,8 @@ export default function HomePage() {
       setAtRiskStudents(atRiskRes.data);
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
+      const errorMessage = extractErrorMessage(error, "حدث خطأ أثناء تحميل البيانات");
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -71,6 +82,8 @@ export default function HomePage() {
       setSupervisorDashboard(dashboardRes.data);
     } catch (error) {
       console.error("Error fetching supervisor dashboard:", error);
+      const errorMessage = extractErrorMessage(error, "حدث خطأ أثناء تحميل لوحة التحكم");
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -117,15 +130,19 @@ export default function HomePage() {
         <MotivationCard />
 
         {/* Quick Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card 
-            className="cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => router.push('/halaqat')}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <Card
+            className={`cursor-pointer hover:shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] ${navigatingTo === '/halaqat' ? 'opacity-70' : ''}`}
+            onClick={() => handleNavigate('/halaqat')}
           >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">الحلقات</CardTitle>
               <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                <BookOpen className="h-4 w-4 text-blue-600" />
+                {navigatingTo === '/halaqat' ? (
+                  <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
+                ) : (
+                  <BookOpen className="h-4 w-4 text-blue-600" />
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -134,14 +151,18 @@ export default function HomePage() {
             </CardContent>
           </Card>
 
-          <Card 
-            className="cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => router.push('/students')}
+          <Card
+            className={`cursor-pointer hover:shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] ${navigatingTo === '/students' ? 'opacity-70' : ''}`}
+            onClick={() => handleNavigate('/students')}
           >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">الطلاب</CardTitle>
               <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-                <Users className="h-4 w-4 text-green-600" />
+                {navigatingTo === '/students' ? (
+                  <Loader2 className="h-4 w-4 text-green-600 animate-spin" />
+                ) : (
+                  <Users className="h-4 w-4 text-green-600" />
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -150,14 +171,18 @@ export default function HomePage() {
             </CardContent>
           </Card>
 
-          <Card 
-            className="cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => router.push('/teachers')}
+          <Card
+            className={`cursor-pointer hover:shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] ${navigatingTo === '/teachers' ? 'opacity-70' : ''}`}
+            onClick={() => handleNavigate('/teachers')}
           >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">المعلمين</CardTitle>
               <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
-                <GraduationCap className="h-4 w-4 text-purple-600" />
+                {navigatingTo === '/teachers' ? (
+                  <Loader2 className="h-4 w-4 text-purple-600 animate-spin" />
+                ) : (
+                  <GraduationCap className="h-4 w-4 text-purple-600" />
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -166,7 +191,7 @@ export default function HomePage() {
             </CardContent>
           </Card>
 
-          <Card 
+          <Card
             className={`cursor-pointer hover:shadow-md transition-shadow ${supervisorDashboard.studentsAtRisk > 0 ? "border-red-200 dark:border-red-900" : ""}`}
             onClick={() => {
               const atRiskSection = document.getElementById('at-risk-students');
@@ -191,9 +216,9 @@ export default function HomePage() {
         </div>
 
         {/* Rankings Row */}
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* Top Halaqat */}
-          <Card>
+          <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between">
               <div className="flex flex-col gap-1">
                 <CardTitle className="flex items-center gap-2">
@@ -201,10 +226,10 @@ export default function HomePage() {
                   أفضل الحلقات أداءً
                 </CardTitle>
                 <p className="text-xs text-muted-foreground font-normal">
-                   المعادلة: حضور 60% + مقدار التسميع 40% • آخر أسبوع 📊
+                  المعادلة: حضور 60% + مقدار التسميع 40% • آخر أسبوع 📊
                 </p>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => router.push('/halaqat')}>
+              <Button variant="ghost" size="sm" onClick={() => handleNavigate('/halaqat')} loading={navigatingTo === '/halaqat'}>
                 عرض الكل
               </Button>
             </CardHeader>
@@ -225,13 +250,13 @@ export default function HomePage() {
           </Card>
 
           {/* Top Teachers */}
-          <Card>
+          <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Trophy className="h-5 w-5 text-yellow-500" />
                 أفضل المعلمين أداءً
               </CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => router.push('/teachers')}>
+              <Button variant="ghost" size="sm" onClick={() => handleNavigate('/teachers')} loading={navigatingTo === '/teachers'}>
                 عرض الكل
               </Button>
             </CardHeader>
@@ -243,12 +268,11 @@ export default function HomePage() {
                   supervisorDashboard.topTeachers.map((teacher, index) => (
                     <div key={teacher.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                       <div className="flex items-center gap-3">
-                        <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                          index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' :
                           index === 1 ? 'bg-gray-200 text-gray-700' :
-                          index === 2 ? 'bg-orange-100 text-orange-700' :
-                          'bg-muted text-muted-foreground'
-                        }`}>
+                            index === 2 ? 'bg-orange-100 text-orange-700' :
+                              'bg-muted text-muted-foreground'
+                          }`}>
                           {index + 1}
                         </div>
                         <div>
@@ -282,10 +306,10 @@ export default function HomePage() {
             <CardContent>
               <div className="space-y-3">
                 {supervisorDashboard.atRiskStudents.slice(0, 5).map((student) => (
-                  <div 
-                    key={student.id} 
-                    className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950/20 rounded-lg cursor-pointer hover:bg-red-100 dark:hover:bg-red-950/30 transition-colors"
-                    onClick={() => router.push(`/my-students/${student.id}`)}
+                  <div
+                    key={student.id}
+                    className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950/20 rounded-lg cursor-pointer hover:bg-red-100 dark:hover:bg-red-950/30 transition-all hover:scale-[1.01]"
+                    onClick={() => handleNavigate(`/my-students/${student.id}`)}
                   >
                     <div className="flex-1">
                       <p className="font-medium">{student.fullName}</p>
@@ -392,7 +416,7 @@ export default function HomePage() {
       <MotivationCard />
 
       {/* 2. Quick Access to My Students */}
-      <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 hover:shadow-md transition-shadow">
+      <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 hover:shadow-md transition-all hover:scale-[1.01] animate-in fade-in slide-in-from-bottom-4 duration-300">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -406,10 +430,11 @@ export default function HomePage() {
                 </p>
               </div>
             </div>
-            <Button 
-              size="lg" 
-              onClick={() => router.push('/my-students')}
+            <Button
+              size="lg"
+              onClick={() => handleNavigate('/my-students')}
               className="gap-2"
+              loading={navigatingTo === '/my-students'}
             >
               الذهاب للطلاب
               <ChevronLeft className="h-5 w-5" />
@@ -419,7 +444,7 @@ export default function HomePage() {
       </Card>
 
       {/* 4. Top 5 Halaqat */}
-      <Card>
+      <Card className="hover:shadow-md transition-shadow animate-in fade-in slide-in-from-bottom-4 duration-500">
         <CardHeader className="flex flex-row items-center justify-between">
           <div className="flex flex-col gap-1">
             <CardTitle className="flex items-center gap-2">
@@ -427,7 +452,7 @@ export default function HomePage() {
               أفضل الحلقات أداءً
             </CardTitle>
             <p className="text-xs text-muted-foreground font-normal">
-             المعادلة: حضور 60% + مقدار التسميع 40% • آخر أسبوع 📊
+              المعادلة: حضور 60% + مقدار التسميع 40% • آخر أسبوع 📊
             </p>
           </div>
         </CardHeader>
@@ -459,10 +484,10 @@ export default function HomePage() {
           <CardContent>
             <div className="space-y-3">
               {atRiskStudents.map((student) => (
-                <div 
-                  key={student.id} 
-                  className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950/20 rounded-lg cursor-pointer hover:bg-red-100 dark:hover:bg-red-950/30 transition-colors"
-                  onClick={() => router.push(`/my-students/${student.id}`)}
+                <div
+                  key={student.id}
+                  className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950/20 rounded-lg cursor-pointer hover:bg-red-100 dark:hover:bg-red-950/30 transition-all hover:scale-[1.01]"
+                  onClick={() => handleNavigate(`/my-students/${student.id}`)}
                 >
                   <div className="flex-1">
                     <p className="font-medium">{student.fullName}</p>

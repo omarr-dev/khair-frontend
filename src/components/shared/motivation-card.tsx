@@ -86,7 +86,7 @@ export function MotivationCard() {
   };
 
   return (
-    <Card className="overflow-hidden bg-gradient-to-br from-primary/5 via-background to-secondary/10 border-primary/20">
+    <Card className="overflow-hidden bg-gradient-to-br from-primary/5 via-background to-secondary/10 border-primary/20 animate-in fade-in slide-in-from-top-4 duration-500">
       <CardContent className="p-4 sm:p-6">
         {/* Motivational Poem */}
         <MotivationalPoem />
@@ -112,7 +112,7 @@ export function MotivationCard() {
           </div>
 
           {/* Today's Stats - Centered side by side */}
-          <TabsContent value="today" className="mt-0">
+          <TabsContent value="today" className="mt-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="flex flex-row items-start justify-center gap-8 sm:gap-16 md:gap-24">
               <StatBox
                 icon={BookOpen}
@@ -134,7 +134,7 @@ export function MotivationCard() {
           </TabsContent>
 
           {/* Week's Stats - Centered side by side */}
-          <TabsContent value="week" className="mt-0">
+          <TabsContent value="week" className="mt-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="flex flex-row items-start justify-center gap-8 sm:gap-16 md:gap-24">
               <StatBox
                 icon={BookOpen}

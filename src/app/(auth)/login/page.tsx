@@ -1,6 +1,6 @@
 "use client";
 
-import { ThemeToggle, useAuth } from "@/components/providers";
+import { ThemeToggle, useAuth, useTenant } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,12 +17,14 @@ import { toast } from "sonner";
 import Image from "next/image";
 import { formatSaudiPhoneNumber } from "@/lib/phone-formatter";
 import { extractErrorMessage } from "@/lib/error-handler";
+import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const { tenant, loading: tenantLoading, error: tenantError } = useTenant();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,6 +49,43 @@ export default function LoginPage() {
     if (error) setError(""); // Clear error when user starts typing
   };
 
+  // Show loading state while tenant is being resolved
+  if (tenantLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-muted-foreground">جاري تحميل بيانات الجمعية...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if tenant resolution failed
+  if (tenantError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 via-background to-red-50/30 p-4">
+        <Card className="w-full max-w-md shadow-2xl border-red-200">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl text-red-600">خطأ</CardTitle>
+            <CardDescription className="text-red-500">
+              {tenantError}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <p className="text-muted-foreground">
+              يرجى التأكد من صحة عنوان الجمعية أو المحاولة مرة أخرى لاحقاً.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Get display values - use tenant data if available, otherwise use defaults
+  const displayName = tenant?.displayName || tenant?.name || "جمعية خير";
+  const logoUrl = tenant?.logoUrl || "/شعار الجمعية (1).png";
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4 relative overflow-hidden">
       {/* Decorative background elements */}
@@ -61,21 +100,22 @@ export default function LoginPage() {
 
       <Card className="w-full max-w-md shadow-2xl border-primary/10 relative z-10 backdrop-blur-sm bg-background/95">
         <CardHeader className="space-y-4 pb-6">
-          {/* Organization Logo */}
+          {/* Organization Logo - Dynamic based on tenant */}
           <div className="flex justify-center">
             <div className="relative w-24 h-24">
               <Image
-                src="/شعار الجمعية (1).png"
-                alt="شعار جمعية خير"
+                src={logoUrl}
+                alt={`شعار ${displayName}`}
                 fill
                 className="object-contain"
                 priority
+                unoptimized={logoUrl.startsWith('http')} // Allow external URLs
               />
             </div>
           </div>
 
           <CardTitle className="text-4xl font-bold text-center bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-            جمعية خير
+            {displayName}
           </CardTitle>
           <CardDescription className="text-center text-lg font-medium">
             نظام إدارة الحلقات القرآنية
@@ -114,9 +154,10 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="text-center text-sm text-muted-foreground border-t pt-6 flex-col gap-3">
           <p>مرحباً بك في نظام إدارة الحلقات القرآنية</p>
-       
+
         </CardFooter>
       </Card>
     </div>
   );
 }
+

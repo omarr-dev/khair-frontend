@@ -12,6 +12,8 @@ export * from './attendance';
 export * from './progress';
 export * from './statistics';
 export * from './teacher-attendance';
+export * from './tenant';
+
 
 
 

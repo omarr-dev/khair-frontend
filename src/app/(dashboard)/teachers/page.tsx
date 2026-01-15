@@ -38,17 +38,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  UserPlus, 
-  Edit, 
-  Trash2, 
-  Users, 
-  BookOpen, 
-  Award, 
-  Phone, 
-  Mail, 
-  Plus, 
-  List, 
+import {
+  UserPlus,
+  Edit,
+  Trash2,
+  Users,
+  BookOpen,
+  Award,
+  Phone,
+  Mail,
+  Plus,
+  List,
   X,
   Search,
   Filter,
@@ -116,6 +116,7 @@ export default function TeachersPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [qualification, setQualification] = useState("");
   const [selectedHalaqa, setSelectedHalaqa] = useState("");
+  const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     fetchHalaqat();
@@ -128,7 +129,7 @@ export default function TeachersPage() {
   const fetchTeachers = async () => {
     try {
       setLoading(true);
-      
+
       const params: TeacherFilterParams = {
         page,
         pageSize,
@@ -164,6 +165,7 @@ export default function TeachersPage() {
     setPhoneNumber("");
     setQualification("");
     setEditingTeacher(null);
+    setValidationErrors({});
   };
 
   const resetHalaqaForm = () => {
@@ -271,9 +273,14 @@ export default function TeachersPage() {
       setIsDialogOpen(false);
       resetForm();
       fetchTeachers();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving teacher:", error);
-      toast.error("حدث خطأ أثناء حفظ بيانات المعلم");
+      if (error.response?.status === 400 && error.response?.data?.errors) {
+        setValidationErrors(error.response.data.errors);
+        toast.error("يرجى التأكد من صحة البيانات المدخلة");
+      } else {
+        toast.error("حدث خطأ أثناء حفظ بيانات المعلم");
+      }
     }
   };
 
@@ -337,10 +344,18 @@ export default function TeachersPage() {
                     <Input
                       id="fullName"
                       value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
+                      onChange={(e) => {
+                        setFullName(e.target.value);
+                        if (validationErrors.FullName) {
+                          setValidationErrors({ ...validationErrors, FullName: [] });
+                        }
+                      }}
                       placeholder="أدخل اسم المعلم"
                       required
                     />
+                    {validationErrors.FullName && (
+                      <p className="text-sm text-destructive">{validationErrors.FullName[0]}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phoneNumber">رقم الهاتف</Label>
@@ -348,20 +363,36 @@ export default function TeachersPage() {
                       id="phoneNumber"
                       type="tel"
                       value={phoneNumber}
-                      onChange={handlePhoneNumberChange}
+                      onChange={(e) => {
+                        handlePhoneNumberChange(e);
+                        if (validationErrors.PhoneNumber) {
+                          setValidationErrors({ ...validationErrors, PhoneNumber: [] });
+                        }
+                      }}
                       placeholder="05xxxxxxxx"
                       required
                       dir="ltr"
                     />
+                    {validationErrors.PhoneNumber && (
+                      <p className="text-sm text-destructive">{validationErrors.PhoneNumber[0]}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="qualification">المؤهل</Label>
                     <Input
                       id="qualification"
                       value={qualification}
-                      onChange={(e) => setQualification(e.target.value)}
+                      onChange={(e) => {
+                        setQualification(e.target.value);
+                        if (validationErrors.Qualification) {
+                          setValidationErrors({ ...validationErrors, Qualification: [] });
+                        }
+                      }}
                       placeholder="مثال: إجازة في القرآن الكريم"
                     />
+                    {validationErrors.Qualification && (
+                      <p className="text-sm text-destructive">{validationErrors.Qualification[0]}</p>
+                    )}
                   </div>
                 </div>
                 <DialogFooter>
@@ -436,8 +467,8 @@ export default function TeachersPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
                 <div className="space-y-2">
                   <Label>الحلقة</Label>
-                  <Select 
-                    value={filterHalaqa} 
+                  <Select
+                    value={filterHalaqa}
                     onValueChange={(v) => {
                       setFilterHalaqa(v);
                       setPage(1);
@@ -459,8 +490,8 @@ export default function TeachersPage() {
 
                 <div className="space-y-2">
                   <Label>ترتيب حسب</Label>
-                  <Select 
-                    value={sortBy} 
+                  <Select
+                    value={sortBy}
                     onValueChange={(v) => {
                       setSortBy(v);
                       setPage(1);
@@ -480,8 +511,8 @@ export default function TeachersPage() {
 
                 <div className="space-y-2">
                   <Label>اتجاه الترتيب</Label>
-                  <Select 
-                    value={sortOrder} 
+                  <Select
+                    value={sortOrder}
                     onValueChange={(v) => {
                       setSortOrder(v);
                       setPage(1);
@@ -684,13 +715,13 @@ export default function TeachersPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
             <AlertDialogDescription>
-              هل أنت متأكد من حذف المعلم &quot;{teacherToDelete?.fullName}&quot;؟ 
+              هل أنت متأكد من حذف المعلم &quot;{teacherToDelete?.fullName}&quot;؟
               لا يمكن التراجع عن هذا الإجراء.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
@@ -763,7 +794,7 @@ export default function TeachersPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleRemoveFromHalaqa}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >

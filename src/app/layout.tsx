@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { ThemeProvider, AuthProvider } from "@/components/providers";
+import { ThemeProvider, AuthProvider, TenantProvider } from "@/components/providers";
 import { Toaster } from "sonner";
 import { OfflineBanner } from "@/components/shared/offline-banner";
 
@@ -25,23 +25,26 @@ export default function RootLayout({
           enableSystem={true}
           disableTransitionOnChange
         >
-          <AuthProvider>
-            <OfflineBanner />
-            {children}
-            <Toaster
-              position="top-center"
-              richColors
-              closeButton
-              dir="rtl"
-              toastOptions={{
-                style: {
-                  fontFamily: 'Cairo, Noto Sans Arabic, sans-serif',
-                },
-              }}
-            />
-          </AuthProvider>
+          <TenantProvider>
+            <AuthProvider>
+              <OfflineBanner />
+              {children}
+              <Toaster
+                position="top-center"
+                richColors
+                closeButton
+                dir="rtl"
+                toastOptions={{
+                  style: {
+                    fontFamily: 'Cairo, Noto Sans Arabic, sans-serif',
+                  },
+                }}
+              />
+            </AuthProvider>
+          </TenantProvider>
         </ThemeProvider>
       </body>
     </html>
   );
 }
+

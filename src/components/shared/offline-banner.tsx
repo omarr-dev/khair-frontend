@@ -1,12 +1,19 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { WifiOff } from "lucide-react";
 
 export function OfflineBanner() {
+  const [mounted, setMounted] = useState(false);
   const isOnline = useOnlineStatus();
 
-  if (isOnline) {
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Don't render anything until mounted to prevent hydration mismatch
+  if (!mounted || isOnline) {
     return null;
   }
 

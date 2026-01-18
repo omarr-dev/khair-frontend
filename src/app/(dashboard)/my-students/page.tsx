@@ -311,12 +311,12 @@ export default function MyStudentsPage() {
                       className="transition-all duration-200 hover:shadow-md hover:scale-[1.01] animate-in fade-in slide-in-from-bottom-2"
                     >
                       <CardContent className="p-4">
-                        <div className="flex items-center justify-between gap-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                           {/* Student Info */}
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
                               <h3
-                                className="font-semibold text-lg truncate cursor-pointer hover:text-primary transition-colors"
+                                className="font-semibold text-lg cursor-pointer hover:text-primary transition-colors"
                                 onClick={() => handleNavigate(student.id)}
                               >
                                 {student.fullName}
@@ -353,13 +353,14 @@ export default function MyStudentsPage() {
                           </div>
 
                           {/* Action Buttons */}
-                          <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => handleNavigate(student.id)}
                               loading={navigatingTo === student.id.toString()}
                               title="عرض الملف الشخصي"
+                              className="flex-1 sm:flex-none"
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -368,15 +369,18 @@ export default function MyStudentsPage() {
                               variant="outline"
                               onClick={() => handleEditMemorization(student)}
                               title="تعديل موضع الحفظ"
+                              className="flex-1 sm:flex-none"
                             >
                               <Edit3 className="h-4 w-4" />
                             </Button>
                             <Button
                               size="sm"
                               onClick={() => openProgressForm(student)}
+                              className="flex-1 sm:flex-none"
                             >
                               <GraduationCap className="h-4 w-4 ml-2" />
-                              تسجيل تسميع
+                              <span className="hidden sm:inline">تسجيل تسميع</span>
+                              <span className="sm:hidden">تسميع</span>
                             </Button>
                           </div>
                         </div>

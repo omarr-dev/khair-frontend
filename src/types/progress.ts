@@ -21,7 +21,7 @@ export interface CreateProgressRecord {
   teacherId: number;
   halaqaId: number;
   date: string;
-  type: 0 | 1; // 0: Memorization, 1: Revision
+  type: 0 | 1 | 2; // 0: Memorization (حفظ), 1: Revision (مراجعة), 2: Consolidation (التثبيت)
   surahName: string;
   fromVerse: number;
   toVerse: number;

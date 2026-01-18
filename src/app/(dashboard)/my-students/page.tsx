@@ -67,7 +67,7 @@ export default function MyStudentsPage() {
 
   // Progress form state
   const [progressStudent, setProgressStudent] = useState<Student | null>(null);
-  const [progressType, setProgressType] = useState<"0" | "1">("0");
+  const [progressType, setProgressType] = useState<"0" | "1" | "2">("0");
   const [selectedSurah, setSelectedSurah] = useState("");
   const [fromVerse, setFromVerse] = useState("");
   const [toVerse, setToVerse] = useState("");
@@ -163,7 +163,7 @@ export default function MyStudentsPage() {
         teacherId: user.teacherId,
         halaqaId: activeAssignment.halaqaId,
         date: new Date().toISOString(),
-        type: parseInt(progressType) as 0 | 1,
+        type: parseInt(progressType) as 0 | 1 | 2,
         surahName: selectedSurah,
         fromVerse: parseInt(fromVerse),
         toVerse: parseInt(toVerse),
@@ -408,7 +408,7 @@ export default function MyStudentsPage() {
           <form onSubmit={handleProgressSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label>نوع التسميع</Label>
-              <Select value={progressType} onValueChange={(v) => setProgressType(v as "0" | "1")}>
+              <Select value={progressType} onValueChange={(v) => setProgressType(v as "0" | "1" | "2")}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -423,6 +423,12 @@ export default function MyStudentsPage() {
                     <span className="flex items-center gap-2">
                       <RefreshCw className="h-4 w-4" />
                       مراجعة
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="2">
+                    <span className="flex items-center gap-2">
+                      <BookOpen className="h-4 w-4" />
+                      التثبيت
                     </span>
                   </SelectItem>
                 </SelectContent>

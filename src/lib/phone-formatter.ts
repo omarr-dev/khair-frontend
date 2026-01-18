@@ -10,8 +10,16 @@
  * formatSaudiPhoneNumber("") // returns ""
  */
 export function formatSaudiPhoneNumber(value: string): string {
+  // Convert Arabic-Indic digits (٠-٩) to Western Arabic numerals (0-9)
+  const arabicToEnglishMap: { [key: string]: string } = {
+    '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
+    '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9'
+  };
+  
+  let convertedValue = value.split('').map(char => arabicToEnglishMap[char] || char).join('');
+  
   // Remove all non-digit characters except +
-  let formattedValue = value.replace(/[^\d+]/g, "");
+  let formattedValue = convertedValue.replace(/[^\d+]/g, "");
 
   // If the field is empty or only contains invalid prefixes of +966, allow it to be empty
   if (formattedValue === "" || formattedValue === "+" || formattedValue === "+9" || formattedValue === "+96") {

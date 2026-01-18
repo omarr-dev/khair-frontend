@@ -66,6 +66,8 @@ import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { formatSaudiPhoneNumber } from "@/lib/phone-formatter";
+import { AxiosError } from "axios";
 
 export default function StudentsPage() {
   const router = useRouter();
@@ -340,7 +342,23 @@ export default function StudentsPage() {
       fetchStudents();
     } catch (error) {
       console.error("Error saving student:", error);
-      toast.error("حدث خطأ أثناء حفظ بيانات الطالب");
+      const axiosError = error as AxiosError<{ message?: string; errors?: Record<string, string[]> }>;
+      let errorMessage = "حدث خطأ أثناء حفظ بيانات الطالب";
+      
+      if (axiosError.response?.data) {
+        const data = axiosError.response.data;
+        if (data.message) {
+          errorMessage = data.message;
+        } else if (data.errors) {
+          // Combine all validation errors
+          const allErrors = Object.values(data.errors).flat();
+          if (allErrors.length > 0) {
+            errorMessage = allErrors.join("، ");
+          }
+        }
+      }
+      
+      toast.error(errorMessage);
     }
   };
 
@@ -446,8 +464,9 @@ export default function StudentsPage() {
                       <Input
                         id="guardianPhone"
                         value={guardianPhone}
-                        onChange={(e) => setGuardianPhone(e.target.value)}
-                        placeholder="05xxxxxxxx"
+                        onChange={(e) => setGuardianPhone(formatSaudiPhoneNumber(e.target.value))}
+                        placeholder="+966XXXXXXXXX"
+                        dir="ltr"
                       />
                     </div>
                   </div>
@@ -457,8 +476,9 @@ export default function StudentsPage() {
                       <Input
                         id="phone"
                         value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="+966512345678"
+                        onChange={(e) => setPhone(formatSaudiPhoneNumber(e.target.value))}
+                        placeholder="+966XXXXXXXXX"
+                        dir="ltr"
                       />
                     </div>
                     <div className="space-y-2">

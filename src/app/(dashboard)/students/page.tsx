@@ -113,6 +113,8 @@ export default function StudentsPage() {
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [guardianName, setGuardianName] = useState("");
   const [guardianPhone, setGuardianPhone] = useState("");
+  const [phone, setPhone] = useState("");
+  const [idNumber, setIdNumber] = useState("");
   const [memorizationDirection, setMemorizationDirection] = useState<"Forward" | "Backward">("Forward");
   const [currentSurahNumber, setCurrentSurahNumber] = useState("1");
   const [currentVerse, setCurrentVerse] = useState("0");
@@ -207,6 +209,8 @@ export default function StudentsPage() {
     setDateOfBirth("");
     setGuardianName("");
     setGuardianPhone("");
+    setPhone("");
+    setIdNumber("");
     setMemorizationDirection("Forward");
     setCurrentSurahNumber("1");
     setCurrentVerse("0");
@@ -288,6 +292,8 @@ export default function StudentsPage() {
     setDateOfBirth(student.dateOfBirth || "");
     setGuardianName(student.guardianName || "");
     setGuardianPhone(student.guardianPhone || "");
+    setPhone(student.phone || "");
+    setIdNumber(student.idNumber || "");
     setMemorizationDirection(student.memorizationDirection as "Forward" | "Backward");
     setCurrentSurahNumber(student.currentSurahNumber.toString());
     setCurrentVerse(student.currentVerse.toString());
@@ -303,6 +309,8 @@ export default function StudentsPage() {
         dateOfBirth: dateOfBirth || undefined,
         guardianName: guardianName || undefined,
         guardianPhone: guardianPhone || undefined,
+        phone: phone || undefined,
+        idNumber: idNumber || undefined,
         memorizationDirection,
         currentSurahNumber: parseInt(currentSurahNumber),
         currentVerse: parseInt(currentVerse),
@@ -317,6 +325,8 @@ export default function StudentsPage() {
           dateOfBirth: dateOfBirth || undefined,
           guardianName: guardianName || undefined,
           guardianPhone: guardianPhone || undefined,
+          phone: phone || undefined,
+          idNumber: idNumber || undefined,
         };
         await studentApi.update(editingStudent.id, updateData);
         toast.success("تم تحديث بيانات الطالب بنجاح");
@@ -438,6 +448,26 @@ export default function StudentsPage() {
                         value={guardianPhone}
                         onChange={(e) => setGuardianPhone(e.target.value)}
                         placeholder="05xxxxxxxx"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">رقم هاتف الطالب</Label>
+                      <Input
+                        id="phone"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="+966512345678"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="idNumber">رقم الهوية</Label>
+                      <Input
+                        id="idNumber"
+                        value={idNumber}
+                        onChange={(e) => setIdNumber(e.target.value)}
+                        placeholder="1234567890"
                       />
                     </div>
                   </div>

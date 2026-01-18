@@ -16,6 +16,8 @@ export interface Student {
   dateOfBirth?: string;
   guardianName?: string;
   guardianPhone?: string;
+  phone?: string; // رقم هاتف الطالب
+  idNumber?: string; // رقم الهوية
   // Memorization tracking
   memorizationDirection: 'Forward' | 'Backward';
   currentSurahNumber: number;
@@ -34,6 +36,8 @@ export interface CreateStudentDto {
   dateOfBirth?: string;
   guardianName?: string;
   guardianPhone?: string;
+  phone?: string; // رقم هاتف الطالب
+  idNumber?: string; // رقم الهوية
   memorizationDirection?: 'Forward' | 'Backward';
   currentSurahNumber?: number;
   currentVerse?: number;
@@ -47,6 +51,8 @@ export interface UpdateStudentDto {
   dateOfBirth?: string;
   guardianName?: string;
   guardianPhone?: string;
+  phone?: string; // رقم هاتف الطالب
+  idNumber?: string; // رقم الهوية
 }
 
 export interface UpdateMemorizationDto {
@@ -122,6 +128,8 @@ export interface StudentDetail {
   dateOfBirth?: string;
   guardianName?: string;
   guardianPhone?: string;
+  phone?: string; // رقم هاتف الطالب
+  idNumber?: string; // رقم الهوية
   // Memorization tracking
   memorizationDirection: 'Forward' | 'Backward';
   currentSurahNumber: number;

@@ -147,4 +147,60 @@ export interface StudentDetail {
   // Recent records
   recentProgress: StudentProgressRecord[];
   recentAttendance: StudentAttendanceRecord[];
+  // Daily targets
+  target?: StudentTarget;
 }
+
+// Student daily target settings
+// - Memorization: lines per day (سطر)
+// - Revision: pages per day (وجه)
+// - Consolidation: pages per day (وجه)
+export interface StudentTarget {
+  studentId: number;
+  memorizationLinesTarget?: number | null;
+  revisionPagesTarget?: number | null;
+  consolidationPagesTarget?: number | null;
+  updatedAt?: string;
+}
+
+// DTO for setting a single student's target
+export interface SetStudentTargetDto {
+  memorizationLinesTarget?: number | null;
+  revisionPagesTarget?: number | null;
+  consolidationPagesTarget?: number | null;
+}
+
+// DTO for bulk setting targets
+export interface BulkSetTargetDto {
+  studentIds?: number[];
+  teacherId?: number;
+  halaqaId?: number;
+  memorizationLinesTarget?: number | null;
+  revisionPagesTarget?: number | null;
+  consolidationPagesTarget?: number | null;
+}
+
+// Achievement record showing progress vs target for a specific date
+export interface TargetAchievement {
+  studentId: number;
+  date: string;
+  // Targets
+  memorizationLinesTarget?: number | null;
+  revisionPagesTarget?: number | null;
+  consolidationPagesTarget?: number | null;
+  // Achievements
+  memorizationLinesAchieved: number;
+  revisionPagesAchieved: number;
+  consolidationPagesAchieved: number;
+  // Calculated percentages
+  memorizationPercentage?: number | null;
+  revisionPercentage?: number | null;
+  consolidationPercentage?: number | null;
+}
+
+// Filter for achievement history queries
+export interface AchievementHistoryFilter {
+  fromDate?: string;
+  toDate?: string;
+}
+

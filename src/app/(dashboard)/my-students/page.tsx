@@ -83,23 +83,12 @@ export default function MyStudentsPage() {
   const [editVerse, setEditVerse] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const handleNavigate = (studentId: string | number) => {
+  const handleNavigate = useCallback((studentId: string | number) => {
     setNavigatingTo(studentId.toString());
     router.push(`/my-students/${studentId}`);
-  };
+  }, [router]);
 
-  useEffect(() => {
-    fetchStudents();
-  }, []);
-
-  // Clear toVerse when fromVerse changes if toVerse is now invalid
-  useEffect(() => {
-    if (fromVerse && toVerse && parseInt(toVerse) < parseInt(fromVerse)) {
-      setToVerse("");
-    }
-  }, [fromVerse]);
-
-  const fetchStudents = async (preserveScroll = false) => {
+  const fetchStudents = useCallback(async (preserveScroll = false) => {
     // Save scroll position if needed
     const scrollPosition = preserveScroll ? window.scrollY : 0;
     
@@ -121,7 +110,18 @@ export default function MyStudentsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchStudents();
+  }, [fetchStudents]);
+
+  // Clear toVerse when fromVerse changes if toVerse is now invalid
+  useEffect(() => {
+    if (fromVerse && toVerse && parseInt(toVerse) < parseInt(fromVerse)) {
+      setToVerse("");
+    }
+  }, [fromVerse, toVerse]);
 
   const filteredStudents = students.filter((student) =>
     student.fullName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -143,17 +143,19 @@ export default function MyStudentsPage() {
     }, [] as HalaqaGroup[]);
   }, [filteredStudents]);
 
-  const toggleHalaqa = (halaqaName: string) => {
-    const newCollapsed = new Set(collapsedHalaqas);
-    if (newCollapsed.has(halaqaName)) {
-      newCollapsed.delete(halaqaName);
-    } else {
-      newCollapsed.add(halaqaName);
-    }
-    setCollapsedHalaqas(newCollapsed);
-  };
+  const toggleHalaqa = useCallback((halaqaName: string) => {
+    setCollapsedHalaqas(prev => {
+      const newCollapsed = new Set(prev);
+      if (newCollapsed.has(halaqaName)) {
+        newCollapsed.delete(halaqaName);
+      } else {
+        newCollapsed.add(halaqaName);
+      }
+      return newCollapsed;
+    });
+  }, []);
 
-  const handleProgressSubmit = async (e: React.FormEvent) => {
+  const handleProgressSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!progressStudent) return;
 
@@ -203,16 +205,16 @@ export default function MyStudentsPage() {
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [progressStudent, user?.teacherId, progressType, selectedSurah, fromVerse, toVerse, quality, notes, fetchStudents]);
 
-  const handleEditMemorization = (student: Student) => {
+  const handleEditMemorization = useCallback((student: Student) => {
     setEditStudent(student);
     setEditDirection(student.memorizationDirection);
     setEditSurah(student.currentSurahNumber.toString());
     setEditVerse(student.currentVerse.toString());
-  };
+  }, []);
 
-  const handleSaveMemorization = async () => {
+  const handleSaveMemorization = useCallback(async () => {
     if (!editStudent) return;
 
     setSaving(true);
@@ -234,7 +236,7 @@ export default function MyStudentsPage() {
     } finally {
       setSaving(false);
     }
-  };
+  }, [editStudent, editDirection, editSurah, editVerse, fetchStudents]);
 
   const loadProgressByType = useCallback(async (student: Student, type: "0" | "1" | "2") => {
     if (type === "0") {
@@ -313,12 +315,12 @@ export default function MyStudentsPage() {
     }
   }, []);
 
-  const openProgressForm = (student: Student) => {
+  const openProgressForm = useCallback((student: Student) => {
     setProgressStudent(student);
     setProgressType("0"); // Default to new memorization
     // Load initial data for new memorization
     loadProgressByType(student, "0");
-  };
+  }, [loadProgressByType]);
 
   if (loading) {
     return (

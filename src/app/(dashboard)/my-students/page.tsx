@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { studentApi, progressApi } from "@/services";
 import { Student, UpdateMemorizationDto } from "@/types/student";
@@ -127,18 +127,20 @@ export default function MyStudentsPage() {
   );
 
   // Group students by their Halaqa
-  const groupedStudents: HalaqaGroup[] = filteredStudents.reduce((groups, student) => {
-    const halaqaName = student.currentHalaqa || "بدون حلقة";
-    let group = groups.find(g => g.halaqaName === halaqaName);
+  const groupedStudents: HalaqaGroup[] = useMemo(() => {
+    return filteredStudents.reduce((groups, student) => {
+      const halaqaName = student.currentHalaqa || "بدون حلقة";
+      let group = groups.find(g => g.halaqaName === halaqaName);
 
-    if (!group) {
-      group = { halaqaName, students: [] };
-      groups.push(group);
-    }
+      if (!group) {
+        group = { halaqaName, students: [] };
+        groups.push(group);
+      }
 
-    group.students.push(student);
-    return groups;
-  }, [] as HalaqaGroup[]);
+      group.students.push(student);
+      return groups;
+    }, [] as HalaqaGroup[]);
+  }, [filteredStudents]);
 
   const toggleHalaqa = (halaqaName: string) => {
     const newCollapsed = new Set(collapsedHalaqas);

@@ -3,21 +3,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { studentApi } from "@/services";
-import { StudentDetail, StudentProgressRecord, StudentAttendanceRecord, StudentTarget, SetStudentTargetDto } from "@/types/student";
+import { StudentDetail, StudentProgressRecord, StudentAttendanceRecord } from "@/types/student";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   ArrowRight,
   BookOpen,
@@ -33,14 +23,9 @@ import {
   Clock,
   ArrowUp,
   ArrowDown,
-  Target,
-  Edit3,
-  RefreshCw,
-  BookMarked,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { extractErrorMessage } from "@/lib/error-handler";
 import {
   format,
   startOfWeek,
@@ -72,15 +57,6 @@ export default function StudentProfilePage() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("weekly");
   const [currentDate, setCurrentDate] = useState(new Date());
-
-  // Target edit state
-  const [editingTarget, setEditingTarget] = useState(false);
-  const [targetForm, setTargetForm] = useState<SetStudentTargetDto>({
-    memorizationLinesTarget: null,
-    revisionPagesTarget: null,
-    consolidationPagesTarget: null,
-  });
-  const [savingTarget, setSavingTarget] = useState(false);
 
   useEffect(() => {
     if (studentId) {
@@ -152,49 +128,6 @@ export default function StudentProfilePage() {
       setCurrentDate(direction === "prev" ? subMonths(currentDate, 1) : addMonths(currentDate, 1));
     }
   };
-
-  // Open target edit dialog
-  const openTargetEdit = () => {
-    if (student?.target) {
-      setTargetForm({
-        memorizationLinesTarget: student.target.memorizationLinesTarget ?? null,
-        revisionPagesTarget: student.target.revisionPagesTarget ?? null,
-        consolidationPagesTarget: student.target.consolidationPagesTarget ?? null,
-      });
-    } else {
-      setTargetForm({
-        memorizationLinesTarget: null,
-        revisionPagesTarget: null,
-        consolidationPagesTarget: null,
-      });
-    }
-    setEditingTarget(true);
-  };
-
-  // Save target
-  const handleSaveTarget = async () => {
-    setSavingTarget(true);
-    try {
-      await studentApi.setTarget(studentId, targetForm);
-      toast.success("تم حفظ الأهداف بنجاح");
-      setEditingTarget(false);
-      // Refresh student data
-      fetchStudentDetails();
-    } catch (error) {
-      console.error("Error saving target:", error);
-      const errorMessage = extractErrorMessage(error, "حدث خطأ أثناء حفظ الأهداف");
-      toast.error(errorMessage);
-    } finally {
-      setSavingTarget(false);
-    }
-  };
-
-  // Check if any target is set
-  const hasTargets = student?.target && (
-    student.target.memorizationLinesTarget || 
-    student.target.revisionPagesTarget || 
-    student.target.consolidationPagesTarget
-  );
 
   // Calculate juz progress percentage (30 juz total)
   const juzProgress = student ? Math.min((student.juzMemorized / 30) * 100, 100) : 0;
@@ -551,171 +484,7 @@ export default function StudentProfilePage() {
           )}
         </CardContent>
       </Card>
-
-      {/* Daily Targets Card */}
-      <Card className="overflow-hidden">
-        <CardHeader className="pb-3 bg-gradient-to-l from-primary/5 to-transparent">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Target className="h-5 w-5 text-primary" />
-              الأهداف اليومية
-            </CardTitle>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={openTargetEdit}
-              className="gap-1"
-            >
-              <Edit3 className="h-4 w-4" />
-              {hasTargets ? "تعديل" : "تحديد"}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-4">
-          {!hasTargets ? (
-            <div className="text-center py-6 text-muted-foreground">
-              <Target className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p className="mb-2">لم يتم تحديد أهداف بعد</p>
-              <Button variant="outline" size="sm" onClick={openTargetEdit}>
-                تحديد الأهداف
-              </Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-3">
-              {/* Memorization Target */}
-              <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/30 dark:to-emerald-900/20 border border-emerald-200/50 dark:border-emerald-800/50">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-1.5 rounded-lg bg-emerald-500/10">
-                    <GraduationCap className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">الحفظ</span>
-                </div>
-                <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
-                  {student.target?.memorizationLinesTarget ?? "—"}
-                </div>
-                <div className="text-xs text-emerald-600/70 dark:text-emerald-400/70">سطر / يوم</div>
-              </div>
-
-              {/* Revision Target */}
-              <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/20 border border-blue-200/50 dark:border-blue-800/50">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-1.5 rounded-lg bg-blue-500/10">
-                    <RefreshCw className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <span className="text-xs font-medium text-blue-700 dark:text-blue-300">المراجعة</span>
-                </div>
-                <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-                  {student.target?.revisionPagesTarget ?? "—"}
-                </div>
-                <div className="text-xs text-blue-600/70 dark:text-blue-400/70">وجه / يوم</div>
-              </div>
-
-              {/* Consolidation Target */}
-              <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/30 dark:to-amber-900/20 border border-amber-200/50 dark:border-amber-800/50">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-1.5 rounded-lg bg-amber-500/10">
-                    <BookMarked className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                  </div>
-                  <span className="text-xs font-medium text-amber-700 dark:text-amber-300">التثبيت</span>
-                </div>
-                <div className="text-2xl font-bold text-amber-700 dark:text-amber-300">
-                  {student.target?.consolidationPagesTarget ?? "—"}
-                </div>
-                <div className="text-xs text-amber-600/70 dark:text-amber-400/70">وجه / يوم</div>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Target Edit Dialog */}
-      <Dialog open={editingTarget} onOpenChange={setEditingTarget}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5" />
-              تحديد الأهداف اليومية
-            </DialogTitle>
-            <DialogDescription>
-              حدد الأهداف اليومية للطالب {student.fullName}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-5 py-4">
-            {/* Memorization */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <div className="p-1 rounded bg-emerald-500/10">
-                  <GraduationCap className="h-3.5 w-3.5 text-emerald-600" />
-                </div>
-                الحفظ (سطر / يوم)
-              </Label>
-              <Input
-                type="number"
-                min="0"
-                max="100"
-                placeholder="مثال: 5"
-                value={targetForm.memorizationLinesTarget ?? ""}
-                onChange={(e) => setTargetForm(prev => ({
-                  ...prev,
-                  memorizationLinesTarget: e.target.value ? parseInt(e.target.value) : null
-                }))}
-              />
-            </div>
-
-            {/* Revision */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <div className="p-1 rounded bg-blue-500/10">
-                  <RefreshCw className="h-3.5 w-3.5 text-blue-600" />
-                </div>
-                المراجعة (وجه / يوم)
-              </Label>
-              <Input
-                type="number"
-                min="0"
-                max="50"
-                placeholder="مثال: 2"
-                value={targetForm.revisionPagesTarget ?? ""}
-                onChange={(e) => setTargetForm(prev => ({
-                  ...prev,
-                  revisionPagesTarget: e.target.value ? parseInt(e.target.value) : null
-                }))}
-              />
-            </div>
-
-            {/* Consolidation */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <div className="p-1 rounded bg-amber-500/10">
-                  <BookMarked className="h-3.5 w-3.5 text-amber-600" />
-                </div>
-                التثبيت (وجه / يوم)
-              </Label>
-              <Input
-                type="number"
-                min="0"
-                max="50"
-                placeholder="مثال: 1"
-                value={targetForm.consolidationPagesTarget ?? ""}
-                onChange={(e) => setTargetForm(prev => ({
-                  ...prev,
-                  consolidationPagesTarget: e.target.value ? parseInt(e.target.value) : null
-                }))}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingTarget(false)}>
-              إلغاء
-            </Button>
-            <Button onClick={handleSaveTarget} loading={savingTarget}>
-              حفظ الأهداف
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
+

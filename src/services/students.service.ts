@@ -7,12 +7,7 @@ import {
   StudentAssignment,
   UpdateAssignmentDto,
   UpdateMemorizationDto,
-  StudentDetail,
-  StudentTarget,
-  SetStudentTargetDto,
-  BulkSetTargetDto,
-  TargetAchievement,
-  AchievementHistoryFilter
+  StudentDetail 
 } from '@/types/student';
 import { PaginatedResponse, StudentFilterParams } from '@/types/api';
 
@@ -62,26 +57,8 @@ export const studentApi = {
   // Get comprehensive student details for profile page
   getDetails: (id: number) => 
     api.get<StudentDetail>(`/students/${id}/details`),
-
-  // ===== Daily Target APIs =====
-  
-  // Get student's daily target
-  getTarget: (studentId: number) =>
-    api.get<StudentTarget>(`/students/${studentId}/target`),
-  
-  // Set/update a student's daily target
-  setTarget: (studentId: number, data: SetStudentTargetDto) =>
-    api.put<StudentTarget>(`/students/${studentId}/target`, data),
-  
-  // Bulk set targets for multiple students (supervisor only)
-  bulkSetTargets: (data: BulkSetTargetDto) =>
-    api.post<{ message: string; count: number }>('/students/targets/bulk', data),
-  
-  // Bulk set targets for teacher's own students
-  bulkSetMyStudentsTargets: (data: SetStudentTargetDto) =>
-    api.post<{ message: string; count: number }>('/students/targets/bulk/my-students', data),
-  
-  // Get achievement history for a student
-  getAchievements: (studentId: number, filter?: AchievementHistoryFilter) =>
-    api.get<TargetAchievement[]>(`/students/${studentId}/achievements`, { params: filter }),
 };
+
+
+
+

@@ -293,16 +293,16 @@ export default function MyStudentsPage() {
           }
         } else {
           // No previous progress of this type, start from beginning
+          // Teacher will manually enter the position
           const firstSurah = surahs[0];
           setSelectedSurah(firstSurah.name);
           setFromVerse("1");
           setToVerse("");
         }
       } catch (error) {
-        console.error("Error loading last progress:", error);
-        const errorMessage = extractErrorMessage(error, "حدث خطأ أثناء تحميل بيانات التسميع");
-        toast.error(errorMessage);
-        // Fallback to first surah
+        // If there's no record (404) or any other error, silently start from beginning
+        // The teacher will manually enter the correct position
+        console.log("No previous record found, starting from beginning");
         const firstSurah = surahs[0];
         setSelectedSurah(firstSurah.name);
         setFromVerse("1");

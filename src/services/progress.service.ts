@@ -24,6 +24,10 @@ export const progressApi = {
     
   delete: (id: number) => 
     api.delete(`/progress/${id}`),
+    
+  // Get the last progress record for a student by type  
+  getLastByType: (studentId: number, type: 0 | 1 | 2) => 
+    api.get<ProgressRecord | null>(`/progress/student/${studentId}/last`, { params: { type } }),
 };
 
 

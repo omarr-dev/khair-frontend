@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { studentApi, progressApi } from "@/services";
 import { Student, UpdateMemorizationDto } from "@/types/student";
@@ -74,6 +74,7 @@ export default function MyStudentsPage() {
   const [quality, setQuality] = useState<"0" | "1" | "2" | "3">("0");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [loadingProgressData, setLoadingProgressData] = useState(false);
 
   // Edit memorization dialog state
   const [editStudent, setEditStudent] = useState<Student | null>(null);
@@ -235,18 +236,88 @@ export default function MyStudentsPage() {
     }
   };
 
-  const openProgressForm = (student: Student) => {
-    setProgressStudent(student);
-    // Pre-select the current surah for convenience
-    const currentSurah = surahs.find((s) => s.id === student.currentSurahNumber);
-    if (currentSurah) {
-      setSelectedSurah(currentSurah.name);
-      // Pre-fill fromVerse with currentVerse + 1 (the next verse to memorize)
-      const startVerse = student.currentVerse + 1;
-      if (startVerse <= currentSurah.versesCount) {
-        setFromVerse(startVerse.toString());
+  const loadProgressByType = useCallback(async (student: Student, type: "0" | "1" | "2") => {
+    if (type === "0") {
+      // For new memorization: start from current position + 1, fields disabled
+      const currentSurah = surahs.find((s) => s.id === student.currentSurahNumber);
+      if (currentSurah) {
+        setSelectedSurah(currentSurah.name);
+        const startVerse = student.currentVerse + 1;
+        if (startVerse <= currentSurah.versesCount) {
+          setFromVerse(startVerse.toString());
+        }
+      }
+      setLoadingProgressData(false);
+    } else {
+      // For revision (1) or consolidation (2): get last progress of this type
+      setLoadingProgressData(true);
+      try {
+        const response = await progressApi.getLastByType(student.id, parseInt(type) as 0 | 1 | 2);
+        const lastProgress = response.data;
+        
+        if (lastProgress) {
+          // Start from where they left off in this type
+          const lastSurah = surahs.find(s => s.name === lastProgress.surahName);
+          
+          if (lastSurah) {
+            // Check if we need to move to the next verse or next surah
+            const nextVerse = lastProgress.toVerse + 1;
+            
+            if (nextVerse <= lastSurah.versesCount) {
+              // Continue in the same surah
+              setSelectedSurah(lastProgress.surahName);
+              setFromVerse(nextVerse.toString());
+              setToVerse("");
+            } else {
+              // Move to the next surah (if exists)
+              const nextSurahIndex = surahs.findIndex(s => s.name === lastProgress.surahName) + 1;
+              if (nextSurahIndex < surahs.length) {
+                const nextSurah = surahs[nextSurahIndex];
+                setSelectedSurah(nextSurah.name);
+                setFromVerse("1");
+                setToVerse("");
+              } else {
+                // Reached end of Quran, start over
+                const firstSurah = surahs[0];
+                setSelectedSurah(firstSurah.name);
+                setFromVerse("1");
+                setToVerse("");
+              }
+            }
+          } else {
+            // Fallback if surah not found
+            const firstSurah = surahs[0];
+            setSelectedSurah(firstSurah.name);
+            setFromVerse("1");
+            setToVerse("");
+          }
+        } else {
+          // No previous progress of this type, start from beginning
+          const firstSurah = surahs[0];
+          setSelectedSurah(firstSurah.name);
+          setFromVerse("1");
+          setToVerse("");
+        }
+      } catch (error) {
+        console.error("Error loading last progress:", error);
+        const errorMessage = extractErrorMessage(error, "حدث خطأ أثناء تحميل بيانات التسميع");
+        toast.error(errorMessage);
+        // Fallback to first surah
+        const firstSurah = surahs[0];
+        setSelectedSurah(firstSurah.name);
+        setFromVerse("1");
+        setToVerse("");
+      } finally {
+        setLoadingProgressData(false);
       }
     }
+  }, []);
+
+  const openProgressForm = (student: Student) => {
+    setProgressStudent(student);
+    setProgressType("0"); // Default to new memorization
+    // Load initial data for new memorization
+    loadProgressByType(student, "0");
   };
 
   if (loading) {
@@ -420,7 +491,16 @@ export default function MyStudentsPage() {
           <form onSubmit={handleProgressSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label>نوع التسميع</Label>
-              <Select value={progressType} onValueChange={(v) => setProgressType(v as "0" | "1" | "2")}>
+              <Select 
+                value={progressType} 
+                onValueChange={async (v) => {
+                  const newType = v as "0" | "1" | "2";
+                  setProgressType(newType);
+                  if (progressStudent) {
+                    await loadProgressByType(progressStudent, newType);
+                  }
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -445,19 +525,37 @@ export default function MyStudentsPage() {
                   </SelectItem>
                 </SelectContent>
               </Select>
+              {loadingProgressData && (
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                  جاري تحميل البيانات...
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label>السورة</Label>
-              <Select value={selectedSurah} onValueChange={setSelectedSurah} disabled={true}>
+              <Select 
+                value={selectedSurah} 
+                onValueChange={setSelectedSurah} 
+                disabled={progressType === "0" || loadingProgressData}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="اختر السورة" />
                 </SelectTrigger>
                 <SelectContent>
-                  {selectedSurah && (
-                    <SelectItem value={selectedSurah}>
-                      {selectedSurah}
-                    </SelectItem>
+                  {progressType === "0" ? (
+                    selectedSurah && (
+                      <SelectItem value={selectedSurah}>
+                        {selectedSurah}
+                      </SelectItem>
+                    )
+                  ) : (
+                    surahs.map((surah) => (
+                      <SelectItem key={surah.id} value={surah.name}>
+                        {surah.name}
+                      </SelectItem>
+                    ))
                   )}
                 </SelectContent>
               </Select>
@@ -466,15 +564,30 @@ export default function MyStudentsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>من آية</Label>
-                <Select value={fromVerse} onValueChange={setFromVerse} disabled={true}>
+                <Select 
+                  value={fromVerse} 
+                  onValueChange={setFromVerse} 
+                  disabled={progressType === "0" || loadingProgressData}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="اختر الآية" />
                   </SelectTrigger>
                   <SelectContent>
-                    {fromVerse && (
-                      <SelectItem value={fromVerse}>
-                        {fromVerse}
-                      </SelectItem>
+                    {progressType === "0" ? (
+                      fromVerse && (
+                        <SelectItem value={fromVerse}>
+                          {fromVerse}
+                        </SelectItem>
+                      )
+                    ) : (
+                      selectedSurah && Array.from(
+                        { length: surahs.find(s => s.name === selectedSurah)?.versesCount || 0 },
+                        (_, i) => i + 1
+                      ).map((verse) => (
+                        <SelectItem key={verse} value={verse.toString()}>
+                          {verse}
+                        </SelectItem>
+                      ))
                     )}
                   </SelectContent>
                 </Select>

@@ -98,11 +98,21 @@ export default function MyStudentsPage() {
     }
   }, [fromVerse]);
 
-  const fetchStudents = async () => {
+  const fetchStudents = async (preserveScroll = false) => {
+    // Save scroll position if needed
+    const scrollPosition = preserveScroll ? window.scrollY : 0;
+    
     setLoading(true);
     try {
       const response = await studentApi.getMyStudents();
       setStudents(response.data);
+      
+      // Restore scroll position after state update
+      if (preserveScroll && scrollPosition > 0) {
+        setTimeout(() => {
+          window.scrollTo({ top: scrollPosition, behavior: 'auto' });
+        }, 0);
+      }
     } catch (error) {
       console.error("Error fetching students:", error);
       const errorMessage = extractErrorMessage(error, "حدث خطأ أثناء تحميل الطلاب");
@@ -181,8 +191,8 @@ export default function MyStudentsPage() {
       setToVerse("");
       setNotes("");
 
-      // Refresh students to get updated positions
-      fetchStudents();
+      // Refresh students to get updated positions (preserve scroll)
+      fetchStudents(true);
     } catch (error: any) {
       console.error("Error creating progress:", error);
       const errorMessage = extractErrorMessage(error, "حدث خطأ أثناء حفظ التسميع");
@@ -213,7 +223,7 @@ export default function MyStudentsPage() {
       await studentApi.updateMemorization(editStudent.id, data);
       toast.success("تم تحديث موضع الحفظ بنجاح");
       setEditStudent(null);
-      fetchStudents();
+      fetchStudents(true);
     } catch (error) {
       console.error("Error updating memorization:", error);
       const errorMessage = extractErrorMessage(error, "حدث خطأ أثناء تحديث موضع الحفظ");
@@ -308,7 +318,7 @@ export default function MyStudentsPage() {
                   {group.students.map((student) => (
                     <Card
                       key={student.id}
-                      className="transition-all duration-200 hover:shadow-md hover:scale-[1.01] animate-in fade-in slide-in-from-bottom-2"
+                      className="transition-all duration-200 hover:shadow-md hover:scale-[1.01]"
                     >
                       <CardContent className="p-4">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

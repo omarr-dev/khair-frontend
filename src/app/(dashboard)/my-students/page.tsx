@@ -75,6 +75,12 @@ const getProgressTextColor = (percentage: number) => {
   return "text-gray-500";
 };
 
+// Helper function to convert Arabic numerals to English and sanitize
+const convertArabicToEnglish = (str: string) => {
+  const english = str.replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString());
+  return english.replace(/[^0-9]/g, '');
+};
+
 // Group students by Halaqa
 interface HalaqaGroup {
   halaqaName: string;
@@ -1096,11 +1102,10 @@ export default function MyStudentsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Input
-                    type="number"
-                    min="0"
-                    max="500"
+                    type="text"
+                    inputMode="numeric"
                     value={memorizationTarget}
-                    onChange={(e) => setMemorizationTarget(e.target.value)}
+                    onChange={(e) => setMemorizationTarget(convertArabicToEnglish(e.target.value))}
                     placeholder="عدد الأسطر"
                     className="text-center"
                   />
@@ -1118,11 +1123,10 @@ export default function MyStudentsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Input
-                    type="number"
-                    min="0"
-                    max="500"
+                    type="text"
+                    inputMode="numeric"
                     value={revisionTarget}
-                    onChange={(e) => setRevisionTarget(e.target.value)}
+                    onChange={(e) => setRevisionTarget(convertArabicToEnglish(e.target.value))}
                     placeholder="عدد الصفحات"
                     className="text-center"
                   />
@@ -1140,11 +1144,10 @@ export default function MyStudentsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Input
-                    type="number"
-                    min="0"
-                    max="500"
+                    type="text"
+                    inputMode="numeric"
                     value={consolidationTarget}
-                    onChange={(e) => setConsolidationTarget(e.target.value)}
+                    onChange={(e) => setConsolidationTarget(convertArabicToEnglish(e.target.value))}
                     placeholder="عدد الصفحات"
                     className="text-center"
                   />
@@ -1218,11 +1221,10 @@ export default function MyStudentsPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Input
-                  type="number"
-                  min="0"
-                  max="500"
+                  type="text"
+                  inputMode="numeric"
                   value={bulkMemorizationTarget}
-                  onChange={(e) => setBulkMemorizationTarget(e.target.value)}
+                  onChange={(e) => setBulkMemorizationTarget(convertArabicToEnglish(e.target.value))}
                   placeholder="مثال: 5"
                   className="text-center"
                 />
@@ -1240,11 +1242,10 @@ export default function MyStudentsPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Input
-                  type="number"
-                  min="0"
-                  max="500"
+                  type="text"
+                  inputMode="numeric"
                   value={bulkRevisionTarget}
-                  onChange={(e) => setBulkRevisionTarget(e.target.value)}
+                  onChange={(e) => setBulkRevisionTarget(convertArabicToEnglish(e.target.value))}
                   placeholder="مثال: 2"
                   className="text-center"
                 />
@@ -1262,11 +1263,10 @@ export default function MyStudentsPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Input
-                  type="number"
-                  min="0"
-                  max="500"
+                  type="text"
+                  inputMode="numeric"
                   value={bulkConsolidationTarget}
-                  onChange={(e) => setBulkConsolidationTarget(e.target.value)}
+                  onChange={(e) => setBulkConsolidationTarget(convertArabicToEnglish(e.target.value))}
                   placeholder="مثال: 1"
                   className="text-center"
                 />

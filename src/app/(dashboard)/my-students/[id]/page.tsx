@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { studentApi } from "@/services";
-import { StudentDetail, StudentProgressRecord, StudentAttendanceRecord } from "@/types/student";
+import { StudentDetail, StudentProgressRecord, StudentAttendanceRecord, TargetAchievement } from "@/types/student";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,7 @@ import {
   Clock,
   ArrowUp,
   ArrowDown,
+  Target,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,58 @@ const dayNamesLong = ["الأحد", "الإثنين", "الثلاثاء", "ال�
 
 type ViewMode = "weekly" | "monthly";
 
+// Helper function to get progress color based on percentage
+const getProgressColor = (percentage: number) => {
+  if (percentage >= 100) return { bg: "bg-emerald-500", text: "text-emerald-600" };
+  if (percentage >= 80) return { bg: "bg-blue-500", text: "text-blue-600" };
+  if (percentage >= 50) return { bg: "bg-amber-500", text: "text-amber-600" };
+  return { bg: "bg-red-500", text: "text-red-600" };
+};
+
+// Reusable progress bar component with accessibility
+interface AchievementProgressBarProps {
+  label: string;
+  achieved: number;
+  target: number;
+  unit: string;
+  percentage: number;
+}
+
+function AchievementProgressBar({ label, achieved, target, unit, percentage }: AchievementProgressBarProps) {
+  const colors = getProgressColor(percentage);
+  const clampedPercentage = Math.min(percentage, 100);
+  
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-medium">{label}</span>
+        <span className={cn("font-bold", colors.text)}>
+          {achieved}/{target} {unit}
+        </span>
+      </div>
+      <div 
+        className="h-3 bg-gray-100 rounded-full overflow-hidden"
+        role="progressbar"
+        aria-valuenow={clampedPercentage}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`${label}: ${achieved} من ${target} ${unit}`}
+      >
+        <div
+          className={cn(
+            "h-full rounded-full transition-all duration-700 ease-out",
+            colors.bg
+          )}
+          style={{ width: `${clampedPercentage}%` }}
+        />
+      </div>
+      <div className="text-xs text-muted-foreground text-left">
+        {percentage.toFixed(0)}%
+      </div>
+    </div>
+  );
+}
+
 export default function StudentProfilePage() {
   const params = useParams();
   const router = useRouter();
@@ -57,14 +110,13 @@ export default function StudentProfilePage() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("weekly");
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [achievement, setAchievement] = useState<TargetAchievement | null>(null);
+  const [loadingAchievement, setLoadingAchievement] = useState(false);
 
-  useEffect(() => {
-    if (studentId) {
-      fetchStudentDetails();
-    }
-  }, [studentId]);
+  // Get today's date in YYYY-MM-DD format
+  const getTodayDate = useCallback(() => new Date().toISOString().split('T')[0], []);
 
-  const fetchStudentDetails = async () => {
+  const fetchStudentDetails = useCallback(async () => {
     setLoading(true);
     try {
       const response = await studentApi.getDetails(studentId);
@@ -75,7 +127,27 @@ export default function StudentProfilePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [studentId]);
+
+  const fetchAchievement = useCallback(async () => {
+    setLoadingAchievement(true);
+    try {
+      const response = await studentApi.getAchievement(studentId, getTodayDate());
+      setAchievement(response.data);
+    } catch {
+      // No achievement data - that's okay
+      setAchievement(null);
+    } finally {
+      setLoadingAchievement(false);
+    }
+  }, [studentId, getTodayDate]);
+
+  useEffect(() => {
+    if (studentId) {
+      fetchStudentDetails();
+      fetchAchievement();
+    }
+  }, [studentId, fetchStudentDetails, fetchAchievement]);
 
   // Parse active days from string "0,1,3,4" to array [0,1,3,4]
   const activeDays = useMemo(() => {
@@ -266,6 +338,90 @@ export default function StudentProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Today's Achievement Card */}
+      <Card className="overflow-hidden">
+        <CardHeader className="bg-gradient-to-l from-emerald-600 to-teal-600 text-white pb-4">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Target className="h-5 w-5" />
+            إنجاز اليوم
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-6">
+          {loadingAchievement ? (
+            <div className="space-y-4">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          ) : achievement ? (
+            <div className="space-y-5">
+              {/* Memorization Progress */}
+              {achievement.memorizationLinesTarget > 0 && (
+                <AchievementProgressBar
+                  label="الحفظ"
+                  achieved={achievement.memorizationLinesAchieved}
+                  target={achievement.memorizationLinesTarget}
+                  unit="سطر"
+                  percentage={achievement.memorizationPercentage}
+                />
+              )}
+
+              {/* Revision Progress */}
+              {achievement.revisionPagesTarget > 0 && (
+                <AchievementProgressBar
+                  label="المراجعة"
+                  achieved={achievement.revisionPagesAchieved}
+                  target={achievement.revisionPagesTarget}
+                  unit="صفحة"
+                  percentage={achievement.revisionPercentage}
+                />
+              )}
+
+              {/* Consolidation Progress */}
+              {achievement.consolidationPagesTarget > 0 && (
+                <AchievementProgressBar
+                  label="التثبيت"
+                  achieved={achievement.consolidationPagesAchieved}
+                  target={achievement.consolidationPagesTarget}
+                  unit="صفحة"
+                  percentage={achievement.consolidationPercentage}
+                />
+              )}
+
+              {/* Daily Targets Summary */}
+              <div className="pt-4 border-t">
+                <div className="text-sm font-medium text-muted-foreground mb-3">الهدف اليومي</div>
+                <div className="flex flex-wrap gap-2">
+                  {achievement.memorizationLinesTarget > 0 && (
+                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                      {achievement.memorizationLinesTarget} أسطر حفظ
+                    </Badge>
+                  )}
+                  {achievement.revisionPagesTarget > 0 && (
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                      {achievement.revisionPagesTarget} صفحات مراجعة
+                    </Badge>
+                  )}
+                  {achievement.consolidationPagesTarget > 0 && (
+                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                      {achievement.consolidationPagesTarget} صفحات تثبيت
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <Target className="h-12 w-12 mx-auto text-muted-foreground/30 mb-3" />
+              <p className="text-muted-foreground mb-2">لم يتم تعيين أهداف لهذا الطالب</p>
+              <p className="text-xs text-muted-foreground">
+                يمكنك تعيين الأهداف من صفحة &quot;طلابي&quot;
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Attendance Calendar */}
       <Card>

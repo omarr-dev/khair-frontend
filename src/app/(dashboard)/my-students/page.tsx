@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { studentApi, progressApi } from "@/services";
-import { Student, UpdateMemorizationDto, StudentTarget, SetStudentTargetDto, TargetAchievement } from "@/types/student";
+import { Student, UpdateMemorizationDto, StudentTarget, SetStudentTargetDto, AchievementHistory } from "@/types/student";
 import { CreateProgressRecord } from "@/types/progress";
 import { surahs } from "@/lib/quran-data";
 import { useAuth } from "@/components/providers";
@@ -127,9 +127,9 @@ export default function MyStudentsPage() {
   const [collapsedHalaqas, setCollapsedHalaqas] = useState<Set<string>>(new Set());
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
   
-  // Achievements cache for today
-  const [achievements, setAchievements] = useState<Map<number, TargetAchievement | null>>(new Map());
-  const [loadingAchievements, setLoadingAchievements] = useState<Set<number>>(new Set());
+  // Achievements cache for today (using batch API)
+  const [achievements, setAchievements] = useState<Record<number, AchievementHistory>>({});
+  const [loadingAchievements, setLoadingAchievements] = useState(false);
 
   // Progress form state
   const [progressStudent, setProgressStudent] = useState<Student | null>(null);
@@ -194,38 +194,39 @@ export default function MyStudentsPage() {
     }
   }, []);
 
-  // Fetch achievement for a student
-  const fetchAchievement = useCallback(async (studentId: number) => {
-    if (achievements.has(studentId) || loadingAchievements.has(studentId)) {
-      return;
-    }
+  // Fetch all achievements in a single batch call (much more efficient!)
+  const fetchAllAchievements = useCallback(async () => {
+    if (students.length === 0) return;
     
-    setLoadingAchievements(prev => new Set(prev).add(studentId));
+    setLoadingAchievements(true);
     try {
-      const response = await studentApi.getAchievement(studentId, getTodayDate());
-      setAchievements(prev => new Map(prev).set(studentId, response.data));
-    } catch {
-      // No achievement data - that's okay
-      setAchievements(prev => new Map(prev).set(studentId, null));
+      const today = getTodayDate();
+      // Get 7 days of history for streak calculation
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 6);
+      const response = await studentApi.getMyStudentsAchievements(
+        startDate.toISOString().split('T')[0],
+        today
+      );
+      setAchievements(response.data);
+    } catch (error) {
+      console.error("Error fetching achievements:", error);
+      // Silent fail - achievements are optional
     } finally {
-      setLoadingAchievements(prev => {
-        const next = new Set(prev);
-        next.delete(studentId);
-        return next;
-      });
+      setLoadingAchievements(false);
     }
-  }, [achievements, loadingAchievements]);
+  }, [students.length]);
 
   useEffect(() => {
     fetchStudents();
   }, [fetchStudents]);
 
-  // Fetch achievements for visible students
+  // Fetch achievements when students are loaded
   useEffect(() => {
-    students.forEach(student => {
-      fetchAchievement(student.id);
-    });
-  }, [students, fetchAchievement]);
+    if (students.length > 0) {
+      fetchAllAchievements();
+    }
+  }, [students, fetchAllAchievements]);
 
   // Clear toVerse when fromVerse changes if toVerse is now invalid
   useEffect(() => {
@@ -301,10 +302,10 @@ export default function MyStudentsPage() {
       await progressApi.create(data);
       toast.success("تم حفظ التسميع بنجاح");
 
-      // Clear the achievement cache for this student to force refresh
+      // Invalidate achievement cache for this student and re-fetch all
       setAchievements(prev => {
-        const next = new Map(prev);
-        next.delete(progressStudent.id);
+        const next = { ...prev };
+        delete next[progressStudent.id];
         return next;
       });
 
@@ -482,15 +483,15 @@ export default function MyStudentsPage() {
       await studentApi.setTarget(targetStudent.id, data);
       toast.success("تم حفظ الأهداف بنجاح");
       
-      // Clear achievement cache to refresh
+      // Clear achievement cache and re-fetch
       setAchievements(prev => {
-        const next = new Map(prev);
-        next.delete(targetStudent.id);
+        const next = { ...prev };
+        delete next[targetStudent.id];
         return next;
       });
       
-      // Re-fetch achievement
-      setTimeout(() => fetchAchievement(targetStudent.id), 100);
+      // Re-fetch all achievements
+      setTimeout(() => fetchAllAchievements(), 100);
       
       setTargetStudent(null);
     } catch (error) {
@@ -499,7 +500,7 @@ export default function MyStudentsPage() {
     } finally {
       setSavingTarget(false);
     }
-  }, [targetStudent, memorizationTarget, revisionTarget, consolidationTarget, fetchAchievement]);
+  }, [targetStudent, memorizationTarget, revisionTarget, consolidationTarget, fetchAllAchievements]);
 
   const handleRemoveTarget = useCallback(async () => {
     if (!targetStudent) return;
@@ -517,8 +518,8 @@ export default function MyStudentsPage() {
       
       // Clear achievement cache
       setAchievements(prev => {
-        const next = new Map(prev);
-        next.delete(targetStudent.id);
+        const next = { ...prev };
+        delete next[targetStudent.id];
         return next;
       });
       
@@ -555,8 +556,9 @@ export default function MyStudentsPage() {
       const response = await studentApi.bulkSetMyStudentsTargets(data);
       toast.success(`تم تعيين الأهداف لـ ${response.data.count} طالب`);
       
-      // Clear all achievement caches
-      setAchievements(new Map());
+      // Clear all achievement caches and trigger re-fetch
+      setAchievements({});
+      setTimeout(() => fetchAllAchievements(), 100);
       
       setBulkTargetHalaqa(null);
     } catch (error) {
@@ -565,7 +567,7 @@ export default function MyStudentsPage() {
     } finally {
       setSavingBulkTarget(false);
     }
-  }, [bulkTargetHalaqa, bulkMemorizationTarget, bulkRevisionTarget, bulkConsolidationTarget]);
+  }, [bulkTargetHalaqa, bulkMemorizationTarget, bulkRevisionTarget, bulkConsolidationTarget, fetchAllAchievements]);
 
   if (loading) {
     return (
@@ -652,13 +654,18 @@ export default function MyStudentsPage() {
               {!collapsedHalaqas.has(group.halaqaName) && (
                 <div className="space-y-2 pr-4">
                   {group.students.map((student) => {
-                    const achievement = achievements.get(student.id);
-                    const isLoadingAchievement = loadingAchievements.has(student.id);
-                    const hasTarget = achievement && (
-                      achievement.memorizationLinesTarget > 0 ||
-                      achievement.revisionPagesTarget > 0 ||
-                      achievement.consolidationPagesTarget > 0
+                    const achievementHistory = achievements[student.id];
+                    // Get today's achievement from history
+                    const todayStr = getTodayDate();
+                    const todayAchievement = achievementHistory?.dailyAchievements?.find(
+                      a => a.date.split('T')[0] === todayStr
                     );
+                    const hasTarget = achievementHistory?.hasTarget && todayAchievement && (
+                      todayAchievement.memorizationLinesTarget > 0 ||
+                      todayAchievement.revisionPagesTarget > 0 ||
+                      todayAchievement.consolidationPagesTarget > 0
+                    );
+                    const currentStreak = achievementHistory?.currentStreak || 0;
                     
                     return (
                       <Card
@@ -678,6 +685,12 @@ export default function MyStudentsPage() {
                                   >
                                     {student.fullName}
                                   </h3>
+                                  {/* Streak Badge */}
+                                  {currentStreak > 0 && (
+                                    <Badge variant="outline" className="bg-orange-50 text-orange-600 border-orange-200 shrink-0">
+                                      🔥 {currentStreak}
+                                    </Badge>
+                                  )}
                                   <Badge
                                     variant={
                                       student.memorizationDirection === "Forward"
@@ -752,42 +765,42 @@ export default function MyStudentsPage() {
                             </div>
                             
                             {/* Achievement Progress Row - Only show if there's a target */}
-                            {isLoadingAchievement ? (
+                            {loadingAchievements ? (
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <RefreshCw className="h-3 w-3 animate-spin" />
                                 <span>جاري تحميل الإنجاز...</span>
                               </div>
-                            ) : hasTarget && (
+                            ) : hasTarget && todayAchievement && (
                               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 p-3 bg-muted/30 rounded-lg border border-muted">
                                 <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
                                   <Target className="h-3 w-3" />
                                   <span>إنجاز اليوم:</span>
                                 </div>
-                                {achievement.memorizationLinesTarget > 0 && (
+                                {todayAchievement.memorizationLinesTarget > 0 && (
                                   <ProgressIndicator
                                     label="حفظ"
-                                    achieved={achievement.memorizationLinesAchieved}
-                                    target={achievement.memorizationLinesTarget}
+                                    achieved={todayAchievement.memorizationLinesAchieved}
+                                    target={todayAchievement.memorizationLinesTarget}
                                     unit="سطر"
-                                    percentage={achievement.memorizationPercentage}
+                                    percentage={todayAchievement.memorizationPercentage}
                                   />
                                 )}
-                                {achievement.revisionPagesTarget > 0 && (
+                                {todayAchievement.revisionPagesTarget > 0 && (
                                   <ProgressIndicator
                                     label="مراجعة"
-                                    achieved={achievement.revisionPagesAchieved}
-                                    target={achievement.revisionPagesTarget}
+                                    achieved={todayAchievement.revisionPagesAchieved}
+                                    target={todayAchievement.revisionPagesTarget}
                                     unit="صفحة"
-                                    percentage={achievement.revisionPercentage}
+                                    percentage={todayAchievement.revisionPercentage}
                                   />
                                 )}
-                                {achievement.consolidationPagesTarget > 0 && (
+                                {todayAchievement.consolidationPagesTarget > 0 && (
                                   <ProgressIndicator
                                     label="تثبيت"
-                                    achieved={achievement.consolidationPagesAchieved}
-                                    target={achievement.consolidationPagesTarget}
+                                    achieved={todayAchievement.consolidationPagesAchieved}
+                                    target={todayAchievement.consolidationPagesTarget}
                                     unit="صفحة"
-                                    percentage={achievement.consolidationPercentage}
+                                    percentage={todayAchievement.consolidationPercentage}
                                   />
                                 )}
                               </div>

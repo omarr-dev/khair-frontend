@@ -194,4 +194,27 @@ export interface TargetAchievement {
   memorizationPercentage: number;
   revisionPercentage: number;
   consolidationPercentage: number;
+  // Whether all targets were met
+  isTargetMet: boolean;
+}
+
+/** Achievement history for a date range with streak information */
+export interface AchievementHistory {
+  studentId: number;
+  startDate: string;
+  endDate: string;
+  /** Daily achievements within the date range */
+  dailyAchievements: TargetAchievement[];
+  /** Current streak - consecutive days meeting all targets */
+  currentStreak: number;
+  /** Best streak achieved within the queried range */
+  bestStreak: number;
+  /** Last date when all targets were met */
+  lastAchievedDate: string | null;
+  /** Total days where all targets were met */
+  totalDaysTargetMet: number;
+  /** Total days with any activity */
+  totalDaysActive: number;
+  /** Whether student has a target set */
+  hasTarget: boolean;
 }

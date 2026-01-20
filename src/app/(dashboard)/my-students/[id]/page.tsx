@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { studentApi } from "@/services";
-import { StudentDetail, StudentProgressRecord, StudentAttendanceRecord, TargetAchievement } from "@/types/student";
+import { StudentDetail, StudentProgressRecord, StudentAttendanceRecord, AchievementHistory } from "@/types/student";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -110,11 +110,16 @@ export default function StudentProfilePage() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("weekly");
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [achievement, setAchievement] = useState<TargetAchievement | null>(null);
+  const [achievementHistory, setAchievementHistory] = useState<AchievementHistory | null>(null);
   const [loadingAchievement, setLoadingAchievement] = useState(false);
 
-  // Get today's date in YYYY-MM-DD format
-  const getTodayDate = useCallback(() => new Date().toISOString().split('T')[0], []);
+  // Get date range for achievement history (7 days)
+  const getDateRange = useCallback(() => {
+    const today = new Date();
+    const endDate = today.toISOString().split('T')[0];
+    const startDate = new Date(today.setDate(today.getDate() - 6)).toISOString().split('T')[0];
+    return { startDate, endDate };
+  }, []);
 
   const fetchStudentDetails = useCallback(async () => {
     setLoading(true);
@@ -132,15 +137,16 @@ export default function StudentProfilePage() {
   const fetchAchievement = useCallback(async () => {
     setLoadingAchievement(true);
     try {
-      const response = await studentApi.getAchievement(studentId, getTodayDate());
-      setAchievement(response.data);
+      const { startDate, endDate } = getDateRange();
+      const response = await studentApi.getAchievementHistory(studentId, startDate, endDate);
+      setAchievementHistory(response.data);
     } catch {
       // No achievement data - that's okay
-      setAchievement(null);
+      setAchievementHistory(null);
     } finally {
       setLoadingAchievement(false);
     }
-  }, [studentId, getTodayDate]);
+  }, [studentId, getDateRange]);
 
   useEffect(() => {
     if (studentId) {
@@ -342,10 +348,20 @@ export default function StudentProfilePage() {
       {/* Today's Achievement Card */}
       <Card className="overflow-hidden">
         <CardHeader className="bg-gradient-to-l from-emerald-600 to-teal-600 text-white pb-4">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Target className="h-5 w-5" />
-            إنجاز اليوم
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Target className="h-5 w-5" />
+              إنجاز اليوم
+            </CardTitle>
+            {/* Streak Badge */}
+            {achievementHistory?.hasTarget && achievementHistory.currentStreak > 0 && (
+              <div className="flex items-center gap-1 bg-white/20 rounded-full px-3 py-1">
+                <span className="text-orange-300">🔥</span>
+                <span className="text-sm font-bold">{achievementHistory.currentStreak}</span>
+                <span className="text-xs opacity-80">يوم</span>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="pt-6">
           {loadingAchievement ? (
@@ -354,63 +370,114 @@ export default function StudentProfilePage() {
               <Skeleton className="h-8 w-full" />
               <Skeleton className="h-8 w-full" />
             </div>
-          ) : achievement ? (
-            <div className="space-y-5">
-              {/* Memorization Progress */}
-              {achievement.memorizationLinesTarget > 0 && (
-                <AchievementProgressBar
-                  label="الحفظ"
-                  achieved={achievement.memorizationLinesAchieved}
-                  target={achievement.memorizationLinesTarget}
-                  unit="سطر"
-                  percentage={achievement.memorizationPercentage}
-                />
-              )}
+          ) : achievementHistory?.hasTarget ? (
+            (() => {
+              // Get today's achievement from the daily achievements array
+              const todayStr = new Date().toISOString().split('T')[0];
+              const todayAchievement = achievementHistory.dailyAchievements.find(
+                a => a.date.split('T')[0] === todayStr
+              );
+              
+              if (!todayAchievement) {
+                return (
+                  <div className="text-center py-6 text-muted-foreground">
+                    لا توجد بيانات لليوم
+                  </div>
+                );
+              }
 
-              {/* Revision Progress */}
-              {achievement.revisionPagesTarget > 0 && (
-                <AchievementProgressBar
-                  label="المراجعة"
-                  achieved={achievement.revisionPagesAchieved}
-                  target={achievement.revisionPagesTarget}
-                  unit="صفحة"
-                  percentage={achievement.revisionPercentage}
-                />
-              )}
+              return (
+                <div className="space-y-5">
+                  {/* Streak Info */}
+                  {achievementHistory.currentStreak > 0 && (
+                    <div className="flex items-center justify-center gap-4 p-3 bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg border border-orange-100">
+                      <div className="text-center">
+                        <div className="text-2xl">🔥</div>
+                        <div className="text-xs text-muted-foreground">سلسلة حالية</div>
+                        <div className="font-bold text-orange-600">{achievementHistory.currentStreak} يوم</div>
+                      </div>
+                      {achievementHistory.bestStreak > achievementHistory.currentStreak && (
+                        <div className="text-center border-r pr-4">
+                          <div className="text-2xl">🏆</div>
+                          <div className="text-xs text-muted-foreground">أفضل سلسلة</div>
+                          <div className="font-bold text-amber-600">{achievementHistory.bestStreak} يوم</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-              {/* Consolidation Progress */}
-              {achievement.consolidationPagesTarget > 0 && (
-                <AchievementProgressBar
-                  label="التثبيت"
-                  achieved={achievement.consolidationPagesAchieved}
-                  target={achievement.consolidationPagesTarget}
-                  unit="صفحة"
-                  percentage={achievement.consolidationPercentage}
-                />
-              )}
+                  {/* Memorization Progress */}
+                  {todayAchievement.memorizationLinesTarget > 0 && (
+                    <AchievementProgressBar
+                      label="الحفظ"
+                      achieved={todayAchievement.memorizationLinesAchieved}
+                      target={todayAchievement.memorizationLinesTarget}
+                      unit="سطر"
+                      percentage={todayAchievement.memorizationPercentage}
+                    />
+                  )}
 
-              {/* Daily Targets Summary */}
-              <div className="pt-4 border-t">
-                <div className="text-sm font-medium text-muted-foreground mb-3">الهدف اليومي</div>
-                <div className="flex flex-wrap gap-2">
-                  {achievement.memorizationLinesTarget > 0 && (
-                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                      {achievement.memorizationLinesTarget} أسطر حفظ
-                    </Badge>
+                  {/* Revision Progress */}
+                  {todayAchievement.revisionPagesTarget > 0 && (
+                    <AchievementProgressBar
+                      label="المراجعة"
+                      achieved={todayAchievement.revisionPagesAchieved}
+                      target={todayAchievement.revisionPagesTarget}
+                      unit="صفحة"
+                      percentage={todayAchievement.revisionPercentage}
+                    />
                   )}
-                  {achievement.revisionPagesTarget > 0 && (
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                      {achievement.revisionPagesTarget} صفحات مراجعة
-                    </Badge>
+
+                  {/* Consolidation Progress */}
+                  {todayAchievement.consolidationPagesTarget > 0 && (
+                    <AchievementProgressBar
+                      label="التثبيت"
+                      achieved={todayAchievement.consolidationPagesAchieved}
+                      target={todayAchievement.consolidationPagesTarget}
+                      unit="صفحة"
+                      percentage={todayAchievement.consolidationPercentage}
+                    />
                   )}
-                  {achievement.consolidationPagesTarget > 0 && (
-                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                      {achievement.consolidationPagesTarget} صفحات تثبيت
-                    </Badge>
-                  )}
+
+                  {/* Daily Targets Summary */}
+                  <div className="pt-4 border-t">
+                    <div className="text-sm font-medium text-muted-foreground mb-3">الهدف اليومي</div>
+                    <div className="flex flex-wrap gap-2">
+                      {todayAchievement.memorizationLinesTarget > 0 && (
+                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                          {todayAchievement.memorizationLinesTarget} أسطر حفظ
+                        </Badge>
+                      )}
+                      {todayAchievement.revisionPagesTarget > 0 && (
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                          {todayAchievement.revisionPagesTarget} صفحات مراجعة
+                        </Badge>
+                      )}
+                      {todayAchievement.consolidationPagesTarget > 0 && (
+                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                          {todayAchievement.consolidationPagesTarget} صفحات تثبيت
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Weekly Summary */}
+                  <div className="pt-4 border-t">
+                    <div className="text-sm font-medium text-muted-foreground mb-3">ملخص الأسبوع</div>
+                    <div className="grid grid-cols-2 gap-3 text-center">
+                      <div className="p-3 bg-muted/30 rounded-lg">
+                        <div className="text-xl font-bold text-primary">{achievementHistory.totalDaysTargetMet}</div>
+                        <div className="text-xs text-muted-foreground">أيام تحقيق الهدف</div>
+                      </div>
+                      <div className="p-3 bg-muted/30 rounded-lg">
+                        <div className="text-xl font-bold text-primary">{achievementHistory.totalDaysActive}</div>
+                        <div className="text-xs text-muted-foreground">أيام نشطة</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              );
+            })()
           ) : (
             <div className="text-center py-6">
               <Target className="h-12 w-12 mx-auto text-muted-foreground/30 mb-3" />

@@ -3,8 +3,9 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { studentApi } from "@/services";
-import { StudentDetail, StudentProgressRecord, StudentAttendanceRecord, AchievementHistory } from "@/types/student";
+import { StudentDetail, StudentAttendanceRecord, AchievementHistory } from "@/types/student";
 import { Button } from "@/components/ui/button";
+import { StudentTargetDialog } from "@/components/students/student-target-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,6 +25,7 @@ import {
   ArrowUp,
   ArrowDown,
   Target,
+  Edit3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -57,6 +59,8 @@ const getProgressColor = (percentage: number) => {
   return { bg: "bg-red-500", text: "text-red-600" };
 };
 
+
+
 // Reusable progress bar component with accessibility
 interface AchievementProgressBarProps {
   label: string;
@@ -71,15 +75,20 @@ function AchievementProgressBar({ label, achieved, target, unit, percentage }: A
   const clampedPercentage = Math.min(percentage, 100);
   
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <div className="flex items-center justify-between text-sm">
-        <span className="font-medium">{label}</span>
-        <span className={cn("font-bold", colors.text)}>
-          {achieved}/{target} {unit}
-        </span>
+        <span className="text-muted-foreground">{label}</span>
+        <div className="flex items-center gap-2">
+          <span className="font-medium">
+            {achieved}/{target} {unit}
+          </span>
+          <span className={cn("text-xs font-bold min-w-[36px] text-left", colors.text)}>
+            {percentage.toFixed(0)}%
+          </span>
+        </div>
       </div>
       <div 
-        className="h-3 bg-gray-100 rounded-full overflow-hidden"
+        className="h-2 bg-gray-100 rounded-full overflow-hidden"
         role="progressbar"
         aria-valuenow={clampedPercentage}
         aria-valuemin={0}
@@ -88,14 +97,11 @@ function AchievementProgressBar({ label, achieved, target, unit, percentage }: A
       >
         <div
           className={cn(
-            "h-full rounded-full transition-all duration-700 ease-out",
+            "h-full rounded-full transition-all duration-500 ease-out",
             colors.bg
           )}
           style={{ width: `${clampedPercentage}%` }}
         />
-      </div>
-      <div className="text-xs text-muted-foreground text-left">
-        {percentage.toFixed(0)}%
       </div>
     </div>
   );
@@ -112,6 +118,10 @@ export default function StudentProfilePage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [achievementHistory, setAchievementHistory] = useState<AchievementHistory | null>(null);
   const [loadingAchievement, setLoadingAchievement] = useState(false);
+
+  // Target dialog state
+  // Target dialog state
+  const [targetDialogOpen, setTargetDialogOpen] = useState(false);
 
   // Get date range for achievement history (7 days)
   const getDateRange = useCallback(() => {
@@ -209,6 +219,9 @@ export default function StudentProfilePage() {
 
   // Calculate juz progress percentage (30 juz total)
   const juzProgress = student ? Math.min((student.juzMemorized / 30) * 100, 100) : 0;
+
+  // Target Handlers
+
 
   if (loading) {
     return (
@@ -346,24 +359,37 @@ export default function StudentProfilePage() {
       </div>
 
       {/* Today's Achievement Card */}
-      <Card className="overflow-hidden">
-        <CardHeader className="bg-gradient-to-l from-emerald-600 to-teal-600 text-white pb-4">
+      <Card className="overflow-hidden p-0">
+        <div className="bg-gradient-to-l from-emerald-600 to-teal-600 text-white p-4 rounded-t-xl">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
+            <div className="flex items-center gap-2 text-lg font-semibold">
               <Target className="h-5 w-5" />
               إنجاز اليوم
-            </CardTitle>
+            </div>
             {/* Streak Badge */}
-            {achievementHistory?.hasTarget && achievementHistory.currentStreak > 0 && (
-              <div className="flex items-center gap-1 bg-white/20 rounded-full px-3 py-1">
-                <span className="text-orange-300">🔥</span>
-                <span className="text-sm font-bold">{achievementHistory.currentStreak}</span>
-                <span className="text-xs opacity-80">يوم</span>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              {achievementHistory?.hasTarget && (
+                <Button 
+                  size="sm" 
+                  variant="secondary" 
+                  className="h-7 bg-white/10 hover:bg-white/20 text-white border-0"
+                  onClick={() => setTargetDialogOpen(true)}
+                >
+                  <Edit3 className="h-3 w-3 ml-1" />
+                  تعديل
+                </Button>
+              )}
+              {achievementHistory?.hasTarget && achievementHistory.currentStreak > 0 && (
+                <div className="flex items-center gap-1 bg-white/20 rounded-full px-3 py-1">
+                  <span className="text-orange-300">🔥</span>
+                  <span className="text-sm font-bold">{achievementHistory.currentStreak}</span>
+                  <span className="text-xs opacity-80">يوم</span>
+                </div>
+              )}
+            </div>
           </div>
-        </CardHeader>
-        <CardContent className="pt-6">
+        </div>
+        <CardContent className="pt-6 pb-6">
           {loadingAchievement ? (
             <div className="space-y-4">
               <Skeleton className="h-8 w-full" />
@@ -387,26 +413,8 @@ export default function StudentProfilePage() {
               }
 
               return (
-                <div className="space-y-5">
-                  {/* Streak Info */}
-                  {achievementHistory.currentStreak > 0 && (
-                    <div className="flex items-center justify-center gap-4 p-3 bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg border border-orange-100">
-                      <div className="text-center">
-                        <div className="text-2xl">🔥</div>
-                        <div className="text-xs text-muted-foreground">سلسلة حالية</div>
-                        <div className="font-bold text-orange-600">{achievementHistory.currentStreak} يوم</div>
-                      </div>
-                      {achievementHistory.bestStreak > achievementHistory.currentStreak && (
-                        <div className="text-center border-r pr-4">
-                          <div className="text-2xl">🏆</div>
-                          <div className="text-xs text-muted-foreground">أفضل سلسلة</div>
-                          <div className="font-bold text-amber-600">{achievementHistory.bestStreak} يوم</div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Memorization Progress */}
+                <div className="space-y-4">
+                  {/* Progress Bars */}
                   {todayAchievement.memorizationLinesTarget > 0 && (
                     <AchievementProgressBar
                       label="الحفظ"
@@ -417,7 +425,6 @@ export default function StudentProfilePage() {
                     />
                   )}
 
-                  {/* Revision Progress */}
                   {todayAchievement.revisionPagesTarget > 0 && (
                     <AchievementProgressBar
                       label="المراجعة"
@@ -428,7 +435,6 @@ export default function StudentProfilePage() {
                     />
                   )}
 
-                  {/* Consolidation Progress */}
                   {todayAchievement.consolidationPagesTarget > 0 && (
                     <AchievementProgressBar
                       label="التثبيت"
@@ -439,52 +445,31 @@ export default function StudentProfilePage() {
                     />
                   )}
 
-                  {/* Daily Targets Summary */}
-                  <div className="pt-4 border-t">
-                    <div className="text-sm font-medium text-muted-foreground mb-3">الهدف اليومي</div>
-                    <div className="flex flex-wrap gap-2">
-                      {todayAchievement.memorizationLinesTarget > 0 && (
-                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                          {todayAchievement.memorizationLinesTarget} أسطر حفظ
-                        </Badge>
-                      )}
-                      {todayAchievement.revisionPagesTarget > 0 && (
-                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                          {todayAchievement.revisionPagesTarget} صفحات مراجعة
-                        </Badge>
-                      )}
-                      {todayAchievement.consolidationPagesTarget > 0 && (
-                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                          {todayAchievement.consolidationPagesTarget} صفحات تثبيت
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Weekly Summary */}
-                  <div className="pt-4 border-t">
-                    <div className="text-sm font-medium text-muted-foreground mb-3">ملخص الأسبوع</div>
-                    <div className="grid grid-cols-2 gap-3 text-center">
-                      <div className="p-3 bg-muted/30 rounded-lg">
-                        <div className="text-xl font-bold text-primary">{achievementHistory.totalDaysTargetMet}</div>
-                        <div className="text-xs text-muted-foreground">أيام تحقيق الهدف</div>
-                      </div>
-                      <div className="p-3 bg-muted/30 rounded-lg">
-                        <div className="text-xl font-bold text-primary">{achievementHistory.totalDaysActive}</div>
-                        <div className="text-xs text-muted-foreground">أيام نشطة</div>
-                      </div>
+                  {/* Weekly Summary - Compact */}
+                  <div className="flex items-center justify-between pt-3 border-t text-sm text-muted-foreground">
+                    <span>هذا الأسبوع</span>
+                    <div className="flex items-center gap-4">
+                      <span>
+                        <span className="font-semibold text-foreground">{achievementHistory.totalDaysTargetMet}</span> أيام تحقيق الهدف
+                      </span>
+                      <span>
+                        <span className="font-semibold text-foreground">{achievementHistory.totalDaysActive}</span> أيام نشطة
+                      </span>
                     </div>
                   </div>
                 </div>
               );
             })()
           ) : (
-            <div className="text-center py-6">
-              <Target className="h-12 w-12 mx-auto text-muted-foreground/30 mb-3" />
-              <p className="text-muted-foreground mb-2">لم يتم تعيين أهداف لهذا الطالب</p>
-              <p className="text-xs text-muted-foreground">
-                يمكنك تعيين الأهداف من صفحة &quot;طلابي&quot;
-              </p>
+            <div className="text-center py-8">
+              <div className="bg-muted/30 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Target className="h-8 w-8 text-muted-foreground/50" />
+              </div>
+              <p className="text-muted-foreground mb-4">لم يتم تعيين أهداف لهذا الطالب</p>
+              <Button onClick={() => setTargetDialogOpen(true)} variant="outline" className="gap-2">
+                <Target className="h-4 w-4" />
+                تعيين الأهداف
+              </Button>
             </div>
           )}
         </CardContent>
@@ -707,6 +692,17 @@ export default function StudentProfilePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Target Dialog */}
+      {student && (
+        <StudentTargetDialog
+          studentId={studentId}
+          studentName={student.fullName}
+          open={targetDialogOpen}
+          onOpenChange={setTargetDialogOpen}
+          onTargetsUpdated={fetchAchievement}
+        />
+      )}
     </div>
   );
 }

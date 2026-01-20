@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { studentApi, progressApi } from "@/services";
-import { Student, UpdateMemorizationDto, StudentTarget, SetStudentTargetDto, AchievementHistory } from "@/types/student";
+import { Student, UpdateMemorizationDto, SetStudentTargetDto, AchievementHistory } from "@/types/student";
 import { CreateProgressRecord } from "@/types/progress";
 import { surahs } from "@/lib/quran-data";
 import { useAuth } from "@/components/providers";
@@ -45,6 +45,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { extractErrorMessage } from "@/lib/error-handler";
+import { convertArabicToEnglish } from "@/lib/utils";
+import { StudentTargetDialog } from "@/components/students/student-target-dialog";
 
 // Helper function to get surah name by number
 const getSurahName = (number: number) => {
@@ -75,11 +77,7 @@ const getProgressTextColor = (percentage: number) => {
   return "text-gray-500";
 };
 
-// Helper function to convert Arabic numerals to English and sanitize
-const convertArabicToEnglish = (str: string) => {
-  const english = str.replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString());
-  return english.replace(/[^0-9]/g, '');
-};
+
 
 // Group students by Halaqa
 interface HalaqaGroup {
@@ -150,13 +148,8 @@ export default function MyStudentsPage() {
   const [saving, setSaving] = useState(false);
 
   // Target dialog state
+  // Target dialog state
   const [targetStudent, setTargetStudent] = useState<Student | null>(null);
-  const [targetData, setTargetData] = useState<StudentTarget | null>(null);
-  const [loadingTarget, setLoadingTarget] = useState(false);
-  const [savingTarget, setSavingTarget] = useState(false);
-  const [memorizationTarget, setMemorizationTarget] = useState("");
-  const [revisionTarget, setRevisionTarget] = useState("");
-  const [consolidationTarget, setConsolidationTarget] = useState("");
 
   // Bulk target dialog state
   const [bulkTargetHalaqa, setBulkTargetHalaqa] = useState<HalaqaGroup | null>(null);
@@ -444,93 +437,7 @@ export default function MyStudentsPage() {
 
   // ================== TARGET HANDLERS ==================
   
-  const openTargetDialog = useCallback(async (student: Student) => {
-    setTargetStudent(student);
-    setLoadingTarget(true);
-    setTargetData(null);
-    setMemorizationTarget("");
-    setRevisionTarget("");
-    setConsolidationTarget("");
-    
-    try {
-      const response = await studentApi.getTarget(student.id);
-      const target = response.data;
-      setTargetData(target);
-      
-      if (target) {
-        setMemorizationTarget(target.memorizationLinesTarget?.toString() || "");
-        setRevisionTarget(target.revisionPagesTarget?.toString() || "");
-        setConsolidationTarget(target.consolidationPagesTarget?.toString() || "");
-      }
-    } catch {
-      // No target set - that's okay
-    } finally {
-      setLoadingTarget(false);
-    }
-  }, []);
 
-  const handleSaveTarget = useCallback(async () => {
-    if (!targetStudent) return;
-    
-    setSavingTarget(true);
-    try {
-      const data: SetStudentTargetDto = {
-        memorizationLinesTarget: memorizationTarget ? parseInt(memorizationTarget) : null,
-        revisionPagesTarget: revisionTarget ? parseInt(revisionTarget) : null,
-        consolidationPagesTarget: consolidationTarget ? parseInt(consolidationTarget) : null,
-      };
-      
-      await studentApi.setTarget(targetStudent.id, data);
-      toast.success("تم حفظ الأهداف بنجاح");
-      
-      // Clear achievement cache and re-fetch
-      setAchievements(prev => {
-        const next = { ...prev };
-        delete next[targetStudent.id];
-        return next;
-      });
-      
-      // Re-fetch all achievements
-      setTimeout(() => fetchAllAchievements(), 100);
-      
-      setTargetStudent(null);
-    } catch (error) {
-      const errorMessage = extractErrorMessage(error, "حدث خطأ أثناء حفظ الأهداف");
-      toast.error(errorMessage);
-    } finally {
-      setSavingTarget(false);
-    }
-  }, [targetStudent, memorizationTarget, revisionTarget, consolidationTarget, fetchAllAchievements]);
-
-  const handleRemoveTarget = useCallback(async () => {
-    if (!targetStudent) return;
-    
-    setSavingTarget(true);
-    try {
-      const data: SetStudentTargetDto = {
-        memorizationLinesTarget: null,
-        revisionPagesTarget: null,
-        consolidationPagesTarget: null,
-      };
-      
-      await studentApi.setTarget(targetStudent.id, data);
-      toast.success("تم إزالة الأهداف");
-      
-      // Clear achievement cache
-      setAchievements(prev => {
-        const next = { ...prev };
-        delete next[targetStudent.id];
-        return next;
-      });
-      
-      setTargetStudent(null);
-    } catch (error) {
-      const errorMessage = extractErrorMessage(error, "حدث خطأ أثناء إزالة الأهداف");
-      toast.error(errorMessage);
-    } finally {
-      setSavingTarget(false);
-    }
-  }, [targetStudent]);
 
   // ================== BULK TARGET HANDLERS ==================
   
@@ -746,7 +653,7 @@ export default function MyStudentsPage() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => openTargetDialog(student)}
+                                  onClick={() => setTargetStudent(student)}
                                   title="إدارة الأهداف"
                                   className={`flex-1 sm:flex-none ${hasTarget ? 'border-primary text-primary' : ''}`}
                                 >
@@ -1085,130 +992,26 @@ export default function MyStudentsPage() {
       </Dialog>
 
       {/* Target Dialog */}
-      <Dialog open={!!targetStudent} onOpenChange={() => setTargetStudent(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-primary" />
-              أهداف الطالب - {targetStudent?.fullName}
-            </DialogTitle>
-            <DialogDescription>
-              حدد الأهداف اليومية للطالب. اتركها فارغة إذا لم تكن تستخدم نظام الأهداف.
-            </DialogDescription>
-          </DialogHeader>
-
-          {loadingTarget ? (
-            <div className="space-y-4 py-4">
-              <Skeleton className="h-16 w-full" />
-              <Skeleton className="h-16 w-full" />
-              <Skeleton className="h-16 w-full" />
-            </div>
-          ) : (
-            <div className="space-y-5">
-              {/* Memorization Target */}
-              <div className="space-y-2 p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800">
-                <div className="flex items-center gap-2">
-                  <GraduationCap className="h-4 w-4 text-emerald-600" />
-                  <Label className="text-emerald-700 dark:text-emerald-300 font-medium">
-                    أسطر الحفظ اليومي
-                  </Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    value={memorizationTarget}
-                    onChange={(e) => setMemorizationTarget(convertArabicToEnglish(e.target.value))}
-                    placeholder="عدد الأسطر"
-                    className="text-center"
-                  />
-                  <span className="text-sm text-muted-foreground whitespace-nowrap">سطر</span>
-                </div>
-              </div>
-
-              {/* Revision Target */}
-              <div className="space-y-2 p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
-                <div className="flex items-center gap-2">
-                  <RefreshCw className="h-4 w-4 text-blue-600" />
-                  <Label className="text-blue-700 dark:text-blue-300 font-medium">
-                    صفحات المراجعة اليومية
-                  </Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    value={revisionTarget}
-                    onChange={(e) => setRevisionTarget(convertArabicToEnglish(e.target.value))}
-                    placeholder="عدد الصفحات"
-                    className="text-center"
-                  />
-                  <span className="text-sm text-muted-foreground whitespace-nowrap">صفحة</span>
-                </div>
-              </div>
-
-              {/* Consolidation Target */}
-              <div className="space-y-2 p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
-                <div className="flex items-center gap-2">
-                  <BookOpen className="h-4 w-4 text-amber-600" />
-                  <Label className="text-amber-700 dark:text-amber-300 font-medium">
-                    صفحات التثبيت اليومية
-                  </Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    value={consolidationTarget}
-                    onChange={(e) => setConsolidationTarget(convertArabicToEnglish(e.target.value))}
-                    placeholder="عدد الصفحات"
-                    className="text-center"
-                  />
-                  <span className="text-sm text-muted-foreground whitespace-nowrap">صفحة</span>
-                </div>
-              </div>
-
-              {targetData && (
-                <p className="text-xs text-muted-foreground text-center">
-                  آخر تحديث: {new Date(targetData.updatedAt).toLocaleDateString('ar-SA')}
-                </p>
-              )}
-            </div>
-          )}
-
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            {targetData && (
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={handleRemoveTarget}
-                disabled={savingTarget}
-                className="w-full sm:w-auto"
-              >
-                <Trash2 className="h-4 w-4 ml-2" />
-                إزالة الأهداف
-              </Button>
-            )}
-            <div className="flex gap-2 w-full sm:w-auto">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setTargetStudent(null)}
-                className="flex-1"
-              >
-                إلغاء
-              </Button>
-              <Button
-                onClick={handleSaveTarget}
-                loading={savingTarget}
-                className="flex-1"
-              >
-                حفظ الأهداف
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {targetStudent && (
+        <StudentTargetDialog
+          studentId={targetStudent.id}
+          studentName={targetStudent.fullName}
+          open={!!targetStudent}
+          onOpenChange={(open) => !open && setTargetStudent(null)}
+          onTargetsUpdated={() => {
+            // Clear achievement cache and re-fetch
+            if (targetStudent) {
+              setAchievements(prev => {
+                const next = { ...prev };
+                delete next[targetStudent.id];
+                return next;
+              });
+              // Re-fetch all achievements
+              setTimeout(() => fetchAllAchievements(), 100);
+            }
+          }}
+        />
+      )}
 
       {/* Bulk Target Dialog */}
       <Dialog open={!!bulkTargetHalaqa} onOpenChange={() => setBulkTargetHalaqa(null)}>

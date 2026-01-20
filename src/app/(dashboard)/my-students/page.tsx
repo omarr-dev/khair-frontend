@@ -1101,12 +1101,11 @@ export default function MyStudentsPage() {
                     max="500"
                     value={memorizationTarget}
                     onChange={(e) => setMemorizationTarget(e.target.value)}
-                    placeholder="مثال: 5"
+                    placeholder="عدد الأسطر"
                     className="text-center"
                   />
                   <span className="text-sm text-muted-foreground whitespace-nowrap">سطر</span>
                 </div>
-                <p className="text-xs text-muted-foreground">0-500 سطر</p>
               </div>
 
               {/* Revision Target */}
@@ -1124,12 +1123,11 @@ export default function MyStudentsPage() {
                     max="500"
                     value={revisionTarget}
                     onChange={(e) => setRevisionTarget(e.target.value)}
-                    placeholder="مثال: 2"
+                    placeholder="عدد الصفحات"
                     className="text-center"
                   />
                   <span className="text-sm text-muted-foreground whitespace-nowrap">صفحة</span>
                 </div>
-                <p className="text-xs text-muted-foreground">0-500 صفحة</p>
               </div>
 
               {/* Consolidation Target */}
@@ -1147,12 +1145,11 @@ export default function MyStudentsPage() {
                     max="500"
                     value={consolidationTarget}
                     onChange={(e) => setConsolidationTarget(e.target.value)}
-                    placeholder="مثال: 1"
+                    placeholder="عدد الصفحات"
                     className="text-center"
                   />
                   <span className="text-sm text-muted-foreground whitespace-nowrap">صفحة</span>
                 </div>
-                <p className="text-xs text-muted-foreground">0-500 صفحة</p>
               </div>
 
               {targetData && (

@@ -163,9 +163,9 @@ export interface StudentTarget {
 
 /** Request body for setting a student's target */
 export interface SetStudentTargetDto {
-  memorizationLinesTarget?: number | null;   // 0-500
-  revisionPagesTarget?: number | null;        // 0-500
-  consolidationPagesTarget?: number | null;   // 0-500
+  memorizationLinesTarget?: number | null;
+  revisionPagesTarget?: number | null;
+  consolidationPagesTarget?: number | null;
 }
 
 /** Request body for bulk setting targets */

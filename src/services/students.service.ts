@@ -7,7 +7,11 @@ import {
   StudentAssignment,
   UpdateAssignmentDto,
   UpdateMemorizationDto,
-  StudentDetail 
+  StudentDetail,
+  StudentTarget,
+  SetStudentTargetDto,
+  BulkSetTargetDto,
+  TargetAchievement
 } from '@/types/student';
 import { PaginatedResponse, StudentFilterParams } from '@/types/api';
 
@@ -57,6 +61,30 @@ export const studentApi = {
   // Get comprehensive student details for profile page
   getDetails: (id: number) => 
     api.get<StudentDetail>(`/students/${id}/details`),
+
+  // ================== TARGETS ==================
+  
+  /** Get student's target */
+  getTarget: (studentId: number) => 
+    api.get<StudentTarget | null>(`/students/${studentId}/target`),
+  
+  /** Set or update student's target */
+  setTarget: (studentId: number, data: SetStudentTargetDto) => 
+    api.put<StudentTarget>(`/students/${studentId}/target`, data),
+  
+  /** Bulk set targets for multiple students (Supervisor only) */
+  bulkSetTargets: (data: BulkSetTargetDto) => 
+    api.post<{ count: number }>('/students/targets/bulk', data),
+  
+  /** Bulk set targets for teacher's own students */
+  bulkSetMyStudentsTargets: (data: SetStudentTargetDto) =>
+    api.post<{ count: number }>('/students/targets/bulk/my-students', data),
+  
+  /** Get student's achievement for a specific date */
+  getAchievement: (studentId: number, date: string) => 
+    api.get<TargetAchievement | null>(`/students/${studentId}/achievement`, { 
+      params: { date } 
+    }),
 };
 
 

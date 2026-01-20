@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { studentApi, progressApi } from "@/services";
-import { Student, UpdateMemorizationDto } from "@/types/student";
-import { CreateProgressRecord, ProgressRecord } from "@/types/progress";
+import { Student, UpdateMemorizationDto, StudentTarget, SetStudentTargetDto, TargetAchievement } from "@/types/student";
+import { CreateProgressRecord } from "@/types/progress";
 import { surahs } from "@/lib/quran-data";
 import { useAuth } from "@/components/providers";
 import { Button } from "@/components/ui/button";
@@ -38,8 +38,10 @@ import {
   Edit3,
   GraduationCap,
   RefreshCw,
-  X,
   Eye,
+  Target,
+  Trash2,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { extractErrorMessage } from "@/lib/error-handler";
@@ -50,10 +52,64 @@ const getSurahName = (number: number) => {
   return surah?.name || "غير محدد";
 };
 
+// Helper function to get today's date in YYYY-MM-DD format
+const getTodayDate = () => {
+  return new Date().toISOString().split('T')[0];
+};
+
+// Helper function to get progress color based on percentage
+const getProgressColor = (percentage: number) => {
+  if (percentage >= 100) return "bg-emerald-500";
+  if (percentage >= 80) return "bg-blue-500";
+  if (percentage >= 50) return "bg-amber-500";
+  if (percentage > 0) return "bg-red-500";
+  return "bg-gray-300";
+};
+
+// Helper function to get progress text color
+const getProgressTextColor = (percentage: number) => {
+  if (percentage >= 100) return "text-emerald-600";
+  if (percentage >= 80) return "text-blue-600";
+  if (percentage >= 50) return "text-amber-600";
+  if (percentage > 0) return "text-red-600";
+  return "text-gray-500";
+};
+
 // Group students by Halaqa
 interface HalaqaGroup {
   halaqaName: string;
+  halaqaId?: number;
   students: Student[];
+}
+
+// Progress indicator component
+function ProgressIndicator({ 
+  label, 
+  achieved, 
+  target, 
+  unit,
+  percentage 
+}: { 
+  label: string; 
+  achieved: number; 
+  target: number;
+  unit: string;
+  percentage: number;
+}) {
+  const colorClass = getProgressColor(percentage);
+  const textColorClass = getProgressTextColor(percentage);
+  
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 min-w-0">
+        <div className={`w-2 h-2 rounded-full ${colorClass} shrink-0`} />
+        <span className="text-xs text-muted-foreground truncate">{label}:</span>
+      </div>
+      <span className={`text-xs font-medium ${textColorClass} whitespace-nowrap`}>
+        {achieved}/{target} {unit}
+      </span>
+    </div>
+  );
 }
 
 export default function MyStudentsPage() {
@@ -64,6 +120,10 @@ export default function MyStudentsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [collapsedHalaqas, setCollapsedHalaqas] = useState<Set<string>>(new Set());
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
+  
+  // Achievements cache for today
+  const [achievements, setAchievements] = useState<Map<number, TargetAchievement | null>>(new Map());
+  const [loadingAchievements, setLoadingAchievements] = useState<Set<number>>(new Set());
 
   // Progress form state
   const [progressStudent, setProgressStudent] = useState<Student | null>(null);
@@ -82,6 +142,22 @@ export default function MyStudentsPage() {
   const [editSurah, setEditSurah] = useState("");
   const [editVerse, setEditVerse] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Target dialog state
+  const [targetStudent, setTargetStudent] = useState<Student | null>(null);
+  const [targetData, setTargetData] = useState<StudentTarget | null>(null);
+  const [loadingTarget, setLoadingTarget] = useState(false);
+  const [savingTarget, setSavingTarget] = useState(false);
+  const [memorizationTarget, setMemorizationTarget] = useState("");
+  const [revisionTarget, setRevisionTarget] = useState("");
+  const [consolidationTarget, setConsolidationTarget] = useState("");
+
+  // Bulk target dialog state
+  const [bulkTargetHalaqa, setBulkTargetHalaqa] = useState<HalaqaGroup | null>(null);
+  const [bulkMemorizationTarget, setBulkMemorizationTarget] = useState("");
+  const [bulkRevisionTarget, setBulkRevisionTarget] = useState("");
+  const [bulkConsolidationTarget, setBulkConsolidationTarget] = useState("");
+  const [savingBulkTarget, setSavingBulkTarget] = useState(false);
 
   const handleNavigate = useCallback((studentId: string | number) => {
     setNavigatingTo(studentId.toString());
@@ -112,9 +188,38 @@ export default function MyStudentsPage() {
     }
   }, []);
 
+  // Fetch achievement for a student
+  const fetchAchievement = useCallback(async (studentId: number) => {
+    if (achievements.has(studentId) || loadingAchievements.has(studentId)) {
+      return;
+    }
+    
+    setLoadingAchievements(prev => new Set(prev).add(studentId));
+    try {
+      const response = await studentApi.getAchievement(studentId, getTodayDate());
+      setAchievements(prev => new Map(prev).set(studentId, response.data));
+    } catch {
+      // No achievement data - that's okay
+      setAchievements(prev => new Map(prev).set(studentId, null));
+    } finally {
+      setLoadingAchievements(prev => {
+        const next = new Set(prev);
+        next.delete(studentId);
+        return next;
+      });
+    }
+  }, [achievements, loadingAchievements]);
+
   useEffect(() => {
     fetchStudents();
   }, [fetchStudents]);
+
+  // Fetch achievements for visible students
+  useEffect(() => {
+    students.forEach(student => {
+      fetchAchievement(student.id);
+    });
+  }, [students, fetchAchievement]);
 
   // Clear toVerse when fromVerse changes if toVerse is now invalid
   useEffect(() => {
@@ -131,10 +236,11 @@ export default function MyStudentsPage() {
   const groupedStudents: HalaqaGroup[] = useMemo(() => {
     return filteredStudents.reduce((groups, student) => {
       const halaqaName = student.currentHalaqa || "بدون حلقة";
+      const activeAssignment = student.assignments.find(a => a.isActive);
       let group = groups.find(g => g.halaqaName === halaqaName);
 
       if (!group) {
-        group = { halaqaName, students: [] };
+        group = { halaqaName, halaqaId: activeAssignment?.halaqaId, students: [] };
         groups.push(group);
       }
 
@@ -189,6 +295,13 @@ export default function MyStudentsPage() {
       await progressApi.create(data);
       toast.success("تم حفظ التسميع بنجاح");
 
+      // Clear the achievement cache for this student to force refresh
+      setAchievements(prev => {
+        const next = new Map(prev);
+        next.delete(progressStudent.id);
+        return next;
+      });
+
       // Reset form
       setProgressStudent(null);
       setSelectedSurah("");
@@ -198,7 +311,7 @@ export default function MyStudentsPage() {
 
       // Refresh students to get updated positions (preserve scroll)
       fetchStudents(true);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error creating progress:", error);
       const errorMessage = extractErrorMessage(error, "حدث خطأ أثناء حفظ التسميع");
       toast.error(errorMessage);
@@ -301,7 +414,7 @@ export default function MyStudentsPage() {
           setFromVerse("1");
           setToVerse("");
         }
-      } catch (error) {
+      } catch {
         // If there's no record (404) or any other error, silently start from beginning
         // The teacher will manually enter the correct position
         console.log("No previous record found, starting from beginning");
@@ -321,6 +434,132 @@ export default function MyStudentsPage() {
     // Load initial data for new memorization
     loadProgressByType(student, "0");
   }, [loadProgressByType]);
+
+  // ================== TARGET HANDLERS ==================
+  
+  const openTargetDialog = useCallback(async (student: Student) => {
+    setTargetStudent(student);
+    setLoadingTarget(true);
+    setTargetData(null);
+    setMemorizationTarget("");
+    setRevisionTarget("");
+    setConsolidationTarget("");
+    
+    try {
+      const response = await studentApi.getTarget(student.id);
+      const target = response.data;
+      setTargetData(target);
+      
+      if (target) {
+        setMemorizationTarget(target.memorizationLinesTarget?.toString() || "");
+        setRevisionTarget(target.revisionPagesTarget?.toString() || "");
+        setConsolidationTarget(target.consolidationPagesTarget?.toString() || "");
+      }
+    } catch {
+      // No target set - that's okay
+    } finally {
+      setLoadingTarget(false);
+    }
+  }, []);
+
+  const handleSaveTarget = useCallback(async () => {
+    if (!targetStudent) return;
+    
+    setSavingTarget(true);
+    try {
+      const data: SetStudentTargetDto = {
+        memorizationLinesTarget: memorizationTarget ? parseInt(memorizationTarget) : null,
+        revisionPagesTarget: revisionTarget ? parseInt(revisionTarget) : null,
+        consolidationPagesTarget: consolidationTarget ? parseInt(consolidationTarget) : null,
+      };
+      
+      await studentApi.setTarget(targetStudent.id, data);
+      toast.success("تم حفظ الأهداف بنجاح");
+      
+      // Clear achievement cache to refresh
+      setAchievements(prev => {
+        const next = new Map(prev);
+        next.delete(targetStudent.id);
+        return next;
+      });
+      
+      // Re-fetch achievement
+      setTimeout(() => fetchAchievement(targetStudent.id), 100);
+      
+      setTargetStudent(null);
+    } catch (error) {
+      const errorMessage = extractErrorMessage(error, "حدث خطأ أثناء حفظ الأهداف");
+      toast.error(errorMessage);
+    } finally {
+      setSavingTarget(false);
+    }
+  }, [targetStudent, memorizationTarget, revisionTarget, consolidationTarget, fetchAchievement]);
+
+  const handleRemoveTarget = useCallback(async () => {
+    if (!targetStudent) return;
+    
+    setSavingTarget(true);
+    try {
+      const data: SetStudentTargetDto = {
+        memorizationLinesTarget: null,
+        revisionPagesTarget: null,
+        consolidationPagesTarget: null,
+      };
+      
+      await studentApi.setTarget(targetStudent.id, data);
+      toast.success("تم إزالة الأهداف");
+      
+      // Clear achievement cache
+      setAchievements(prev => {
+        const next = new Map(prev);
+        next.delete(targetStudent.id);
+        return next;
+      });
+      
+      setTargetStudent(null);
+    } catch (error) {
+      const errorMessage = extractErrorMessage(error, "حدث خطأ أثناء إزالة الأهداف");
+      toast.error(errorMessage);
+    } finally {
+      setSavingTarget(false);
+    }
+  }, [targetStudent]);
+
+  // ================== BULK TARGET HANDLERS ==================
+  
+  const openBulkTargetDialog = useCallback((group: HalaqaGroup) => {
+    setBulkTargetHalaqa(group);
+    setBulkMemorizationTarget("");
+    setBulkRevisionTarget("");
+    setBulkConsolidationTarget("");
+  }, []);
+
+  const handleSaveBulkTarget = useCallback(async () => {
+    if (!bulkTargetHalaqa) return;
+    
+    setSavingBulkTarget(true);
+    try {
+      // Use the teacher-specific endpoint which sets targets for all their students
+      const data: SetStudentTargetDto = {
+        memorizationLinesTarget: parseInt(bulkMemorizationTarget) || null,
+        revisionPagesTarget: parseInt(bulkRevisionTarget) || null,
+        consolidationPagesTarget: parseInt(bulkConsolidationTarget) || null,
+      };
+      
+      const response = await studentApi.bulkSetMyStudentsTargets(data);
+      toast.success(`تم تعيين الأهداف لـ ${response.data.count} طالب`);
+      
+      // Clear all achievement caches
+      setAchievements(new Map());
+      
+      setBulkTargetHalaqa(null);
+    } catch (error) {
+      const errorMessage = extractErrorMessage(error, "حدث خطأ أثناء تعيين الأهداف");
+      toast.error(errorMessage);
+    } finally {
+      setSavingBulkTarget(false);
+    }
+  }, [bulkTargetHalaqa, bulkMemorizationTarget, bulkRevisionTarget, bulkConsolidationTarget]);
 
   if (loading) {
     return (
@@ -380,98 +619,178 @@ export default function MyStudentsPage() {
                     </p>
                   </div>
                 </div>
-                {collapsedHalaqas.has(group.halaqaName) ? (
-                  <ChevronDown className="h-5 w-5 text-primary" />
-                ) : (
-                  <ChevronUp className="h-5 w-5 text-primary" />
-                )}
+                <div className="flex items-center gap-2">
+                  {/* Bulk Target Button */}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openBulkTargetDialog(group);
+                    }}
+                    title="تعيين أهداف موحدة للجميع"
+                    className="text-primary hover:text-primary"
+                  >
+                    <Users className="h-4 w-4 ml-1" />
+                    <Target className="h-4 w-4" />
+                  </Button>
+                  {collapsedHalaqas.has(group.halaqaName) ? (
+                    <ChevronDown className="h-5 w-5 text-primary" />
+                  ) : (
+                    <ChevronUp className="h-5 w-5 text-primary" />
+                  )}
+                </div>
               </div>
 
               {/* Students in this Halaqa */}
               {!collapsedHalaqas.has(group.halaqaName) && (
                 <div className="space-y-2 pr-4">
-                  {group.students.map((student) => (
-                    <Card
-                      key={student.id}
-                      className="transition-all duration-200 hover:shadow-md hover:scale-[1.01]"
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                          {/* Student Info */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2 flex-wrap">
-                              <h3
-                                className="font-semibold text-lg cursor-pointer hover:text-primary transition-colors"
-                                onClick={() => handleNavigate(student.id)}
-                              >
-                                {student.fullName}
-                              </h3>
-                              <Badge
-                                variant={
-                                  student.memorizationDirection === "Forward"
-                                    ? "default"
-                                    : "secondary"
-                                }
-                                className="shrink-0"
-                              >
-                                {student.memorizationDirection === "Forward" ? (
-                                  <ArrowDown className="h-3 w-3 ml-1" />
-                                ) : (
-                                  <ArrowUp className="h-3 w-3 ml-1" />
-                                )}
-                                {student.memorizationDirection === "Forward"
-                                  ? "من الفاتحة"
-                                  : "من الناس"}
-                              </Badge>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <BookOpen className="h-4 w-4" />
-                                {getSurahName(student.currentSurahNumber)}
-                                {student.currentVerse > 0 && ` - آية ${student.currentVerse}`}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <GraduationCap className="h-4 w-4" />
-                                {student.juzMemorized.toFixed(1)} جزء
-                              </span>
-                            </div>
-                          </div>
+                  {group.students.map((student) => {
+                    const achievement = achievements.get(student.id);
+                    const isLoadingAchievement = loadingAchievements.has(student.id);
+                    const hasTarget = achievement && (
+                      achievement.memorizationLinesTarget > 0 ||
+                      achievement.revisionPagesTarget > 0 ||
+                      achievement.consolidationPagesTarget > 0
+                    );
+                    
+                    return (
+                      <Card
+                        key={student.id}
+                        className="transition-all duration-200 hover:shadow-md hover:scale-[1.01]"
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex flex-col gap-3">
+                            {/* Student Info Row */}
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                              {/* Student Info */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                  <h3
+                                    className="font-semibold text-lg cursor-pointer hover:text-primary transition-colors"
+                                    onClick={() => handleNavigate(student.id)}
+                                  >
+                                    {student.fullName}
+                                  </h3>
+                                  <Badge
+                                    variant={
+                                      student.memorizationDirection === "Forward"
+                                        ? "default"
+                                        : "secondary"
+                                    }
+                                    className="shrink-0"
+                                  >
+                                    {student.memorizationDirection === "Forward" ? (
+                                      <ArrowDown className="h-3 w-3 ml-1" />
+                                    ) : (
+                                      <ArrowUp className="h-3 w-3 ml-1" />
+                                    )}
+                                    {student.memorizationDirection === "Forward"
+                                      ? "من الفاتحة"
+                                      : "من الناس"}
+                                  </Badge>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                                  <span className="flex items-center gap-1">
+                                    <BookOpen className="h-4 w-4" />
+                                    {getSurahName(student.currentSurahNumber)}
+                                    {student.currentVerse > 0 && ` - آية ${student.currentVerse}`}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <GraduationCap className="h-4 w-4" />
+                                    {student.juzMemorized.toFixed(1)} جزء
+                                  </span>
+                                </div>
+                              </div>
 
-                          {/* Action Buttons */}
-                          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleNavigate(student.id)}
-                              loading={navigatingTo === student.id.toString()}
-                              title="عرض الملف الشخصي"
-                              className="flex-1 sm:flex-none"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEditMemorization(student)}
-                              title="تعديل موضع الحفظ"
-                              className="flex-1 sm:flex-none"
-                            >
-                              <Edit3 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => openProgressForm(student)}
-                              className="flex-1 sm:flex-none"
-                            >
-                              <GraduationCap className="h-4 w-4 ml-2" />
-                              <span className="hidden sm:inline">تسجيل تسميع</span>
-                              <span className="sm:hidden">تسميع</span>
-                            </Button>
+                              {/* Action Buttons */}
+                              <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleNavigate(student.id)}
+                                  loading={navigatingTo === student.id.toString()}
+                                  title="عرض الملف الشخصي"
+                                  className="flex-1 sm:flex-none"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleEditMemorization(student)}
+                                  title="تعديل موضع الحفظ"
+                                  className="flex-1 sm:flex-none"
+                                >
+                                  <Edit3 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openTargetDialog(student)}
+                                  title="إدارة الأهداف"
+                                  className={`flex-1 sm:flex-none ${hasTarget ? 'border-primary text-primary' : ''}`}
+                                >
+                                  <Target className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => openProgressForm(student)}
+                                  className="flex-1 sm:flex-none"
+                                >
+                                  <GraduationCap className="h-4 w-4 ml-2" />
+                                  <span className="hidden sm:inline">تسجيل تسميع</span>
+                                  <span className="sm:hidden">تسميع</span>
+                                </Button>
+                              </div>
+                            </div>
+                            
+                            {/* Achievement Progress Row - Only show if there's a target */}
+                            {isLoadingAchievement ? (
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                                <span>جاري تحميل الإنجاز...</span>
+                              </div>
+                            ) : hasTarget && (
+                              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 p-3 bg-muted/30 rounded-lg border border-muted">
+                                <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                  <Target className="h-3 w-3" />
+                                  <span>إنجاز اليوم:</span>
+                                </div>
+                                {achievement.memorizationLinesTarget > 0 && (
+                                  <ProgressIndicator
+                                    label="حفظ"
+                                    achieved={achievement.memorizationLinesAchieved}
+                                    target={achievement.memorizationLinesTarget}
+                                    unit="سطر"
+                                    percentage={achievement.memorizationPercentage}
+                                  />
+                                )}
+                                {achievement.revisionPagesTarget > 0 && (
+                                  <ProgressIndicator
+                                    label="مراجعة"
+                                    achieved={achievement.revisionPagesAchieved}
+                                    target={achievement.revisionPagesTarget}
+                                    unit="صفحة"
+                                    percentage={achievement.revisionPercentage}
+                                  />
+                                )}
+                                {achievement.consolidationPagesTarget > 0 && (
+                                  <ProgressIndicator
+                                    label="تثبيت"
+                                    achieved={achievement.consolidationPagesAchieved}
+                                    target={achievement.consolidationPagesTarget}
+                                    unit="صفحة"
+                                    percentage={achievement.consolidationPercentage}
+                                  />
+                                )}
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -745,7 +1064,244 @@ export default function MyStudentsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Target Dialog */}
+      <Dialog open={!!targetStudent} onOpenChange={() => setTargetStudent(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              أهداف الطالب - {targetStudent?.fullName}
+            </DialogTitle>
+            <DialogDescription>
+              حدد الأهداف اليومية للطالب. اتركها فارغة إذا لم تكن تستخدم نظام الأهداف.
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingTarget ? (
+            <div className="space-y-4 py-4">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {/* Memorization Target */}
+              <div className="space-y-2 p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800">
+                <div className="flex items-center gap-2">
+                  <GraduationCap className="h-4 w-4 text-emerald-600" />
+                  <Label className="text-emerald-700 dark:text-emerald-300 font-medium">
+                    أسطر الحفظ اليومي
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="500"
+                    value={memorizationTarget}
+                    onChange={(e) => setMemorizationTarget(e.target.value)}
+                    placeholder="مثال: 5"
+                    className="text-center"
+                  />
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">سطر</span>
+                </div>
+                <p className="text-xs text-muted-foreground">0-500 سطر</p>
+              </div>
+
+              {/* Revision Target */}
+              <div className="space-y-2 p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4 text-blue-600" />
+                  <Label className="text-blue-700 dark:text-blue-300 font-medium">
+                    صفحات المراجعة اليومية
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="500"
+                    value={revisionTarget}
+                    onChange={(e) => setRevisionTarget(e.target.value)}
+                    placeholder="مثال: 2"
+                    className="text-center"
+                  />
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">صفحة</span>
+                </div>
+                <p className="text-xs text-muted-foreground">0-500 صفحة</p>
+              </div>
+
+              {/* Consolidation Target */}
+              <div className="space-y-2 p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-amber-600" />
+                  <Label className="text-amber-700 dark:text-amber-300 font-medium">
+                    صفحات التثبيت اليومية
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="500"
+                    value={consolidationTarget}
+                    onChange={(e) => setConsolidationTarget(e.target.value)}
+                    placeholder="مثال: 1"
+                    className="text-center"
+                  />
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">صفحة</span>
+                </div>
+                <p className="text-xs text-muted-foreground">0-500 صفحة</p>
+              </div>
+
+              {targetData && (
+                <p className="text-xs text-muted-foreground text-center">
+                  آخر تحديث: {new Date(targetData.updatedAt).toLocaleDateString('ar-SA')}
+                </p>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            {targetData && (
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleRemoveTarget}
+                disabled={savingTarget}
+                className="w-full sm:w-auto"
+              >
+                <Trash2 className="h-4 w-4 ml-2" />
+                إزالة الأهداف
+              </Button>
+            )}
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setTargetStudent(null)}
+                className="flex-1"
+              >
+                إلغاء
+              </Button>
+              <Button
+                onClick={handleSaveTarget}
+                loading={savingTarget}
+                className="flex-1"
+              >
+                حفظ الأهداف
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Target Dialog */}
+      <Dialog open={!!bulkTargetHalaqa} onOpenChange={() => setBulkTargetHalaqa(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              أهداف موحدة - {bulkTargetHalaqa?.halaqaName}
+            </DialogTitle>
+            <DialogDescription>
+              تعيين نفس الأهداف لجميع الطلاب في الحلقة ({bulkTargetHalaqa?.students.length} طالب)
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            {/* Memorization Target */}
+            <div className="space-y-2 p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800">
+              <div className="flex items-center gap-2">
+                <GraduationCap className="h-4 w-4 text-emerald-600" />
+                <Label className="text-emerald-700 dark:text-emerald-300 font-medium">
+                  أسطر الحفظ اليومي
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min="0"
+                  max="500"
+                  value={bulkMemorizationTarget}
+                  onChange={(e) => setBulkMemorizationTarget(e.target.value)}
+                  placeholder="مثال: 5"
+                  className="text-center"
+                />
+                <span className="text-sm text-muted-foreground whitespace-nowrap">سطر</span>
+              </div>
+            </div>
+
+            {/* Revision Target */}
+            <div className="space-y-2 p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center gap-2">
+                <RefreshCw className="h-4 w-4 text-blue-600" />
+                <Label className="text-blue-700 dark:text-blue-300 font-medium">
+                  صفحات المراجعة اليومية
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min="0"
+                  max="500"
+                  value={bulkRevisionTarget}
+                  onChange={(e) => setBulkRevisionTarget(e.target.value)}
+                  placeholder="مثال: 2"
+                  className="text-center"
+                />
+                <span className="text-sm text-muted-foreground whitespace-nowrap">صفحة</span>
+              </div>
+            </div>
+
+            {/* Consolidation Target */}
+            <div className="space-y-2 p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+              <div className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-amber-600" />
+                <Label className="text-amber-700 dark:text-amber-300 font-medium">
+                  صفحات التثبيت اليومية
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min="0"
+                  max="500"
+                  value={bulkConsolidationTarget}
+                  onChange={(e) => setBulkConsolidationTarget(e.target.value)}
+                  placeholder="مثال: 1"
+                  className="text-center"
+                />
+                <span className="text-sm text-muted-foreground whitespace-nowrap">صفحة</span>
+              </div>
+            </div>
+
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <p className="text-xs text-muted-foreground text-center">
+                ⚠️ سيتم استبدال أي أهداف سابقة للطلاب بهذه الأهداف الجديدة
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setBulkTargetHalaqa(null)}
+            >
+              إلغاء
+            </Button>
+            <Button
+              onClick={handleSaveBulkTarget}
+              loading={savingBulkTarget}
+              disabled={!bulkMemorizationTarget && !bulkRevisionTarget && !bulkConsolidationTarget}
+            >
+              تعيين للجميع
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-

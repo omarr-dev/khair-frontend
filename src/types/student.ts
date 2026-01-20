@@ -101,6 +101,7 @@ export interface StudentProgressRecord {
   surahName: string;
   fromVerse: number;
   toVerse: number;
+  numberLines: number;  // عدد الأسطر
   quality: string;
   notes?: string;
   createdAt: string;
@@ -147,4 +148,50 @@ export interface StudentDetail {
   // Recent records
   recentProgress: StudentProgressRecord[];
   recentAttendance: StudentAttendanceRecord[];
+}
+
+// ================== STUDENT TARGETS ==================
+
+/** Student's daily target configuration */
+export interface StudentTarget {
+  studentId: number;
+  memorizationLinesTarget: number | null;   // أسطر الحفظ
+  revisionPagesTarget: number | null;        // صفحات المراجعة
+  consolidationPagesTarget: number | null;   // صفحات التثبيت
+  updatedAt: string;
+}
+
+/** Request body for setting a student's target */
+export interface SetStudentTargetDto {
+  memorizationLinesTarget?: number | null;   // 0-500
+  revisionPagesTarget?: number | null;        // 0-500
+  consolidationPagesTarget?: number | null;   // 0-500
+}
+
+/** Request body for bulk setting targets */
+export interface BulkSetTargetDto {
+  studentIds?: number[];         // Specific students
+  teacherId?: number;            // OR all students of a teacher
+  halaqaId?: number;             // OR all students in a halaqa
+  memorizationLinesTarget: number;
+  revisionPagesTarget: number;
+  consolidationPagesTarget: number;
+}
+
+/** Daily achievement compared to target */
+export interface TargetAchievement {
+  studentId: number;
+  date: string;
+  // Targets
+  memorizationLinesTarget: number;
+  revisionPagesTarget: number;
+  consolidationPagesTarget: number;
+  // Achieved
+  memorizationLinesAchieved: number;
+  revisionPagesAchieved: number;
+  consolidationPagesAchieved: number;
+  // Percentages
+  memorizationPercentage: number;
+  revisionPercentage: number;
+  consolidationPercentage: number;
 }

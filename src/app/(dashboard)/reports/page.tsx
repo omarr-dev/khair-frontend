@@ -220,12 +220,10 @@ export default function ReportsPage() {
     
     setExporting(true);
     try {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = now.getMonth() + 1;
+      const { fromDate, toDate } = getDateRange();
       const halaqaId = selectedHalaqa !== "all" ? parseInt(selectedHalaqa) : undefined;
-      const response = await exportApi.exportTeacherAttendance(year, month, halaqaId);
-      downloadFile(response.data as Blob, `teacher_attendance_${year}_${month.toString().padStart(2, '0')}.xlsx`);
+      const response = await exportApi.exportTeacherAttendance(fromDate, toDate, halaqaId);
+      downloadFile(response.data as Blob, `teacher_attendance_${fromDate}_to_${toDate}.xlsx`);
       toast.success("تم تصدير تقرير حضور المعلمين بنجاح");
     } catch (error) {
       console.error("Error exporting teacher attendance:", error);

@@ -53,9 +53,11 @@ export const exportApi = {
     });
   },
   
-  exportTeacherAttendance: (year: number, month: number, halaqaId?: number) => {
-    const params = { year, month } as any;
-    if (halaqaId) params.halaqaId = halaqaId;
+  exportTeacherAttendance: (fromDate: string, toDate: string, halaqaId?: number) => {
+    const params = new URLSearchParams();
+    params.append('fromDate', fromDate);
+    params.append('toDate', toDate);
+    if (halaqaId) params.append('halaqaId', halaqaId.toString());
     return api.get('/export/teacher-attendance', { 
       params,
       responseType: 'blob' 

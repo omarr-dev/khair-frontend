@@ -396,7 +396,7 @@ export default function StudentsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">الطلاب</h1>
-        {user?.role === "Supervisor" && (
+        {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && (
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
             setIsDialogOpen(open);
             if (!open) resetForm();
@@ -692,7 +692,7 @@ export default function StudentsPage() {
                     <TableHead>الأجزاء المحفوظة</TableHead>
                     <TableHead>الحلقة</TableHead>
                     <TableHead>المعلم</TableHead>
-                    {user?.role === "Supervisor" && <TableHead>إجراءات</TableHead>}
+                    {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && <TableHead>إجراءات</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -727,7 +727,7 @@ export default function StudentsPage() {
                         </TableCell>
                         <TableCell>{student.currentHalaqa || "-"}</TableCell>
                         <TableCell>{student.teacherName || "-"}</TableCell>
-                        {user?.role === "Supervisor" && (
+                        {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && (
                           <TableCell>
                             <div className="flex gap-2">
                               <Button

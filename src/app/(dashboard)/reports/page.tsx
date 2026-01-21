@@ -5,6 +5,7 @@ import { statisticsApi, halaqatApi, exportApi } from "@/services";
 import { ReportStats } from "@/types/statistics";
 import { Halaqa } from "@/types/halaqa";
 import { useAuth } from "@/components/providers";
+import { roleUtils } from "@/types/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -65,7 +66,7 @@ export default function ReportsPage() {
   const [exporting, setExporting] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
 
-  const isSupervisor = user?.role === "Supervisor";
+  const isSupervisor = roleUtils.hasAnySupervisorRole(user?.role);
 
   useEffect(() => {
     fetchHalaqat();
@@ -184,7 +185,8 @@ export default function ReportsPage() {
     setExporting(true);
     try {
       const { fromDate, toDate } = getDateRange();
-      const response = await exportApi.exportHalaqaPerformance(fromDate, toDate);
+      const halaqaId = selectedHalaqa !== "all" ? parseInt(selectedHalaqa) : undefined;
+      const response = await exportApi.exportHalaqaPerformance(fromDate, toDate, halaqaId);
       downloadFile(response.data as Blob, `halaqa_performance_${fromDate}_to_${toDate}.xlsx`);
       toast.success("تم تصدير تقرير أداء الحلقات بنجاح");
     } catch (error) {
@@ -201,7 +203,8 @@ export default function ReportsPage() {
     setExporting(true);
     try {
       const { fromDate, toDate } = getDateRange();
-      const response = await exportApi.exportTeacherPerformance(fromDate, toDate);
+      const halaqaId = selectedHalaqa !== "all" ? parseInt(selectedHalaqa) : undefined;
+      const response = await exportApi.exportTeacherPerformance(fromDate, toDate, halaqaId);
       downloadFile(response.data as Blob, `teacher_performance_${fromDate}_to_${toDate}.xlsx`);
       toast.success("تم تصدير تقرير أداء المعلمين بنجاح");
     } catch (error) {
@@ -220,7 +223,8 @@ export default function ReportsPage() {
       const now = new Date();
       const year = now.getFullYear();
       const month = now.getMonth() + 1;
-      const response = await exportApi.exportTeacherAttendance(year, month);
+      const halaqaId = selectedHalaqa !== "all" ? parseInt(selectedHalaqa) : undefined;
+      const response = await exportApi.exportTeacherAttendance(year, month, halaqaId);
       downloadFile(response.data as Blob, `teacher_attendance_${year}_${month.toString().padStart(2, '0')}.xlsx`);
       toast.success("تم تصدير تقرير حضور المعلمين بنجاح");
     } catch (error) {

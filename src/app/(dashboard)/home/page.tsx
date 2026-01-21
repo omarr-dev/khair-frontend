@@ -42,7 +42,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
 
-  const isSupervisor = user?.role === "Supervisor";
+  const isSupervisor = user?.role === "Supervisor" || user?.role === "HalaqaSupervisor";
 
   const handleNavigate = (path: string) => {
     setNavigatingTo(path);

@@ -134,7 +134,8 @@ export default function TeacherAttendancePage() {
           halaqa.teachers.forEach((teacher) => {
             const key = `${teacher.teacherId}-${halaqa.halaqaId}`;
             const state = attendanceData.get(key);
-            if (state) {
+            // Only include if state exists and status is a valid number
+            if (state && typeof state.status === 'number') {
               attendance.push({
                 teacherId: teacher.teacherId,
                 halaqaId: halaqa.halaqaId,
@@ -145,6 +146,11 @@ export default function TeacherAttendancePage() {
           });
         }
       });
+
+      if (attendance.length === 0) {
+        toast.warning("لم يتم تحديد حضور أي معلم");
+        return;
+      }
 
       await teacherAttendanceApi.saveBulk({ attendance });
       toast.success("تم حفظ حضور المعلمين بنجاح");
@@ -235,7 +241,7 @@ export default function TeacherAttendancePage() {
     );
   }
 
-  if (user?.role !== "Supervisor") {
+  if (user?.role !== "Supervisor" && user?.role !== "HalaqaSupervisor") {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center space-y-4">

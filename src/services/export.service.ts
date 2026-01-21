@@ -31,29 +31,33 @@ export const exportApi = {
     });
   },
   
-  exportHalaqaPerformance: (fromDate: string, toDate: string) => {
+  exportHalaqaPerformance: (fromDate: string, toDate: string, halaqaId?: number) => {
     const params = new URLSearchParams();
     params.append('fromDate', fromDate);
     params.append('toDate', toDate);
+    if (halaqaId) params.append('halaqaId', halaqaId.toString());
     return api.get('/export/halaqa-performance', { 
       params,
       responseType: 'blob' 
     });
   },
   
-  exportTeacherPerformance: (fromDate: string, toDate: string) => {
+  exportTeacherPerformance: (fromDate: string, toDate: string, halaqaId?: number) => {
     const params = new URLSearchParams();
     params.append('fromDate', fromDate);
     params.append('toDate', toDate);
+    if (halaqaId) params.append('halaqaId', halaqaId.toString());
     return api.get('/export/teacher-performance', { 
       params,
       responseType: 'blob' 
     });
   },
   
-  exportTeacherAttendance: (year: number, month: number) => {
+  exportTeacherAttendance: (year: number, month: number, halaqaId?: number) => {
+    const params = { year, month } as any;
+    if (halaqaId) params.halaqaId = halaqaId;
     return api.get('/export/teacher-attendance', { 
-      params: { year, month },
+      params,
       responseType: 'blob' 
     });
   },

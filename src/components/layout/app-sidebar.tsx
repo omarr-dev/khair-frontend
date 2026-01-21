@@ -35,7 +35,17 @@ const teacherMenuItems = [
   { title: "طلابي", href: "/my-students", icon: UsersRound },
 ];
 
-// Menu items for supervisors - full access
+// Menu items for HalaqaSupervisors - can manage their assigned halaqas including teacher attendance
+const halaqaSupervisorMenuItems = [
+  { title: "الرئيسية", href: "/home", icon: Home },
+  { title: "الحلقات", href: "/halaqat", icon: BookOpen },
+  { title: "المعلمين", href: "/teachers", icon: UserCheck },
+  { title: "الطلاب", href: "/students", icon: Users },
+  { title: "حضور المعلمين", href: "/teacher-attendance", icon: ClipboardCheck },
+  { title: "التقارير", href: "/reports", icon: ChartBar },
+];
+
+// Menu items for full supervisors - full access including teacher attendance
 const supervisorMenuItems = [
   { title: "الرئيسية", href: "/home", icon: Home },
   { title: "الحلقات", href: "/halaqat", icon: BookOpen },
@@ -89,10 +99,31 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
   const pathname = usePathname();
   const { isCollapsed, isMobile } = useSidebar();
 
+  // Select menu items based on user role
+  const getMenuItems = () => {
+    switch (user?.role) {
+      case "Supervisor":
+        return supervisorMenuItems;
+      case "HalaqaSupervisor":
+        return halaqaSupervisorMenuItems;
+      case "Teacher":
+      default:
+        return teacherMenuItems;
+    }
+  };
+  const menuItems = getMenuItems();
+  
   const showText = isMobile || !isCollapsed;
   
-  // Select menu items based on user role
-  const menuItems = user?.role === "Supervisor" ? supervisorMenuItems : teacherMenuItems;
+  // Get role display name
+  const getRoleDisplayName = (role?: string) => {
+    switch (role) {
+      case 'Supervisor': return 'مشرف';
+      case 'HalaqaSupervisor': return 'مشرف حلقة';
+      case 'Teacher': return 'معلم';
+      default: return role ?? '';
+    }
+  };
 
   return (
     <div className="flex h-full flex-col">
@@ -160,7 +191,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
                 <div className="flex flex-col items-start text-right">
                   <span className="text-sm font-medium">{user?.fullName}</span>
                   <span className="text-xs text-muted-foreground">
-                    {user?.role === "Supervisor" ? "مشرف" : "معلم"}
+                    {getRoleDisplayName(user?.role)}
                   </span>
                 </div>
               )}

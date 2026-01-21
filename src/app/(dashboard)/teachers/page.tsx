@@ -317,7 +317,7 @@ export default function TeachersPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">المعلمين</h1>
-        {user?.role === "Supervisor" && (
+        {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && (
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
             setIsDialogOpen(open);
             if (!open) resetForm();
@@ -559,7 +559,7 @@ export default function TeachersPage() {
                     >
                       <List className="h-4 w-4" />
                     </Button>
-                    {user?.role === "Supervisor" && (
+                    {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && (
                       <>
                         <Button
                           size="sm"
@@ -764,7 +764,7 @@ export default function TeachersPage() {
                       </Badge>
                     )}
                   </div>
-                  {user?.role === "Supervisor" && (
+                  {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && (
                     <Button
                       size="sm"
                       variant="ghost"

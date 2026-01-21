@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { format } from "date-fns";
 import { statisticsApi, halaqatApi, exportApi } from "@/services";
 import { ReportStats } from "@/types/statistics";
 import { Halaqa } from "@/types/halaqa";
 import { useAuth } from "@/components/providers";
 import { roleUtils } from "@/types/auth";
+import { DateRangePicker, DateRange } from "@/components/shared";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -49,16 +51,19 @@ import {
   Calendar,
   Award,
   Loader2,
-  FileSpreadsheet,
   UserCheck,
   ClipboardList,
   BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
 
+// Type for date range options
+type DateRangeOption = "week" | "month" | "custom";
+
 export default function ReportsPage() {
   const { user } = useAuth();
-  const [dateRange, setDateRange] = useState<"week" | "month" | "all">("week");
+  const [dateRangeOption, setDateRangeOption] = useState<DateRangeOption>("week");
+  const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
   const [selectedHalaqa, setSelectedHalaqa] = useState<string>("all");
   const [halaqat, setHalaqat] = useState<Halaqa[]>([]);
   const [reportStats, setReportStats] = useState<ReportStats | null>(null);
@@ -73,8 +78,11 @@ export default function ReportsPage() {
   }, []);
 
   useEffect(() => {
-    fetchReportData();
-  }, [dateRange, selectedHalaqa]);
+    // Only fetch if not custom, or if custom and dates are set
+    if (dateRangeOption !== "custom" || customDateRange) {
+      fetchReportData();
+    }
+  }, [dateRangeOption, selectedHalaqa, customDateRange]);
 
   const fetchHalaqat = async () => {
     try {
@@ -89,13 +97,40 @@ export default function ReportsPage() {
     setLoading(true);
     try {
       const halaqaId = selectedHalaqa !== "all" ? parseInt(selectedHalaqa) : undefined;
-      const response = await statisticsApi.getReportStats(dateRange, halaqaId);
+      
+      // Build params based on date range option
+      const params = {
+        dateRange: dateRangeOption,
+        halaqaId,
+        fromDate: dateRangeOption === "custom" && customDateRange 
+          ? format(customDateRange.from, "yyyy-MM-dd") 
+          : undefined,
+        toDate: dateRangeOption === "custom" && customDateRange 
+          ? format(customDateRange.to, "yyyy-MM-dd") 
+          : undefined,
+      };
+      
+      const response = await statisticsApi.getReportStats(params);
       setReportStats(response.data);
     } catch (error) {
       console.error("Error fetching report data:", error);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Handle date range option change
+  const handleDateRangeOptionChange = (value: DateRangeOption) => {
+    setDateRangeOption(value);
+    // Clear custom range when switching to preset
+    if (value !== "custom") {
+      setCustomDateRange(undefined);
+    }
+  };
+
+  // Handle custom date range selection
+  const handleCustomDateRangeChange = (range: DateRange) => {
+    setCustomDateRange(range);
   };
 
   const downloadFile = (data: Blob, filename: string) => {
@@ -109,23 +144,34 @@ export default function ReportsPage() {
     window.URL.revokeObjectURL(url);
   };
 
-  const getDateRange = () => {
-    const toDate = new Date().toISOString().split('T')[0];
-    let fromDate: string;
-    
-    switch (dateRange) {
-      case "week":
-        fromDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        break;
-      case "month":
-        fromDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        break;
-      default:
-        fromDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    }
-    
-    return { fromDate, toDate };
-  };
+  // Get date range for exports
+  const getDateRange = useMemo(() => {
+    return () => {
+      // If custom date range is set, use it
+      if (dateRangeOption === "custom" && customDateRange) {
+        return {
+          fromDate: format(customDateRange.from, "yyyy-MM-dd"),
+          toDate: format(customDateRange.to, "yyyy-MM-dd"),
+        };
+      }
+      
+      const toDate = new Date().toISOString().split('T')[0];
+      let fromDate: string;
+      
+      switch (dateRangeOption) {
+        case "week":
+          fromDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          break;
+        case "month":
+          fromDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          break;
+        default:
+          fromDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      }
+      
+      return { fromDate, toDate };
+    };
+  }, [dateRangeOption, customDateRange]);
 
   const handleExportStudents = async () => {
     if (!isSupervisor) return;
@@ -396,20 +442,37 @@ export default function ReportsPage() {
       {/* Filters */}
       <Card>
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>الفترة الزمنية</Label>
-              <Select value={dateRange} onValueChange={(value: "week" | "month" | "all") => setDateRange(value)}>
+              <Select 
+                value={dateRangeOption} 
+                onValueChange={(value: DateRangeOption) => handleDateRangeOptionChange(value)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="week">هذا الأسبوع</SelectItem>
                   <SelectItem value="month">هذا الشهر</SelectItem>
-                  <SelectItem value="all">الكل</SelectItem>
+                  <SelectItem value="custom">فترة محددة</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Custom Date Range Picker - Only show when custom is selected */}
+            {dateRangeOption === "custom" && (
+              <div className="space-y-2">
+                <Label>اختر الفترة</Label>
+                <DateRangePicker
+                  value={customDateRange}
+                  onChange={handleCustomDateRangeChange}
+                  maxDate={new Date()}
+                  maxRangeDays={365}
+                  placeholder="اختر تاريخ البداية والنهاية"
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>الحلقة</Label>

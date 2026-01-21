@@ -9,13 +9,25 @@ import {
   SystemWideStats,
 } from '@/types/statistics';
 
+export interface ReportStatsParams {
+  dateRange: string;
+  halaqaId?: number;
+  fromDate?: string; // ISO date string (YYYY-MM-DD)
+  toDate?: string;   // ISO date string (YYYY-MM-DD)
+}
+
 export const statisticsApi = {
   getDashboardStats: () =>
     api.get<DashboardStats>('/statistics/dashboard'),
 
-  getReportStats: (dateRange: string, halaqaId?: number) =>
+  getReportStats: (params: ReportStatsParams) =>
     api.get<ReportStats>('/statistics/reports', {
-      params: { dateRange, halaqaId: halaqaId || undefined }
+      params: {
+        dateRange: params.dateRange,
+        halaqaId: params.halaqaId || undefined,
+        fromDate: params.fromDate || undefined,
+        toDate: params.toDate || undefined,
+      }
     }),
 
   // System-wide stats for motivation section (accessible by all)

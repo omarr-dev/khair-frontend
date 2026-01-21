@@ -166,7 +166,11 @@ export default function TeacherAttendancePage() {
   const handleExportMonthly = async () => {
     setExporting(true);
     try {
-      const response = await exportApi.exportTeacherAttendance(selectedYear, selectedMonth);
+      const fromDate = `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-01`;
+      const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
+      const toDate = `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
+      
+      const response = await exportApi.exportTeacherAttendance(fromDate, toDate);
       const url = window.URL.createObjectURL(response.data as Blob);
       const link = document.createElement('a');
       link.href = url;

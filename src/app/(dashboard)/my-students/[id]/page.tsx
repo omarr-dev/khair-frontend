@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { studentApi } from "@/services";
 import { StudentDetail, StudentAttendanceRecord, AchievementHistory } from "@/types/student";
@@ -10,13 +10,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   ArrowRight,
   BookOpen,
   GraduationCap,
   User,
   Phone,
   Calendar,
-  Award,
   ChevronLeft,
   ChevronRight,
   Check,
@@ -26,6 +31,7 @@ import {
   ArrowDown,
   Target,
   Edit3,
+  CalendarDays,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -42,14 +48,18 @@ import {
   subMonths,
   isSameDay,
   getDay,
+  differenceInDays,
 } from "date-fns";
 import { ar } from "date-fns/locale";
 
-// Day names in Arabic
+// Day names in Arabic (short)
 const dayNames = ["أح", "إث", "ثل", "أر", "خم", "جم", "سب"];
-const dayNamesLong = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
 type ViewMode = "weekly" | "monthly";
+type DateRangeOption = "today" | "week" | "month" | "custom";
+
+// Security: Max days allowed for custom date range
+const MAX_DATE_RANGE_DAYS = 90;
 
 // Helper function to get progress color based on percentage
 const getProgressColor = (percentage: number) => {
@@ -70,7 +80,13 @@ interface AchievementProgressBarProps {
   percentage: number;
 }
 
-function AchievementProgressBar({ label, achieved, target, unit, percentage }: AchievementProgressBarProps) {
+const AchievementProgressBar = memo(function AchievementProgressBar({ 
+  label, 
+  achieved, 
+  target, 
+  unit, 
+  percentage 
+}: AchievementProgressBarProps) {
   const colors = getProgressColor(percentage);
   const clampedPercentage = Math.min(percentage, 100);
   
@@ -88,7 +104,7 @@ function AchievementProgressBar({ label, achieved, target, unit, percentage }: A
         </div>
       </div>
       <div 
-        className="h-2 bg-gray-100 rounded-full overflow-hidden"
+        className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden"
         role="progressbar"
         aria-valuenow={clampedPercentage}
         aria-valuemin={0}
@@ -105,7 +121,69 @@ function AchievementProgressBar({ label, achieved, target, unit, percentage }: A
       </div>
     </div>
   );
+});
+
+// Day indicator dot component - memoized for performance
+interface DayDotProps {
+  day: {
+    date: string;
+    isTargetMet: boolean;
+    memorizationLinesAchieved?: number;
+    memorizationLinesTarget?: number;
+    revisionPagesAchieved?: number;
+    revisionPagesTarget?: number;
+    consolidationPagesAchieved?: number;
+    consolidationPagesTarget?: number;
+  };
 }
+
+const DayDot = memo(function DayDot({ day }: DayDotProps) {
+  const hasActivity = (day.memorizationLinesAchieved || 0) > 0 || 
+                     (day.revisionPagesAchieved || 0) > 0 || 
+                     (day.consolidationPagesAchieved || 0) > 0;
+  const dayDate = new Date(day.date);
+  
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          className={cn(
+            "w-4 h-4 rounded-full transition-all duration-200 cursor-pointer hover:scale-125",
+            day.isTargetMet 
+              ? "bg-emerald-500 shadow-sm shadow-emerald-200 dark:shadow-emerald-900" 
+              : hasActivity
+                ? "bg-amber-400"
+                : "bg-gray-200 dark:bg-gray-700"
+          )}
+          role="status"
+          aria-label={day.isTargetMet ? "تم تحقيق الهدف" : hasActivity ? "نشاط جزئي" : "لا نشاط"}
+        />
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-xs max-w-[200px]">
+        <div className="font-medium mb-1">
+          {format(dayDate, "EEEE d MMM", { locale: ar })}
+        </div>
+        <div className="space-y-0.5 text-muted-foreground">
+          {(day.memorizationLinesTarget || 0) > 0 && (
+            <div>حفظ: {day.memorizationLinesAchieved || 0}/{day.memorizationLinesTarget} سطر</div>
+          )}
+          {(day.revisionPagesTarget || 0) > 0 && (
+            <div>مراجعة: {day.revisionPagesAchieved || 0}/{day.revisionPagesTarget} صفحة</div>
+          )}
+          {(day.consolidationPagesTarget || 0) > 0 && (
+            <div>تثبيت: {day.consolidationPagesAchieved || 0}/{day.consolidationPagesTarget} صفحة</div>
+          )}
+        </div>
+        <div className={cn(
+          "mt-1 font-medium",
+          day.isTargetMet ? "text-emerald-600" : hasActivity ? "text-amber-600" : "text-gray-500"
+        )}>
+          {day.isTargetMet ? "✓ تم تحقيق الهدف" : hasActivity ? "نشاط جزئي" : "لا نشاط"}
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+});
 
 export default function StudentProfilePage() {
   const params = useParams();
@@ -120,50 +198,221 @@ export default function StudentProfilePage() {
   const [loadingAchievement, setLoadingAchievement] = useState(false);
 
   // Target dialog state
-  // Target dialog state
   const [targetDialogOpen, setTargetDialogOpen] = useState(false);
 
-  // Get date range for achievement history (7 days)
-  const getDateRange = useCallback(() => {
-    const today = new Date();
-    const endDate = today.toISOString().split('T')[0];
-    const startDate = new Date(today.setDate(today.getDate() - 6)).toISOString().split('T')[0];
-    return { startDate, endDate };
+  // Achievement date range state
+  const [dateRangeOption, setDateRangeOption] = useState<DateRangeOption>("week");
+  const [customStartDate, setCustomStartDate] = useState<string>("");
+  const [customEndDate, setCustomEndDate] = useState<string>("");
+  const [showCustomPicker, setShowCustomPicker] = useState(false);
+
+  // Force refresh achievement data (used after target updates)
+  const [achievementRefreshKey, setAchievementRefreshKey] = useState(0);
+  const refreshAchievement = useCallback(() => {
+    setAchievementRefreshKey(k => k + 1);
   }, []);
 
-  const fetchStudentDetails = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await studentApi.getDetails(studentId);
-      setStudent(response.data);
-    } catch (error) {
-      console.error("Error fetching student details:", error);
-      toast.error("حدث خطأ أثناء تحميل بيانات الطالب");
-    } finally {
-      setLoading(false);
+  // Helper to get today's date string (stable reference)
+  const getTodayStr = useCallback(() => {
+    return new Date().toISOString().split('T')[0];
+  }, []);
+
+  // Calculate date range based on selection - memoized for performance
+  // Returns stable object references to prevent unnecessary re-renders
+  const selectedDateRange = useMemo(() => {
+    const todayStr = getTodayStr();
+    
+    switch (dateRangeOption) {
+      case "today":
+        return { startDate: todayStr, endDate: todayStr, days: 1, label: "اليوم" };
+      case "week": {
+        const weekStart = new Date();
+        weekStart.setDate(weekStart.getDate() - 6);
+        return { 
+          startDate: weekStart.toISOString().split('T')[0], 
+          endDate: todayStr,
+          days: 7,
+          label: "آخر 7 أيام"
+        };
+      }
+      case "month": {
+        const monthStart = new Date();
+        monthStart.setDate(monthStart.getDate() - 29);
+        return { 
+          startDate: monthStart.toISOString().split('T')[0], 
+          endDate: todayStr,
+          days: 30,
+          label: "آخر 30 يوم"
+        };
+      }
+      case "custom": {
+        if (customStartDate && customEndDate) {
+          const start = new Date(customStartDate);
+          const end = new Date(customEndDate);
+          // Security: Validate and clamp date range
+          const diffDays = Math.min(
+            Math.abs(differenceInDays(end, start)) + 1,
+            MAX_DATE_RANGE_DAYS
+          );
+          return {
+            startDate: customStartDate,
+            endDate: customEndDate,
+            days: diffDays,
+            label: `${format(start, "d MMM", { locale: ar })} - ${format(end, "d MMM", { locale: ar })}`
+          };
+        }
+        // Fallback to week if custom dates not set
+        const weekStart = new Date();
+        weekStart.setDate(weekStart.getDate() - 6);
+        return { 
+          startDate: weekStart.toISOString().split('T')[0], 
+          endDate: todayStr, 
+          days: 7, 
+          label: "آخر 7 أيام" 
+        };
+      }
     }
+  }, [dateRangeOption, customStartDate, customEndDate, getTodayStr]);
+
+  // Fetch student details on mount
+  useEffect(() => {
+    if (!studentId) return;
+    
+    let isMounted = true;
+    
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const response = await studentApi.getDetails(studentId);
+        if (isMounted) {
+          setStudent(response.data);
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error("Error fetching student details:", error);
+          toast.error("حدث خطأ أثناء تحميل بيانات الطالب");
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+    
+    fetchData();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [studentId]);
 
-  const fetchAchievement = useCallback(async () => {
-    setLoadingAchievement(true);
-    try {
-      const { startDate, endDate } = getDateRange();
-      const response = await studentApi.getAchievementHistory(studentId, startDate, endDate);
-      setAchievementHistory(response.data);
-    } catch {
-      // No achievement data - that's okay
-      setAchievementHistory(null);
-    } finally {
-      setLoadingAchievement(false);
-    }
-  }, [studentId, getDateRange]);
-
+  // Fetch achievements when date range changes - with cleanup
   useEffect(() => {
-    if (studentId) {
-      fetchStudentDetails();
-      fetchAchievement();
+    if (!studentId) return;
+    
+    let isMounted = true;
+    const { startDate, endDate } = selectedDateRange;
+    
+    const fetchAchievementData = async () => {
+      setLoadingAchievement(true);
+      try {
+        const response = await studentApi.getAchievementHistory(studentId, startDate, endDate);
+        if (isMounted) {
+          setAchievementHistory(response.data);
+        }
+      } catch {
+        // No achievement data - that's okay
+        if (isMounted) {
+          setAchievementHistory(null);
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingAchievement(false);
+        }
+      }
+    };
+    
+    fetchAchievementData();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [studentId, selectedDateRange.startDate, selectedDateRange.endDate, achievementRefreshKey]);
+
+  // Calculate cumulative stats from daily achievements - memoized for performance
+  const cumulativeStats = useMemo(() => {
+    if (!achievementHistory?.hasTarget || !achievementHistory.dailyAchievements?.length) {
+      return null;
     }
-  }, [studentId, fetchStudentDetails, fetchAchievement]);
+    
+    const days = achievementHistory.dailyAchievements;
+    const numDays = days.length;
+    
+    // Get target from any day (it's the same for all days)
+    const firstDay = days[0];
+    if (!firstDay) return null;
+    
+    // Cumulative targets = daily target × number of days
+    const memDailyTarget = firstDay.memorizationLinesTarget || 0;
+    const revDailyTarget = firstDay.revisionPagesTarget || 0;
+    const conDailyTarget = firstDay.consolidationPagesTarget || 0;
+    
+    const memTarget = memDailyTarget * numDays;
+    const revTarget = revDailyTarget * numDays;
+    const conTarget = conDailyTarget * numDays;
+    
+    // Cumulative achieved = sum of all days
+    const memAchieved = days.reduce((sum, d) => sum + (d.memorizationLinesAchieved || 0), 0);
+    const revAchieved = days.reduce((sum, d) => sum + (d.revisionPagesAchieved || 0), 0);
+    const conAchieved = days.reduce((sum, d) => sum + (d.consolidationPagesAchieved || 0), 0);
+    
+    return {
+      memorization: {
+        achieved: memAchieved,
+        target: memTarget,
+        dailyTarget: memDailyTarget,
+        percentage: memTarget > 0 ? (memAchieved / memTarget) * 100 : 0,
+      },
+      revision: {
+        achieved: revAchieved,
+        target: revTarget,
+        dailyTarget: revDailyTarget,
+        percentage: revTarget > 0 ? (revAchieved / revTarget) * 100 : 0,
+      },
+      consolidation: {
+        achieved: conAchieved,
+        target: conTarget,
+        dailyTarget: conDailyTarget,
+        percentage: conTarget > 0 ? (conAchieved / conTarget) * 100 : 0,
+      },
+      numDays,
+      daysTargetMet: achievementHistory.totalDaysTargetMet,
+      daysActive: achievementHistory.totalDaysActive,
+    };
+  }, [achievementHistory]);
+
+  // Handle custom date range apply
+  const handleApplyCustomRange = useCallback(() => {
+    if (customStartDate && customEndDate) {
+      const start = new Date(customStartDate);
+      const end = new Date(customEndDate);
+      
+      // Validate dates
+      if (start > end) {
+        toast.error("تاريخ البداية يجب أن يكون قبل تاريخ النهاية");
+        return;
+      }
+      
+      const diffDays = differenceInDays(end, start) + 1;
+      if (diffDays > MAX_DATE_RANGE_DAYS) {
+        toast.error(`لا يمكن اختيار أكثر من ${MAX_DATE_RANGE_DAYS} يوم`);
+        return;
+      }
+      
+      setDateRangeOption("custom");
+      setShowCustomPicker(false);
+    }
+  }, [customStartDate, customEndDate]);
 
   // Parse active days from string "0,1,3,4" to array [0,1,3,4]
   const activeDays = useMemo(() => {
@@ -194,19 +443,19 @@ export default function StudentProfilePage() {
     }
   }, [currentDate, viewMode]);
 
-  // Get attendance status for a specific day
-  const getAttendanceForDay = (date: Date): StudentAttendanceRecord | undefined => {
-    if (!student) return undefined;
+  // Get attendance status for a specific day - memoized
+  const getAttendanceForDay = useCallback((date: Date): StudentAttendanceRecord | undefined => {
+    if (!student?.recentAttendance) return undefined;
     return student.recentAttendance.find((a) =>
       isSameDay(new Date(a.date), date)
     );
-  };
+  }, [student?.recentAttendance]);
 
-  // Check if a day is an active class day
-  const isActiveDay = (date: Date): boolean => {
+  // Check if a day is an active class day - memoized
+  const isActiveDay = useCallback((date: Date): boolean => {
     if (activeDays.length === 0) return true; // If no active days set, show all
     return activeDays.includes(getDay(date));
-  };
+  }, [activeDays]);
 
   // Navigate calendar
   const navigateCalendar = (direction: "prev" | "next") => {
@@ -358,15 +607,15 @@ export default function StudentProfilePage() {
         </Card>
       </div>
 
-      {/* Today's Achievement Card */}
+      {/* Achievement Card with Date Range */}
       <Card className="overflow-hidden p-0">
         <div className="bg-gradient-to-l from-emerald-600 to-teal-600 text-white p-4 rounded-t-xl">
-          <div className="flex items-center justify-between">
+          {/* Header Row */}
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2 text-lg font-semibold">
               <Target className="h-5 w-5" />
-              إنجاز اليوم
+              الإنجاز
             </div>
-            {/* Streak Badge */}
             <div className="flex items-center gap-2">
               {achievementHistory?.hasTarget && (
                 <Button 
@@ -376,7 +625,7 @@ export default function StudentProfilePage() {
                   onClick={() => setTargetDialogOpen(true)}
                 >
                   <Edit3 className="h-3 w-3 ml-1" />
-                  تعديل
+                  تعديل الهدف
                 </Button>
               )}
               {achievementHistory?.hasTarget && achievementHistory.currentStreak > 0 && (
@@ -388,7 +637,87 @@ export default function StudentProfilePage() {
               )}
             </div>
           </div>
+
+          {/* Date Range Selector */}
+          {achievementHistory?.hasTarget && (
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {(["today", "week", "month"] as const).map((option) => (
+                  <button
+                    key={option}
+                    onClick={() => {
+                      setDateRangeOption(option);
+                      setShowCustomPicker(false);
+                    }}
+                    className={cn(
+                      "px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200",
+                      dateRangeOption === option
+                        ? "bg-white text-emerald-700 shadow-sm"
+                        : "bg-white/20 hover:bg-white/30 text-white"
+                    )}
+                  >
+                    {option === "today" && "اليوم"}
+                    {option === "week" && "آخر 7 أيام"}
+                    {option === "month" && "آخر 30 يوم"}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setShowCustomPicker(!showCustomPicker)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 flex items-center gap-1",
+                    dateRangeOption === "custom"
+                      ? "bg-white text-emerald-700 shadow-sm"
+                      : "bg-white/20 hover:bg-white/30 text-white"
+                  )}
+                >
+                  <CalendarDays className="h-3 w-3" />
+                  مخصص
+                </button>
+              </div>
+
+              {/* Custom Date Picker */}
+              {showCustomPicker && (
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs opacity-80">من:</label>
+                      <input
+                        type="date"
+                        value={customStartDate}
+                        onChange={(e) => setCustomStartDate(e.target.value)}
+                        max={new Date().toISOString().split('T')[0]}
+                        className="bg-white/20 border border-white/30 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-white/50"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs opacity-80">إلى:</label>
+                      <input
+                        type="date"
+                        value={customEndDate}
+                        onChange={(e) => setCustomEndDate(e.target.value)}
+                        min={customStartDate}
+                        max={new Date().toISOString().split('T')[0]}
+                        className="bg-white/20 border border-white/30 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-white/50"
+                      />
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={handleApplyCustomRange}
+                      disabled={!customStartDate || !customEndDate}
+                      className="h-7 bg-white text-emerald-700 hover:bg-white/90"
+                    >
+                      تطبيق
+                    </Button>
+                  </div>
+                  <p className="text-xs opacity-70">
+                    الحد الأقصى: {MAX_DATE_RANGE_DAYS} يوم
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
+
         <CardContent className="pt-6 pb-6">
           {loadingAchievement ? (
             <div className="space-y-4">
@@ -396,71 +725,102 @@ export default function StudentProfilePage() {
               <Skeleton className="h-8 w-full" />
               <Skeleton className="h-8 w-full" />
             </div>
-          ) : achievementHistory?.hasTarget ? (
-            (() => {
-              // Get today's achievement from the daily achievements array
-              const todayStr = new Date().toISOString().split('T')[0];
-              const todayAchievement = achievementHistory.dailyAchievements.find(
-                a => a.date.split('T')[0] === todayStr
-              );
-              
-              if (!todayAchievement) {
-                return (
-                  <div className="text-center py-6 text-muted-foreground">
-                    لا توجد بيانات لليوم
-                  </div>
-                );
-              }
-
-              return (
-                <div className="space-y-4">
-                  {/* Progress Bars */}
-                  {todayAchievement.memorizationLinesTarget > 0 && (
-                    <AchievementProgressBar
-                      label="الحفظ"
-                      achieved={todayAchievement.memorizationLinesAchieved}
-                      target={todayAchievement.memorizationLinesTarget}
-                      unit="سطر"
-                      percentage={todayAchievement.memorizationPercentage}
-                    />
+          ) : achievementHistory?.hasTarget && cumulativeStats ? (
+            <div className="space-y-4">
+              {/* Period Label */}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  {selectedDateRange.label}
+                  {dateRangeOption !== "today" && (
+                    <span className="mr-1 text-xs">
+                      ({cumulativeStats.numDays} يوم)
+                    </span>
                   )}
+                </span>
+                {dateRangeOption !== "today" && cumulativeStats.memorization.dailyTarget > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    الهدف اليومي: {cumulativeStats.memorization.dailyTarget} سطر
+                  </span>
+                )}
+              </div>
 
-                  {todayAchievement.revisionPagesTarget > 0 && (
-                    <AchievementProgressBar
-                      label="المراجعة"
-                      achieved={todayAchievement.revisionPagesAchieved}
-                      target={todayAchievement.revisionPagesTarget}
-                      unit="صفحة"
-                      percentage={todayAchievement.revisionPercentage}
-                    />
-                  )}
+              {/* Progress Bars */}
+              {cumulativeStats.memorization.dailyTarget > 0 && (
+                <AchievementProgressBar
+                  label="الحفظ"
+                  achieved={cumulativeStats.memorization.achieved}
+                  target={cumulativeStats.memorization.target}
+                  unit="سطر"
+                  percentage={cumulativeStats.memorization.percentage}
+                />
+              )}
 
-                  {todayAchievement.consolidationPagesTarget > 0 && (
-                    <AchievementProgressBar
-                      label="التثبيت"
-                      achieved={todayAchievement.consolidationPagesAchieved}
-                      target={todayAchievement.consolidationPagesTarget}
-                      unit="صفحة"
-                      percentage={todayAchievement.consolidationPercentage}
-                    />
-                  )}
+              {cumulativeStats.revision.dailyTarget > 0 && (
+                <AchievementProgressBar
+                  label="المراجعة"
+                  achieved={cumulativeStats.revision.achieved}
+                  target={cumulativeStats.revision.target}
+                  unit="صفحة"
+                  percentage={cumulativeStats.revision.percentage}
+                />
+              )}
 
-                  {/* Weekly Summary - Compact */}
-                  <div className="flex items-center justify-between pt-3 border-t text-sm text-muted-foreground">
-                    <span>هذا الأسبوع</span>
+              {cumulativeStats.consolidation.dailyTarget > 0 && (
+                <AchievementProgressBar
+                  label="التثبيت"
+                  achieved={cumulativeStats.consolidation.achieved}
+                  target={cumulativeStats.consolidation.target}
+                  unit="صفحة"
+                  percentage={cumulativeStats.consolidation.percentage}
+                />
+              )}
+
+              {/* Visual Day Dots - Show for multi-day views */}
+              {dateRangeOption !== "today" && achievementHistory.dailyAchievements && achievementHistory.dailyAchievements.length > 0 && (
+                <div className="pt-3 border-t space-y-3">
+                  {/* Summary Stats */}
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>سجل الأيام</span>
                     <div className="flex items-center gap-4">
                       <span>
-                        <span className="font-semibold text-foreground">{achievementHistory.totalDaysTargetMet}</span> أيام تحقيق الهدف
+                        <span className="font-semibold text-emerald-600">{cumulativeStats.daysTargetMet}</span>
+                        <span className="text-xs mr-1">تحقيق الهدف</span>
                       </span>
                       <span>
-                        <span className="font-semibold text-foreground">{achievementHistory.totalDaysActive}</span> أيام نشطة
+                        <span className="font-semibold text-amber-600">{cumulativeStats.daysActive}</span>
+                        <span className="text-xs mr-1">نشاط</span>
                       </span>
                     </div>
                   </div>
+
+                  {/* Day Dots with Tooltip */}
+                  <TooltipProvider delayDuration={100}>
+                    <div className="flex flex-wrap items-center gap-1.5 justify-center" role="list" aria-label="سجل الأيام">
+                      {achievementHistory.dailyAchievements.map((day, i) => (
+                        <DayDot key={day.date || i} day={day} />
+                      ))}
+                    </div>
+                  </TooltipProvider>
+
+                  {/* Legend */}
+                  <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                      <span>تحقيق الهدف</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                      <span>نشاط جزئي</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-2.5 h-2.5 rounded-full bg-gray-200 dark:bg-gray-700" />
+                      <span>لا نشاط</span>
+                    </div>
+                  </div>
                 </div>
-              );
-            })()
-          ) : (
+              )}
+            </div>
+          ) : !achievementHistory?.hasTarget ? (
             <div className="text-center py-8">
               <div className="bg-muted/30 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Target className="h-8 w-8 text-muted-foreground/50" />
@@ -470,6 +830,10 @@ export default function StudentProfilePage() {
                 <Target className="h-4 w-4" />
                 تعيين الأهداف
               </Button>
+            </div>
+          ) : (
+            <div className="text-center py-6 text-muted-foreground">
+              لا توجد بيانات للفترة المحددة
             </div>
           )}
         </CardContent>
@@ -700,7 +1064,7 @@ export default function StudentProfilePage() {
           studentName={student.fullName}
           open={targetDialogOpen}
           onOpenChange={setTargetDialogOpen}
-          onTargetsUpdated={fetchAchievement}
+          onTargetsUpdated={refreshAchievement}
         />
       )}
     </div>

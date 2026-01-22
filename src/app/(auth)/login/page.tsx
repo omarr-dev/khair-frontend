@@ -18,6 +18,7 @@ import Image from "next/image";
 import { formatSaudiPhoneNumber } from "@/lib/phone-formatter";
 import { extractErrorMessage } from "@/lib/error-handler";
 import { Loader2 } from "lucide-react";
+import { TenantLoadingScreen } from "@/components/shared/tenant-loading-screen";
 
 export default function LoginPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -51,14 +52,7 @@ export default function LoginPage() {
 
   // Show loading state while tenant is being resolved
   if (tenantLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="text-muted-foreground">جاري تحميل بيانات الجمعية...</p>
-        </div>
-      </div>
-    );
+    return <TenantLoadingScreen message="جاري تحميل بيانات الجمعية..." showName={false} />;
   }
 
   // Show error if tenant resolution failed

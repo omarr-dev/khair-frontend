@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers";
+import { TenantLoadingScreen } from "@/components/shared/tenant-loading-screen";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading } = useAuth();
@@ -15,13 +16,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }, [isAuthenticated, loading, router]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-2xl font-semibold mb-2">جاري التحميل...</div>
-        </div>
-      </div>
-    );
+    return <TenantLoadingScreen message="جاري التحميل..." />;
   }
 
   if (!isAuthenticated) {

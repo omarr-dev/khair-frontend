@@ -1,5 +1,5 @@
 import { api } from './api-client';
-import { Teacher } from '@/types/teacher';
+import { Teacher, CreateTeacherDto, UpdateTeacherDto } from '@/types/teacher';
 import { PaginatedResponse, TeacherFilterParams } from '@/types/api';
 
 export const teachersApi = {
@@ -16,10 +16,10 @@ export const teachersApi = {
   getByHalaqa: (halaqaId: number) => 
     api.get<Teacher[]>(`/teachers/halaqa/${halaqaId}`),
     
-  create: (data: { phoneNumber: string; fullName: string; qualification?: string }) =>
+  create: (data: CreateTeacherDto) =>
     api.post<Teacher>('/teachers', data),
     
-  update: (id: number, data: { fullName: string; phoneNumber?: string; qualification?: string }) => 
+  update: (id: number, data: UpdateTeacherDto) => 
     api.put<Teacher>(`/teachers/${id}`, data),
     
   delete: (id: number) => 

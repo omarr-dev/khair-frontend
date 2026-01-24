@@ -47,6 +47,7 @@ import {
   Award,
   Phone,
   Mail,
+  IdCard,
   Plus,
   List,
   X,
@@ -55,7 +56,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  Loader2,
+  User
 } from "lucide-react";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -114,9 +117,12 @@ export default function TeachersPage() {
   // Form state
   const [fullName, setFullName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [email, setEmail] = useState("");
+  const [idNumber, setIdNumber] = useState("");
   const [qualification, setQualification] = useState("");
   const [selectedHalaqa, setSelectedHalaqa] = useState("");
   const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchHalaqat();
@@ -163,6 +169,8 @@ export default function TeachersPage() {
   const resetForm = () => {
     setFullName("");
     setPhoneNumber("");
+    setEmail("");
+    setIdNumber("");
     setQualification("");
     setEditingTeacher(null);
     setValidationErrors({});
@@ -248,17 +256,22 @@ export default function TeachersPage() {
     setEditingTeacher(teacher);
     setFullName(teacher.fullName);
     setPhoneNumber(teacher.phoneNumber || "");
+    setEmail(teacher.email || "");
+    setIdNumber(teacher.idNumber || "");
     setQualification(teacher.qualification || "");
     setIsDialogOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       if (editingTeacher) {
         await teachersApi.update(editingTeacher.id, {
           fullName,
           phoneNumber: phoneNumber || undefined,
+          email: email || undefined,
+          idNumber: idNumber || undefined,
           qualification: qualification || undefined,
         });
         toast.success("تم تحديث بيانات المعلم بنجاح");
@@ -266,6 +279,8 @@ export default function TeachersPage() {
         await teachersApi.create({
           phoneNumber,
           fullName,
+          email: email || undefined,
+          idNumber: idNumber || undefined,
           qualification: qualification || undefined,
         });
         toast.success("تم إضافة المعلم بنجاح");
@@ -275,12 +290,50 @@ export default function TeachersPage() {
       fetchTeachers();
     } catch (error: any) {
       console.error("Error saving teacher:", error);
-      if (error.response?.status === 400 && error.response?.data?.errors) {
-        setValidationErrors(error.response.data.errors);
+      
+      const responseData = error.response?.data;
+      const statusCode = error.response?.status;
+      
+      // Handle validation errors (field-level)
+      if (statusCode === 400 && responseData?.errors) {
+        setValidationErrors(responseData.errors);
         toast.error("يرجى التأكد من صحة البيانات المدخلة");
-      } else {
-        toast.error("حدث خطأ أثناء حفظ بيانات المعلم");
+        return;
       }
+      
+      // Handle specific error messages from backend
+      if (statusCode === 400 && responseData?.message) {
+        const message = responseData.message;
+        
+        // Duplicate phone number error
+        if (message.includes("مستخدم بالفعل") || message.includes("already")) {
+          setValidationErrors({ PhoneNumber: ["رقم الجوال مسجل مسبقاً لمعلم آخر. يرجى استخدام رقم مختلف."] });
+          toast.error("رقم الجوال مسجل مسبقاً", {
+            description: "هذا الرقم مستخدم بالفعل لمعلم آخر في النظام",
+          });
+          return;
+        }
+        
+        // Invalid phone number format
+        if (message.includes("رقم الجوال يجب") || message.includes("سعودي")) {
+          setValidationErrors({ PhoneNumber: [message] });
+          toast.error("رقم الجوال غير صالح", {
+            description: message,
+          });
+          return;
+        }
+        
+        // Generic message error
+        toast.error(message);
+        return;
+      }
+      
+      // Fallback error
+      toast.error("حدث خطأ أثناء حفظ بيانات المعلم", {
+        description: "يرجى المحاولة مرة أخرى أو التواصل مع الدعم الفني",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -328,76 +381,216 @@ export default function TeachersPage() {
                 إضافة معلم جديد
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[520px]">
               <DialogHeader>
-                <DialogTitle>
+                <DialogTitle className="flex items-center gap-2">
+                  <div className="p-2 rounded-full bg-primary/10">
+                    <UserPlus className="h-5 w-5 text-primary" />
+                  </div>
                   {editingTeacher ? "تعديل بيانات المعلم" : "إضافة معلم جديد"}
                 </DialogTitle>
                 <DialogDescription>
-                  أدخل بيانات المعلم ثم اضغط حفظ
+                  {editingTeacher 
+                    ? "قم بتعديل البيانات المطلوبة ثم اضغط تحديث"
+                    : "أدخل بيانات المعلم الجديد. الحقول المميزة بـ (*) مطلوبة"
+                  }
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit}>
-                <div className="grid gap-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName">الاسم الكامل</Label>
-                    <Input
-                      id="fullName"
-                      value={fullName}
-                      onChange={(e) => {
-                        setFullName(e.target.value);
-                        if (validationErrors.FullName) {
-                          setValidationErrors({ ...validationErrors, FullName: [] });
-                        }
-                      }}
-                      placeholder="أدخل اسم المعلم"
-                      required
-                    />
-                    {validationErrors.FullName && (
-                      <p className="text-sm text-destructive">{validationErrors.FullName[0]}</p>
-                    )}
+                <div className="space-y-6 py-4 max-h-[60vh] overflow-y-auto px-1">
+                  {/* Basic Info Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <User className="h-4 w-4" />
+                      <span>المعلومات الأساسية</span>
+                    </div>
+                    <div className="space-y-3 pr-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="fullName" className="flex items-center gap-1">
+                          الاسم الكامل
+                          <span className="text-destructive">*</span>
+                        </Label>
+                        <div className="relative">
+                          <User className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="fullName"
+                            value={fullName}
+                            onChange={(e) => {
+                              setFullName(e.target.value);
+                              if (validationErrors.FullName) {
+                                setValidationErrors({ ...validationErrors, FullName: [] });
+                              }
+                            }}
+                            placeholder="مثال: أحمد محمد العلي"
+                            required
+                            className={`pr-10 ${validationErrors.FullName ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                            autoFocus
+                          />
+                        </div>
+                        {validationErrors.FullName && (
+                          <p className="text-sm text-destructive flex items-center gap-1">
+                            <X className="h-3 w-3" />
+                            {validationErrors.FullName[0]}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="idNumber">رقم الهوية</Label>
+                        <div className="relative">
+                          <IdCard className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="idNumber"
+                            value={idNumber}
+                            onChange={(e) => {
+                              // Only allow numbers
+                              const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                              setIdNumber(value);
+                              if (validationErrors.IdNumber) {
+                                setValidationErrors({ ...validationErrors, IdNumber: [] });
+                              }
+                            }}
+                            placeholder="10 أرقام تبدأ بـ 1 أو 2"
+                            dir="ltr"
+                            className={`pr-10 text-left ${validationErrors.IdNumber ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                            maxLength={10}
+                          />
+                        </div>
+                        {validationErrors.IdNumber && (
+                          <p className="text-sm text-destructive flex items-center gap-1">
+                            <X className="h-3 w-3" />
+                            {validationErrors.IdNumber[0]}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phoneNumber">رقم الهاتف</Label>
-                    <Input
-                      id="phoneNumber"
-                      type="tel"
-                      value={phoneNumber}
-                      onChange={(e) => {
-                        handlePhoneNumberChange(e);
-                        if (validationErrors.PhoneNumber) {
-                          setValidationErrors({ ...validationErrors, PhoneNumber: [] });
-                        }
-                      }}
-                      placeholder="05xxxxxxxx"
-                      required
-                      dir="ltr"
-                    />
-                    {validationErrors.PhoneNumber && (
-                      <p className="text-sm text-destructive">{validationErrors.PhoneNumber[0]}</p>
-                    )}
+
+                  {/* Contact Info Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <Phone className="h-4 w-4" />
+                      <span>معلومات التواصل</span>
+                    </div>
+                    <div className="space-y-3 pr-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="phoneNumber" className="flex items-center gap-1">
+                          رقم الجوال
+                          <span className="text-destructive">*</span>
+                        </Label>
+                        <div className="relative">
+                          <Phone className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="phoneNumber"
+                            type="tel"
+                            value={phoneNumber}
+                            onChange={(e) => {
+                              handlePhoneNumberChange(e);
+                              if (validationErrors.PhoneNumber) {
+                                setValidationErrors({ ...validationErrors, PhoneNumber: [] });
+                              }
+                            }}
+                            placeholder="+966 5X XXX XXXX"
+                            required
+                            dir="ltr"
+                            className={`pr-10 text-left ${validationErrors.PhoneNumber ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          سيتم استخدام هذا الرقم لتسجيل دخول المعلم
+                        </p>
+                        {validationErrors.PhoneNumber && (
+                          <p className="text-sm text-destructive flex items-center gap-1">
+                            <X className="h-3 w-3" />
+                            {validationErrors.PhoneNumber[0]}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email">البريد الإلكتروني</Label>
+                        <div className="relative">
+                          <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => {
+                              setEmail(e.target.value);
+                              if (validationErrors.Email) {
+                                setValidationErrors({ ...validationErrors, Email: [] });
+                              }
+                            }}
+                            placeholder="example@email.com"
+                            dir="ltr"
+                            className={`pr-10 text-left ${validationErrors.Email ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                          />
+                        </div>
+                        {validationErrors.Email && (
+                          <p className="text-sm text-destructive flex items-center gap-1">
+                            <X className="h-3 w-3" />
+                            {validationErrors.Email[0]}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="qualification">المؤهل</Label>
-                    <Input
-                      id="qualification"
-                      value={qualification}
-                      onChange={(e) => {
-                        setQualification(e.target.value);
-                        if (validationErrors.Qualification) {
-                          setValidationErrors({ ...validationErrors, Qualification: [] });
-                        }
-                      }}
-                      placeholder="مثال: إجازة في القرآن الكريم"
-                    />
-                    {validationErrors.Qualification && (
-                      <p className="text-sm text-destructive">{validationErrors.Qualification[0]}</p>
-                    )}
+
+                  {/* Qualification Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <Award className="h-4 w-4" />
+                      <span>المؤهلات</span>
+                    </div>
+                    <div className="space-y-3 pr-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="qualification">المؤهل العلمي / الإجازة</Label>
+                        <div className="relative">
+                          <Award className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="qualification"
+                            value={qualification}
+                            onChange={(e) => {
+                              setQualification(e.target.value);
+                              if (validationErrors.Qualification) {
+                                setValidationErrors({ ...validationErrors, Qualification: [] });
+                              }
+                            }}
+                            placeholder="مثال: إجازة في القراءات العشر"
+                            className={`pr-10 ${validationErrors.Qualification ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                          />
+                        </div>
+                        {validationErrors.Qualification && (
+                          <p className="text-sm text-destructive flex items-center gap-1">
+                            <X className="h-3 w-3" />
+                            {validationErrors.Qualification[0]}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button type="submit">
-                    {editingTeacher ? "تحديث" : "إضافة المعلم"}
+                <DialogFooter className="gap-2 sm:gap-0 border-t pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsDialogOpen(false);
+                      resetForm();
+                    }}
+                    disabled={isSubmitting}
+                  >
+                    إلغاء
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                        جارٍ الحفظ...
+                      </>
+                    ) : editingTeacher ? (
+                      "تحديث البيانات"
+                    ) : (
+                      "إضافة المعلم"
+                    )}
                   </Button>
                 </DialogFooter>
               </form>
@@ -590,14 +783,22 @@ export default function TeachersPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span>{teacher.email}</span>
-                </div>
+                {teacher.email && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span dir="ltr">{teacher.email}</span>
+                  </div>
+                )}
                 {teacher.phoneNumber && (
                   <div className="flex items-center gap-2 text-sm">
                     <Phone className="h-4 w-4 text-muted-foreground" />
                     <span dir="ltr">{teacher.phoneNumber}</span>
+                  </div>
+                )}
+                {teacher.idNumber && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <IdCard className="h-4 w-4 text-muted-foreground" />
+                    <span dir="ltr">{teacher.idNumber}</span>
                   </div>
                 )}
                 {teacher.qualification && (

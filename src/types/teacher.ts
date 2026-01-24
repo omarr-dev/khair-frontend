@@ -2,7 +2,8 @@ export interface Teacher {
   id: number;
   userId: number;
   fullName: string;
-  email: string;
+  email?: string;
+  idNumber?: string;
   phoneNumber?: string;
   qualification?: string;
   joinDate: string;
@@ -13,12 +14,16 @@ export interface Teacher {
 export interface CreateTeacherDto {
   phoneNumber: string;
   fullName: string;
+  email?: string;
+  idNumber?: string;
   qualification?: string;
 }
 
 export interface UpdateTeacherDto {
   fullName: string;
   phoneNumber?: string;
+  email?: string;
+  idNumber?: string;
   qualification?: string;
 }
 

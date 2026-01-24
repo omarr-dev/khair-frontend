@@ -60,7 +60,15 @@ import {
   ChevronsRight,
   Filter,
   X,
-  Loader2
+  Loader2,
+  User,
+  Phone,
+  IdCard,
+  Calendar,
+  UserCircle,
+  BookOpen,
+  GraduationCap,
+  ArrowUpDown
 } from "lucide-react";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -126,6 +134,9 @@ export default function StudentsPage() {
   // Assignment form state
   const [assignHalaqa, setAssignHalaqa] = useState("");
   const [assignTeacher, setAssignTeacher] = useState("");
+  
+  // Loading states
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchHalaqat();
@@ -304,6 +315,7 @@ export default function StudentsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       const data: CreateStudentDto = {
         firstName,
@@ -359,6 +371,8 @@ export default function StudentsPage() {
       }
       
       toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -407,149 +421,267 @@ export default function StudentsPage() {
                 إضافة طالب جديد
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[560px]">
               <DialogHeader>
-                <DialogTitle>
+                <DialogTitle className="flex items-center gap-2">
+                  <div className="p-2 rounded-full bg-primary/10">
+                    <UserPlus className="h-5 w-5 text-primary" />
+                  </div>
                   {editingStudent ? "تعديل بيانات الطالب" : "إضافة طالب جديد"}
                 </DialogTitle>
                 <DialogDescription>
-                  أدخل بيانات الطالب ثم اضغط حفظ
+                  {editingStudent 
+                    ? "قم بتعديل البيانات المطلوبة ثم اضغط تحديث"
+                    : "أدخل بيانات الطالب الجديد. الحقول المميزة بـ (*) مطلوبة"
+                  }
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit}>
-                <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">الاسم الأول</Label>
-                      <Input
-                        id="firstName"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                        placeholder="أدخل الاسم الأول"
-                        required
-                      />
+                <div className="space-y-6 py-4 max-h-[60vh] overflow-y-auto px-1">
+                  {/* Student Info Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <User className="h-4 w-4" />
+                      <span>معلومات الطالب</span>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">اسم العائلة</Label>
-                      <Input
-                        id="lastName"
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
-                        placeholder="أدخل اسم العائلة"
-                        required
-                      />
+                    <div className="space-y-3 pr-6">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="firstName" className="flex items-center gap-1">
+                            الاسم الأول
+                            <span className="text-destructive">*</span>
+                          </Label>
+                          <div className="relative">
+                            <User className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              id="firstName"
+                              value={firstName}
+                              onChange={(e) => setFirstName(e.target.value)}
+                              placeholder="مثال: أحمد"
+                              required
+                              className="pr-10"
+                              autoFocus
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="lastName" className="flex items-center gap-1">
+                            اسم العائلة
+                            <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="lastName"
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
+                            placeholder="مثال: العلي"
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="dateOfBirth">تاريخ الميلاد</Label>
+                          <div className="relative">
+                            <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                            <Input
+                              id="dateOfBirth"
+                              type="date"
+                              value={dateOfBirth}
+                              onChange={(e) => setDateOfBirth(e.target.value)}
+                              className="pr-10"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="idNumber">رقم الهوية</Label>
+                          <div className="relative">
+                            <IdCard className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              id="idNumber"
+                              value={idNumber}
+                              onChange={(e) => {
+                                const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                setIdNumber(value);
+                              }}
+                              placeholder="10 أرقام"
+                              dir="ltr"
+                              className="pr-10 text-left"
+                              maxLength={10}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="phone">رقم هاتف الطالب</Label>
+                        <div className="relative">
+                          <Phone className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="phone"
+                            value={phone}
+                            onChange={(e) => setPhone(formatSaudiPhoneNumber(e.target.value))}
+                            placeholder="+966 5X XXX XXXX"
+                            dir="ltr"
+                            className="pr-10 text-left"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="dateOfBirth">تاريخ الميلاد</Label>
-                    <Input
-                      id="dateOfBirth"
-                      type="date"
-                      value={dateOfBirth}
-                      onChange={(e) => setDateOfBirth(e.target.value)}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="guardianName">اسم ولي الأمر</Label>
-                      <Input
-                        id="guardianName"
-                        value={guardianName}
-                        onChange={(e) => setGuardianName(e.target.value)}
-                        placeholder="اسم ولي الأمر"
-                      />
+
+                  {/* Guardian Info Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <UserCircle className="h-4 w-4" />
+                      <span>معلومات ولي الأمر</span>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="guardianPhone">هاتف ولي الأمر</Label>
-                      <Input
-                        id="guardianPhone"
-                        value={guardianPhone}
-                        onChange={(e) => setGuardianPhone(formatSaudiPhoneNumber(e.target.value))}
-                        placeholder="+966XXXXXXXXX"
-                        dir="ltr"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">رقم هاتف الطالب</Label>
-                      <Input
-                        id="phone"
-                        value={phone}
-                        onChange={(e) => setPhone(formatSaudiPhoneNumber(e.target.value))}
-                        placeholder="+966XXXXXXXXX"
-                        dir="ltr"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="idNumber">رقم الهوية</Label>
-                      <Input
-                        id="idNumber"
-                        value={idNumber}
-                        onChange={(e) => setIdNumber(e.target.value)}
-                        placeholder="1234567890"
-                      />
+                    <div className="space-y-3 pr-6">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="guardianName">اسم ولي الأمر</Label>
+                          <div className="relative">
+                            <UserCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              id="guardianName"
+                              value={guardianName}
+                              onChange={(e) => setGuardianName(e.target.value)}
+                              placeholder="مثال: محمد العلي"
+                              className="pr-10"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="guardianPhone">هاتف ولي الأمر</Label>
+                          <div className="relative">
+                            <Phone className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              id="guardianPhone"
+                              value={guardianPhone}
+                              onChange={(e) => setGuardianPhone(formatSaudiPhoneNumber(e.target.value))}
+                              placeholder="+966 5X XXX XXXX"
+                              dir="ltr"
+                              className="pr-10 text-left"
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Memorization Settings Section - Only for new students */}
                   {!editingStudent && (
-                    <div className="space-y-2">
-                      <Label>اتجاه الحفظ</Label>
-                      <Select
-                        value={memorizationDirection}
-                        onValueChange={(v) => setMemorizationDirection(v as "Forward" | "Backward")}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Forward">من الفاتحة إلى الناس</SelectItem>
-                          <SelectItem value="Backward">من الناس إلى الفاتحة</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                        <BookOpen className="h-4 w-4" />
+                        <span>إعدادات الحفظ</span>
+                      </div>
+                      <div className="space-y-3 pr-6">
+                        <div className="space-y-2">
+                          <Label className="flex items-center gap-1">
+                            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                            اتجاه الحفظ
+                          </Label>
+                          <Select
+                            value={memorizationDirection}
+                            onValueChange={(v) => setMemorizationDirection(v as "Forward" | "Backward")}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Forward">
+                                <span className="flex items-center gap-2">
+                                  من الفاتحة إلى الناس (تقليدي)
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="Backward">
+                                <span className="flex items-center gap-2">
+                                  من الناس إلى الفاتحة (عكسي)
+                                </span>
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            يحدد ترتيب السور في مسار الحفظ
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
+
+                  {/* Halaqa Assignment Section - Only for new students */}
                   {!editingStudent && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="halaqa">الحلقة</Label>
-                        <Select value={selectedHalaqa} onValueChange={setSelectedHalaqa}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="اختر الحلقة" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {halaqat.map((halaqa) => (
-                              <SelectItem key={halaqa.id} value={halaqa.id.toString()}>
-                                {halaqa.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                        <GraduationCap className="h-4 w-4" />
+                        <span>التعيين في الحلقة</span>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="teacher">المعلم</Label>
-                        <Select
-                          value={selectedTeacher}
-                          onValueChange={setSelectedTeacher}
-                          disabled={!selectedHalaqa}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={selectedHalaqa ? "اختر المعلم" : "اختر الحلقة أولاً"} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {teachers.map((teacher) => (
-                              <SelectItem key={teacher.id} value={teacher.id.toString()}>
-                                {teacher.fullName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      <div className="space-y-3 pr-6">
+                        <div className="space-y-2">
+                          <Label htmlFor="halaqa">الحلقة</Label>
+                          <Select value={selectedHalaqa} onValueChange={setSelectedHalaqa}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="اختر الحلقة (اختياري)" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {halaqat.map((halaqa) => (
+                                <SelectItem key={halaqa.id} value={halaqa.id.toString()}>
+                                  {halaqa.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="teacher">المعلم</Label>
+                          <Select
+                            value={selectedTeacher}
+                            onValueChange={setSelectedTeacher}
+                            disabled={!selectedHalaqa}
+                          >
+                            <SelectTrigger className={!selectedHalaqa ? "opacity-60" : ""}>
+                              <SelectValue placeholder={selectedHalaqa ? "اختر المعلم" : "اختر الحلقة أولاً"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {teachers.map((teacher) => (
+                                <SelectItem key={teacher.id} value={teacher.id.toString()}>
+                                  {teacher.fullName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {!selectedHalaqa && (
+                            <p className="text-xs text-muted-foreground">
+                              يجب اختيار الحلقة أولاً لعرض المعلمين المتاحين
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </>
+                    </div>
                   )}
                 </div>
-                <DialogFooter>
-                  <Button type="submit">
-                    {editingStudent ? "تحديث" : "إضافة الطالب"}
+                <DialogFooter className="gap-2 sm:gap-0 border-t pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsDialogOpen(false);
+                      resetForm();
+                    }}
+                    disabled={isSubmitting}
+                  >
+                    إلغاء
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                        جارٍ الحفظ...
+                      </>
+                    ) : editingStudent ? (
+                      "تحديث البيانات"
+                    ) : (
+                      "إضافة الطالب"
+                    )}
                   </Button>
                 </DialogFooter>
               </form>

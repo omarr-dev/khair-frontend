@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   description: "نظام متكامل لإدارة حلقات تحفيظ القرآن الكريم",
   keywords: "تحفيظ قرآن، حلقات قرآنية، إدارة طلاب، متابعة حفظ",
   authors: [{ name: "نظام الحلقات" }],
+  // Icons are set dynamically by TenantProvider based on tenant branding
+  icons: null,
 };
 
 export default function RootLayout({

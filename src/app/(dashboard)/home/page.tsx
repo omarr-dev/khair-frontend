@@ -203,8 +203,42 @@ export default function HomePage() {
     fetchAtRisk();
   }, []);
 
+  // Extract first name from full name
+  const getFirstName = (fullName: string | undefined): string => {
+    if (!fullName) return "";
+    return fullName.split(" ")[0];
+  };
+
   return (
     <div className="space-y-6">
+      {/* Welcome Message */}
+      {user && (
+        <Card className="bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 border-primary/20 animate-in fade-in slide-in-from-top-4 duration-300">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                  حيّاك الله {getFirstName(user.fullName)}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {new Date().toLocaleDateString("ar-SA", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </p>
+              </div>
+              <div className="hidden sm:block">
+                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+                  <span className="text-3xl">👋</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Hero Banner with Poem */}
       <HeroBanner className="animate-in fade-in slide-in-from-top-4 duration-500" />
 

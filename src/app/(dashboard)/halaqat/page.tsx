@@ -106,6 +106,14 @@ export default function HalaqatPage() {
       setHalaqat(response.data);
       // Start with all halaqat collapsed for better overview
       setCollapsedHalaqat(new Set(response.data.map((h) => h.id)));
+      // Start with all teachers collapsed by default
+      const teacherKeys: string[] = [];
+      response.data.forEach((halaqa) => {
+        halaqa.teachers.forEach((teacher) => {
+          teacherKeys.push(`${halaqa.id}-${teacher.id}`);
+        });
+      });
+      setCollapsedTeachers(new Set(teacherKeys));
     } catch (error) {
       console.error("Error fetching halaqat:", error);
       toast.error("حدث خطأ أثناء تحميل الحلقات");
@@ -577,7 +585,7 @@ export default function HalaqatPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <h3 className="font-semibold truncate">
-                                {teacher.fullName}
+                                المعلم {teacher.fullName}
                               </h3>
                               {teacher.phoneNumber && (
                                 <p

@@ -208,7 +208,7 @@ export default function HomePage() {
       {/* Simple Welcome Message */}
       {user && (
         <h1 className="text-2xl font-bold">
-          حيّاك الله {user.fullName.split(" ")[0]}
+          ,حيّاك الله {user.fullName.split(" ")[0]}
         </h1>
       )}
 

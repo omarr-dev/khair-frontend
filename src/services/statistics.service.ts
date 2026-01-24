@@ -7,6 +7,9 @@ import {
   TeacherRanking,
   AtRiskStudent,
   SystemWideStats,
+  DailyAchievementStats,
+  StreakLeaderboard,
+  TargetAdoptionOverview,
 } from '@/types/statistics';
 
 export interface ReportStatsParams {
@@ -14,6 +17,22 @@ export interface ReportStatsParams {
   halaqaId?: number;
   fromDate?: string; // ISO date string (YYYY-MM-DD)
   toDate?: string;   // ISO date string (YYYY-MM-DD)
+}
+
+export interface DailyAchievementParams {
+  halaqaId?: number;
+  fromDate?: string; // ISO date string (YYYY-MM-DD)
+  toDate?: string;   // ISO date string (YYYY-MM-DD)
+}
+
+export interface StreakLeaderboardParams {
+  halaqaId?: number;
+  limit?: number;
+}
+
+export interface TargetAdoptionParams {
+  halaqaId?: number;
+  includeBreakdown?: boolean;
 }
 
 export const statisticsApi = {
@@ -61,6 +80,34 @@ export const statisticsApi = {
   getAtRiskStudents: (limit?: number) =>
     api.get<AtRiskStudent[]>('/statistics/at-risk-students', {
       params: { limit }
+    }),
+
+  // Daily Achievement Statistics (إنجاز اليوم)
+  getDailyAchievement: (params?: DailyAchievementParams) =>
+    api.get<DailyAchievementStats>('/statistics/daily-achievement', {
+      params: {
+        halaqaId: params?.halaqaId || undefined,
+        fromDate: params?.fromDate || undefined,
+        toDate: params?.toDate || undefined,
+      }
+    }),
+
+  // Streak Leaderboard (أطول سلاسل الإنجاز)
+  getStreakLeaderboard: (params?: StreakLeaderboardParams) =>
+    api.get<StreakLeaderboard>('/statistics/streak-leaderboard', {
+      params: {
+        halaqaId: params?.halaqaId || undefined,
+        limit: params?.limit || undefined,
+      }
+    }),
+
+  // Target Adoption Overview (تغطية نظام الأهداف)
+  getTargetAdoptionOverview: (params?: TargetAdoptionParams) =>
+    api.get<TargetAdoptionOverview>('/statistics/target-adoption-overview', {
+      params: {
+        halaqaId: params?.halaqaId || undefined,
+        includeBreakdown: params?.includeBreakdown || undefined,
+      }
     }),
 };
 

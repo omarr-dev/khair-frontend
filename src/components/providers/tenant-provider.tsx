@@ -71,7 +71,40 @@ function applyTenantTheme(tenant: Tenant) {
 }
 
 /**
+ * Helper to update or create a link element in document head
+ * Cached references to avoid repeated DOM queries
+ */
+const linkCache: Record<string, HTMLLinkElement> = {};
+
+function updateLinkElement(rel: string, href: string): void {
+    // Check cache first to avoid DOM query
+    let link = linkCache[rel];
+    
+    if (!link) {
+        // Query DOM only once per rel type
+        const existingLink = document.querySelector(`link[rel='${rel}']`) as HTMLLinkElement | null;
+        
+        if (existingLink) {
+            link = existingLink;
+        } else {
+            link = document.createElement('link');
+            link.rel = rel;
+            document.head.appendChild(link);
+        }
+        
+        // Cache for future updates
+        linkCache[rel] = link;
+    }
+    
+    // Only update if href changed (avoid unnecessary DOM mutations)
+    if (link.href !== href) {
+        link.href = href;
+    }
+}
+
+/**
  * Update document title and favicon based on tenant
+ * Called once during tenant resolution - minimal performance impact
  */
 function updateDocumentMeta(tenant: Tenant) {
     if (typeof document === 'undefined') return;
@@ -80,15 +113,15 @@ function updateDocumentMeta(tenant: Tenant) {
     const displayName = tenant.displayName || tenant.name;
     document.title = `${displayName} - نظام إدارة الحلقات القرآنية`;
 
-    // Update favicon if provided
-    if (tenant.favicon) {
-        let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
-        if (!link) {
-            link = document.createElement('link');
-            link.rel = 'icon';
-            document.head.appendChild(link);
-        }
-        link.href = tenant.favicon;
+    // Use favicon if provided, otherwise fall back to logoUrl
+    const iconUrl = tenant.favicon || tenant.logoUrl;
+    
+    if (iconUrl) {
+        // Update main favicon (modern browsers)
+        updateLinkElement('icon', iconUrl);
+        
+        // Update apple-touch-icon for iOS home screen
+        updateLinkElement('apple-touch-icon', iconUrl);
     }
 }
 

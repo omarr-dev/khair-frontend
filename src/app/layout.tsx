@@ -5,10 +5,10 @@ import { Toaster } from "sonner";
 import { OfflineBanner } from "@/components/shared/offline-banner";
 
 export const metadata: Metadata = {
-  title: "جمعية خير - نظام إدارة الحلقات القرآنية",
+  title: "نظام إدارة الحلقات القرآنية",
   description: "نظام متكامل لإدارة حلقات تحفيظ القرآن الكريم",
   keywords: "تحفيظ قرآن، حلقات قرآنية، إدارة طلاب، متابعة حفظ",
-  authors: [{ name: "جمعية خير" }],
+  authors: [{ name: "نظام الحلقات" }],
 };
 
 export default function RootLayout({

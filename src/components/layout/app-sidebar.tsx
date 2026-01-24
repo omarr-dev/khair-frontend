@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,7 @@ import {
   UsersRound,
   ClipboardCheck,
 } from "lucide-react";
-import { useAuth } from "@/components/providers";
+import { useAuth, useTenant } from "@/components/providers";
 
 // Menu items for teachers - only Home and My Students
 const teacherMenuItems = [
@@ -96,11 +97,18 @@ export function AppSidebarProvider({ children }: { children: React.ReactNode }) 
 
 function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
   const { user, logout } = useAuth();
+  const { tenant } = useTenant();
   const pathname = usePathname();
   const { isCollapsed, isMobile } = useSidebar();
+  const [logoError, setLogoError] = React.useState(false);
 
-  // Select menu items based on user role
-  const getMenuItems = () => {
+  // Reset logo error when tenant changes
+  React.useEffect(() => {
+    setLogoError(false);
+  }, [tenant?.logoUrl]);
+
+  // Memoize menu items based on user role
+  const menuItems = React.useMemo(() => {
     switch (user?.role) {
       case "Supervisor":
         return supervisorMenuItems;
@@ -110,32 +118,53 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
       default:
         return teacherMenuItems;
     }
-  };
-  const menuItems = getMenuItems();
+  }, [user?.role]);
   
   const showText = isMobile || !isCollapsed;
   
   // Get role display name
-  const getRoleDisplayName = (role?: string) => {
+  const getRoleDisplayName = React.useCallback((role?: string) => {
     switch (role) {
       case 'Supervisor': return 'مشرف';
       case 'HalaqaSupervisor': return 'مشرف حلقة';
       case 'Teacher': return 'معلم';
       default: return role ?? '';
     }
-  };
+  }, []);
+
+  // Memoize tenant display values
+  const tenantDisplayName = React.useMemo(
+    () => tenant?.displayName || tenant?.name || 'نظام الحلقات',
+    [tenant?.displayName, tenant?.name]
+  );
+  const tenantInitial = tenantDisplayName.charAt(0);
+  const showLogo = tenant?.logoUrl && !logoError;
 
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
       <div className="border-b border-border p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">
-            خ
-          </div>
+          {showLogo ? (
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg">
+              <Image 
+                src={tenant.logoUrl!}
+                alt={tenantDisplayName}
+                fill
+                sizes="40px"
+                className="object-contain"
+                onError={() => setLogoError(true)}
+                unoptimized // Allow external URLs without domain config
+              />
+            </div>
+          ) : (
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">
+              {tenantInitial}
+            </div>
+          )}
           {showText && (
             <div className="flex flex-col">
-              <h2 className="text-lg font-bold">جمعية خير</h2>
+              <h2 className="text-lg font-bold">{tenantDisplayName}</h2>
               <p className="text-xs text-muted-foreground">نظام إدارة الحلقات</p>
             </div>
           )}

@@ -87,15 +87,16 @@ export default function TeachersPage() {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
-  const [isHalaqaDialogOpen, setIsHalaqaDialogOpen] = useState(false);
-  const [selectedTeacherForHalaqa, setSelectedTeacherForHalaqa] = useState<Teacher | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [teacherToDelete, setTeacherToDelete] = useState<Teacher | null>(null);
-  const [isViewHalaqatDialogOpen, setIsViewHalaqatDialogOpen] = useState(false);
-  const [selectedTeacherForView, setSelectedTeacherForView] = useState<Teacher | null>(null);
+  // Combined Halaqat Management Dialog
+  const [isManageHalaqatDialogOpen, setIsManageHalaqatDialogOpen] = useState(false);
+  const [selectedTeacherForHalaqat, setSelectedTeacherForHalaqat] = useState<Teacher | null>(null);
   const [teacherHalaqat, setTeacherHalaqat] = useState<TeacherHalaqa[]>([]);
+  const [isLoadingHalaqat, setIsLoadingHalaqat] = useState(false);
   const [isRemoveHalaqaDialogOpen, setIsRemoveHalaqaDialogOpen] = useState(false);
   const [halaqaToRemove, setHalaqaToRemove] = useState<TeacherHalaqa | null>(null);
+  const [isAssigning, setIsAssigning] = useState(false);
   const { user } = useAuth();
 
   // Pagination state
@@ -188,21 +189,27 @@ export default function TeachersPage() {
     setPage(1);
   };
 
-  const openHalaqaDialog = (teacher: Teacher) => {
-    setSelectedTeacherForHalaqa(teacher);
-    setIsHalaqaDialogOpen(true);
-  };
-
-  const openViewHalaqatDialog = async (teacher: Teacher) => {
-    setSelectedTeacherForView(teacher);
+  // Combined Halaqat Management Dialog
+  const openManageHalaqatDialog = async (teacher: Teacher) => {
+    setSelectedTeacherForHalaqat(teacher);
+    setIsManageHalaqatDialogOpen(true);
+    setIsLoadingHalaqat(true);
     try {
       const response = await teachersApi.getHalaqat(teacher.id);
       setTeacherHalaqat(response.data);
-      setIsViewHalaqatDialogOpen(true);
     } catch (error) {
       console.error("Error fetching teacher halaqat:", error);
       toast.error("حدث خطأ أثناء جلب حلقات المعلم");
+    } finally {
+      setIsLoadingHalaqat(false);
     }
+  };
+
+  const closeManageHalaqatDialog = () => {
+    setIsManageHalaqatDialogOpen(false);
+    setSelectedTeacherForHalaqat(null);
+    setTeacherHalaqat([]);
+    resetHalaqaForm();
   };
 
   const openRemoveHalaqaDialog = (halaqa: TeacherHalaqa) => {
@@ -211,14 +218,15 @@ export default function TeachersPage() {
   };
 
   const handleRemoveFromHalaqa = async () => {
-    if (!selectedTeacherForView || !halaqaToRemove) return;
+    if (!selectedTeacherForHalaqat || !halaqaToRemove) return;
 
     try {
-      await teachersApi.removeFromHalaqa(selectedTeacherForView.id, halaqaToRemove.halaqaId);
+      await teachersApi.removeFromHalaqa(selectedTeacherForHalaqat.id, halaqaToRemove.halaqaId);
       toast.success("تم إزالة المعلم من الحلقة بنجاح");
       setIsRemoveHalaqaDialogOpen(false);
       setHalaqaToRemove(null);
-      const response = await teachersApi.getHalaqat(selectedTeacherForView.id);
+      // Refresh the halaqat list
+      const response = await teachersApi.getHalaqat(selectedTeacherForHalaqat.id);
       setTeacherHalaqat(response.data);
       fetchTeachers();
     } catch (error) {
@@ -227,23 +235,27 @@ export default function TeachersPage() {
     }
   };
 
-  const handleAssignToHalaqa = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedTeacherForHalaqa || !selectedHalaqa) return;
+  const handleAssignToHalaqa = async () => {
+    if (!selectedTeacherForHalaqat || !selectedHalaqa) return;
 
+    setIsAssigning(true);
     try {
       await teachersApi.assignToHalaqa(
-        selectedTeacherForHalaqa.id,
+        selectedTeacherForHalaqat.id,
         parseInt(selectedHalaqa)
       );
       toast.success("تم تعيين المعلم في الحلقة بنجاح");
-      setIsHalaqaDialogOpen(false);
       resetHalaqaForm();
+      // Refresh the halaqat list
+      const response = await teachersApi.getHalaqat(selectedTeacherForHalaqat.id);
+      setTeacherHalaqat(response.data);
       fetchTeachers();
     } catch (error: any) {
       console.error("Error assigning teacher to halaqa:", error);
       const errorMessage = error.response?.data?.message || "حدث خطأ أثناء تعيين المعلم";
       toast.error(errorMessage);
+    } finally {
+      setIsAssigning(false);
     }
   };
 
@@ -389,12 +401,7 @@ export default function TeachersPage() {
                   </div>
                   {editingTeacher ? "تعديل بيانات المعلم" : "إضافة معلم جديد"}
                 </DialogTitle>
-                <DialogDescription>
-                  {editingTeacher 
-                    ? "قم بتعديل البيانات المطلوبة ثم اضغط تحديث"
-                    : "أدخل بيانات المعلم الجديد. الحقول المميزة بـ (*) مطلوبة"
-                  }
-                </DialogDescription>
+
               </DialogHeader>
               <form onSubmit={handleSubmit}>
                 <div className="space-y-6 py-4 max-h-[60vh] overflow-y-auto px-1">
@@ -449,7 +456,7 @@ export default function TeachersPage() {
                                 setValidationErrors({ ...validationErrors, IdNumber: [] });
                               }
                             }}
-                            placeholder="10 أرقام تبدأ بـ 1 أو 2"
+                            placeholder=""
                             dir="ltr"
                             className={`pr-10 text-left ${validationErrors.IdNumber ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                             maxLength={10}
@@ -542,7 +549,7 @@ export default function TeachersPage() {
                     </div>
                     <div className="space-y-3 pr-6">
                       <div className="space-y-2">
-                        <Label htmlFor="qualification">المؤهل العلمي / الإجازة</Label>
+                        <Label htmlFor="qualification">المؤهل </Label>
                         <div className="relative">
                           <Award className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                           <Input
@@ -747,21 +754,13 @@ export default function TeachersPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => openViewHalaqatDialog(teacher)}
-                      title="عرض الحلقات"
+                      onClick={() => openManageHalaqatDialog(teacher)}
+                      title="إدارة الحلقات"
                     >
                       <List className="h-4 w-4" />
                     </Button>
                     {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && (
                       <>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => openHalaqaDialog(teacher)}
-                          title="إضافة حلقة"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
                         <Button
                           size="sm"
                           variant="ghost"
@@ -869,44 +868,141 @@ export default function TeachersPage() {
         </div>
       )}
 
-      {/* Assign to Halaqa Dialog */}
-      <Dialog open={isHalaqaDialogOpen} onOpenChange={(open) => {
-        setIsHalaqaDialogOpen(open);
-        if (!open) resetHalaqaForm();
+      {/* Combined Manage Halaqat Dialog */}
+      <Dialog open={isManageHalaqatDialogOpen} onOpenChange={(open) => {
+        if (!open) closeManageHalaqatDialog();
       }}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
-            <DialogTitle>
-              تعيين المعلم في حلقة: {selectedTeacherForHalaqa?.fullName}
+            <DialogTitle className="flex items-center gap-2">
+              <div className="p-2 rounded-full bg-primary/10">
+                <BookOpen className="h-5 w-5 text-primary" />
+              </div>
+              إدارة حلقات المعلم
             </DialogTitle>
             <DialogDescription>
-              اختر الحلقة التي تريد تعيين المعلم فيها
+              {selectedTeacherForHalaqat?.fullName}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleAssignToHalaqa}>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="halaqa">الحلقة</Label>
-                <Select value={selectedHalaqa} onValueChange={setSelectedHalaqa}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="اختر الحلقة" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {halaqat.map((halaqa) => (
-                      <SelectItem key={halaqa.id} value={halaqa.id.toString()}>
-                        {halaqa.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          
+          <div className="space-y-6 py-4">
+            {/* Current Halaqat Section */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium flex items-center gap-2">
+                  <List className="h-4 w-4 text-muted-foreground" />
+                  الحلقات الحالية
+                </h4>
+                <Badge variant="secondary" className="text-xs">
+                  {teacherHalaqat.length} حلقة
+                </Badge>
+              </div>
+              
+              <div className="border rounded-lg divide-y max-h-[250px] overflow-y-auto">
+                {isLoadingHalaqat ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    <span className="mr-2 text-sm text-muted-foreground">جاري التحميل...</span>
+                  </div>
+                ) : teacherHalaqat.length === 0 ? (
+                  <div className="text-center py-8 px-4">
+                    <BookOpen className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground">لا توجد حلقات معينة</p>
+                    <p className="text-xs text-muted-foreground/70 mt-1">قم بإضافة حلقة من القائمة أدناه</p>
+                  </div>
+                ) : (
+                  teacherHalaqat.map((halaqa) => (
+                    <div
+                      key={halaqa.halaqaId}
+                      className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
+                          <BookOpen className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{halaqa.halaqaName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            منذ {format(new Date(halaqa.assignedDate), "dd MMMM yyyy", { locale: ar })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {halaqa.isPrimary && (
+                          <Badge variant="default" className="text-xs">
+                            أساسي
+                          </Badge>
+                        )}
+                        {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => openRemoveHalaqaDialog(halaqa)}
+                            title="إزالة من الحلقة"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
-            <DialogFooter>
-              <Button type="submit" disabled={!selectedHalaqa}>
-                تعيين المعلم
-              </Button>
-            </DialogFooter>
-          </form>
+            
+            {/* Add New Halaqa Section - Only for supervisors */}
+            {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && (
+              <div className="space-y-3 pt-2 border-t">
+                <h4 className="text-sm font-medium flex items-center gap-2">
+                  <Plus className="h-4 w-4 text-muted-foreground" />
+                  إضافة حلقة جديدة
+                </h4>
+                
+                <div className="flex gap-2">
+                  <Select value={selectedHalaqa} onValueChange={setSelectedHalaqa}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="اختر حلقة لإضافتها..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {halaqat
+                        .filter(h => !teacherHalaqat.some(th => th.halaqaId === h.id))
+                        .map((halaqa) => (
+                          <SelectItem key={halaqa.id} value={halaqa.id.toString()}>
+                            {halaqa.name}
+                          </SelectItem>
+                        ))}
+                      {halaqat.filter(h => !teacherHalaqat.some(th => th.halaqaId === h.id)).length === 0 && (
+                        <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                          تم تعيين جميع الحلقات
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <Button 
+                    onClick={handleAssignToHalaqa}
+                    disabled={!selectedHalaqa || isAssigning}
+                    className="shrink-0"
+                  >
+                    {isAssigning ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 ml-1" />
+                        إضافة
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter className="border-t pt-4">
+            <Button variant="outline" onClick={closeManageHalaqatDialog}>
+              إغلاق
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -932,64 +1028,13 @@ export default function TeachersPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* View Teacher's Halaqat Dialog */}
-      <Dialog open={isViewHalaqatDialogOpen} onOpenChange={setIsViewHalaqatDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>
-              حلقات المعلم: {selectedTeacherForView?.fullName}
-            </DialogTitle>
-            <DialogDescription>
-              قائمة الحلقات المعينة للمعلم
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            {teacherHalaqat.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                لا توجد حلقات معينة
-              </p>
-            ) : (
-              teacherHalaqat.map((halaqa) => (
-                <div
-                  key={halaqa.halaqaId}
-                  className="flex items-center justify-between p-3 border rounded-lg"
-                >
-                  <div>
-                    <p className="font-medium">{halaqa.halaqaName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      تاريخ التعيين: {format(new Date(halaqa.assignedDate), "dd MMMM yyyy", { locale: ar })}
-                    </p>
-                    {halaqa.isPrimary && (
-                      <Badge variant="default" className="mt-1">
-                        معلم أساسي
-                      </Badge>
-                    )}
-                  </div>
-                  {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive"
-                      onClick={() => openRemoveHalaqaDialog(halaqa)}
-                      title="إزالة من الحلقة"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Remove from Halaqa Confirmation Dialog */}
       <AlertDialog open={isRemoveHalaqaDialogOpen} onOpenChange={setIsRemoveHalaqaDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>تأكيد الإزالة</AlertDialogTitle>
             <AlertDialogDescription>
-              هل أنت متأكد من إزالة المعلم &quot;{selectedTeacherForView?.fullName}&quot; من حلقة &quot;{halaqaToRemove?.halaqaName}&quot;؟
+              هل أنت متأكد من إزالة المعلم &quot;{selectedTeacherForHalaqat?.fullName}&quot; من حلقة &quot;{halaqaToRemove?.halaqaName}&quot;؟
               لا يمكن التراجع عن هذا الإجراء.
             </AlertDialogDescription>
           </AlertDialogHeader>

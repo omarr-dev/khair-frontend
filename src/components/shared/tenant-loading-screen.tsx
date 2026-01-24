@@ -50,7 +50,7 @@ export function TenantLoadingScreen({
   const { tenant } = useTenant();
 
   // Get tenant branding with fallbacks
-  const displayName = tenant?.displayName || tenant?.name || "جمعية خير";
+  const displayName = tenant?.displayName || tenant?.name || "نظام الحلقات";
   const logoUrl = tenant?.logoUrl || "/شعار الجمعية (1).png";
   const hasCustomLogo = tenant?.logoUrl;
 

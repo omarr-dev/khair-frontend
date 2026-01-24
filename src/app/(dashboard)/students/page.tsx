@@ -429,12 +429,7 @@ export default function StudentsPage() {
                   </div>
                   {editingStudent ? "تعديل بيانات الطالب" : "إضافة طالب جديد"}
                 </DialogTitle>
-                <DialogDescription>
-                  {editingStudent 
-                    ? "قم بتعديل البيانات المطلوبة ثم اضغط تحديث"
-                    : "أدخل بيانات الطالب الجديد. الحقول المميزة بـ (*) مطلوبة"
-                  }
-                </DialogDescription>
+                
               </DialogHeader>
               <form onSubmit={handleSubmit}>
                 <div className="space-y-6 py-4 max-h-[60vh] overflow-y-auto px-1">
@@ -503,7 +498,7 @@ export default function StudentsPage() {
                                 const value = e.target.value.replace(/\D/g, '').slice(0, 10);
                                 setIdNumber(value);
                               }}
-                              placeholder="10 أرقام"
+                              placeholder=""
                               dir="ltr"
                               className="pr-10 text-left"
                               maxLength={10}
@@ -590,19 +585,17 @@ export default function StudentsPage() {
                             <SelectContent>
                               <SelectItem value="Forward">
                                 <span className="flex items-center gap-2">
-                                  من الفاتحة إلى الناس (تقليدي)
+                                  من الفاتحة إلى الناس 
                                 </span>
                               </SelectItem>
                               <SelectItem value="Backward">
                                 <span className="flex items-center gap-2">
-                                  من الناس إلى الفاتحة (عكسي)
+                                  من الناس إلى الفاتحة 
                                 </span>
                               </SelectItem>
                             </SelectContent>
                           </Select>
-                          <p className="text-xs text-muted-foreground">
-                            يحدد ترتيب السور في مسار الحفظ
-                          </p>
+                         
                         </div>
                       </div>
                     </div>

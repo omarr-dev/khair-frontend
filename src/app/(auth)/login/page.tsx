@@ -77,7 +77,7 @@ export default function LoginPage() {
   }
 
   // Get display values - use tenant data if available, otherwise use defaults
-  const displayName = tenant?.displayName || tenant?.name || "جمعية خير";
+  const displayName = tenant?.displayName || tenant?.name || "نظام الحلقات";
   const logoUrl = tenant?.logoUrl || "/شعار الجمعية (1).png";
 
   return (

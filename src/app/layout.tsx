@@ -23,7 +23,7 @@ export default function RootLayout({
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
         {/* Google Ads tag (gtag.js) */}
-        <Script
+        <Script 
           src="https://www.googletagmanager.com/gtag/js?id=AW-17902349140"
           strategy="afterInteractive"
         />

@@ -12,6 +12,66 @@ const IGNORED_SUBDOMAINS = ['www', 'localhost', 'api', 'admin', 'app'];
 // List of root domains (not subdomains)
 const ROOT_DOMAINS = ['maarij.sa', 'localhost', '127.0.0.1'];
 
+// Cache TTL: 24 hours in milliseconds
+const TENANT_CACHE_TTL = 24 * 60 * 60 * 1000;
+
+interface CachedTenant {
+    data: Tenant;
+    timestamp: number;
+    subdomain: string;
+}
+
+/**
+ * Get cached tenant data from localStorage
+ */
+function getCachedTenant(subdomain: string): Tenant | null {
+    if (typeof window === 'undefined') return null;
+
+    try {
+        const cached = localStorage.getItem('tenant');
+        if (!cached) return null;
+
+        const cachedData: CachedTenant = JSON.parse(cached);
+
+        // Validate: same subdomain and not expired
+        const isValid = 
+            cachedData.subdomain === subdomain &&
+            Date.now() - cachedData.timestamp < TENANT_CACHE_TTL;
+
+        if (isValid) {
+            console.log(`[TenantProvider] Using cached tenant data for: ${subdomain}`);
+            return cachedData.data;
+        }
+
+        // Cache expired or subdomain mismatch
+        console.log(`[TenantProvider] Cache invalid or expired for: ${subdomain}`);
+        return null;
+    } catch (error) {
+        console.error('[TenantProvider] Failed to parse cached tenant:', error);
+        localStorage.removeItem('tenant');
+        return null;
+    }
+}
+
+/**
+ * Save tenant data to localStorage with timestamp
+ */
+function cacheTenant(tenant: Tenant, subdomain: string): void {
+    if (typeof window === 'undefined') return;
+
+    try {
+        const cacheData: CachedTenant = {
+            data: tenant,
+            timestamp: Date.now(),
+            subdomain,
+        };
+        localStorage.setItem('tenant', JSON.stringify(cacheData));
+        console.log(`[TenantProvider] Cached tenant data for: ${subdomain}`);
+    } catch (error) {
+        console.error('[TenantProvider] Failed to cache tenant:', error);
+    }
+}
+
 /**
  * Extract subdomain from hostname
  * Examples:
@@ -165,17 +225,33 @@ export function TenantProvider({ children }: TenantProviderProps) {
 
             console.log(`[TenantProvider] Resolving tenant for subdomain: ${extractedSubdomain}`);
 
-            const tenantData = await resolveTenant(extractedSubdomain);
-            setTenant(tenantData);
+            // Check cache first
+            const cachedTenantData = getCachedTenant(extractedSubdomain);
+            
+            if (cachedTenantData) {
+                // Use cached data
+                setTenant(cachedTenantData);
+                localStorage.setItem('tenantId', cachedTenantData.id.toString());
+                applyTenantTheme(cachedTenantData);
+                updateDocumentMeta(cachedTenantData);
+                console.log(`[TenantProvider] Tenant resolved from cache: ${cachedTenantData.name} (ID: ${cachedTenantData.id})`);
+            } else {
+                // Fetch from API
+                const tenantData = await resolveTenant(extractedSubdomain);
+                setTenant(tenantData);
 
-            // Store tenant ID in localStorage for API client to use
-            localStorage.setItem('tenantId', tenantData.id.toString());
+                // Store tenant ID in localStorage for API client to use
+                localStorage.setItem('tenantId', tenantData.id.toString());
 
-            // Apply theme and update meta
-            applyTenantTheme(tenantData);
-            updateDocumentMeta(tenantData);
+                // Cache the full tenant data
+                cacheTenant(tenantData, extractedSubdomain);
 
-            console.log(`[TenantProvider] Tenant resolved: ${tenantData.name} (ID: ${tenantData.id})`);
+                // Apply theme and update meta
+                applyTenantTheme(tenantData);
+                updateDocumentMeta(tenantData);
+
+                console.log(`[TenantProvider] Tenant resolved from API: ${tenantData.name} (ID: ${tenantData.id})`);
+            }
         } catch (err: any) {
             console.error('[TenantProvider] Failed to resolve tenant:', err);
 

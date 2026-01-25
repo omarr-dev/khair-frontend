@@ -36,7 +36,7 @@ export default function RootLayout({
           `}
         </Script>
       </head>
-      <body className="antialiased">
+      <body className="antialiased overflow-hidden">
         <ThemeProvider
           attribute="class"
           defaultTheme="light"

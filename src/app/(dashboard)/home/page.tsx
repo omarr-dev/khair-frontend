@@ -216,19 +216,21 @@ export default function HomePage() {
       {/* Hero Banner with Poem */}
       <HeroBanner className="animate-in fade-in slide-in-from-top-4 duration-500" />
 
-      {/* Quick Access to My Students - Compact */}
-      <div
-        onClick={() => handleNavigate("/my-students")}
-        className="flex items-center gap-3 px-4 py-3 bg-gradient-to-l from-primary/5 to-primary/10 border border-primary/20 rounded-lg cursor-pointer transition-all duration-200 hover:border-primary/40 hover:shadow-sm group animate-in fade-in slide-in-from-top-4"
-      >
-        <Users className="h-4 w-4 text-primary shrink-0" />
-        <span className="font-semibold">طلابي</span>
-        <span className="text-muted-foreground">•</span>
-        <span className="text-sm text-muted-foreground flex-1">
-          عرض جميع الطلاب المسجلين معك
-        </span>
-        <ChevronLeft className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-      </div>
+      {/* Quick Access to My Students - Compact (Teachers only) */}
+      {user?.role === "Teacher" && (
+        <div
+          onClick={() => handleNavigate("/my-students")}
+          className="flex items-center gap-3 px-4 py-3 bg-gradient-to-l from-primary/5 to-primary/10 border border-primary/20 rounded-lg cursor-pointer transition-all duration-200 hover:border-primary/40 hover:shadow-sm group animate-in fade-in slide-in-from-top-4"
+        >
+          <Users className="h-4 w-4 text-primary shrink-0" />
+          <span className="font-semibold">طلابي</span>
+          <span className="text-muted-foreground">•</span>
+          <span className="text-sm text-muted-foreground flex-1">
+            عرض جميع الطلاب المسجلين معك
+          </span>
+          <ChevronLeft className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+        </div>
+      )}
 
       {/* Halaqa Filter for Supervisors */}
       {isSupervisor && halaqat.length > 0 && (

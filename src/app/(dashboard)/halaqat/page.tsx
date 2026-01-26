@@ -695,22 +695,24 @@ export default function HalaqatPage() {
                                             </div>
                                           </div>
                                         </div>
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          className="shrink-0"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleNavigate(student.id);
-                                          }}
-                                          disabled={navigatingTo === student.id.toString()}
-                                        >
-                                          {navigatingTo === student.id.toString() ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                          ) : (
-                                            <Eye className="h-4 w-4" />
-                                          )}
-                                        </Button>
+                                        <div className="flex justify-end">
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="shrink-0"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleNavigate(student.id);
+                                            }}
+                                            disabled={navigatingTo === student.id.toString()}
+                                          >
+                                            {navigatingTo === student.id.toString() ? (
+                                              <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                              <Eye className="h-4 w-4" />
+                                            )}
+                                          </Button>
+                                        </div>
                                       </div>
                                     </CardContent>
                                   </Card>

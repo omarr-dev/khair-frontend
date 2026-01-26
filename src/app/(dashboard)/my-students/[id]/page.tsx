@@ -6,6 +6,8 @@ import { studentApi } from "@/services";
 import { StudentDetail, StudentAttendanceRecord, AchievementHistory } from "@/types/student";
 import { Button } from "@/components/ui/button";
 import { StudentTargetDialog } from "@/components/students/student-target-dialog";
+import { ProgressRecordingDialog } from "@/components/students/progress-recording-dialog";
+import { EditMemorizationDialog } from "@/components/students/edit-memorization-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,7 +34,10 @@ import {
   Target,
   Edit3,
   CalendarDays,
+  RefreshCw,
+  Mic,
 } from "lucide-react";
+import { extractErrorMessage } from "@/lib/error-handler";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -199,6 +204,12 @@ export default function StudentProfilePage() {
 
   // Target dialog state
   const [targetDialogOpen, setTargetDialogOpen] = useState(false);
+
+  // Progress recording dialog state
+  const [progressDialogOpen, setProgressDialogOpen] = useState(false);
+
+  // Edit memorization dialog state
+  const [editMemorizationOpen, setEditMemorizationOpen] = useState(false);
 
   // Achievement date range state
   const [dateRangeOption, setDateRangeOption] = useState<DateRangeOption>("week");
@@ -469,8 +480,16 @@ export default function StudentProfilePage() {
   // Calculate juz progress percentage (30 juz total)
   const juzProgress = student ? Math.min((student.juzMemorized / 30) * 100, 100) : 0;
 
-  // Target Handlers
-
+  // Refresh student data after progress/memorization update
+  const refreshStudentData = useCallback(async () => {
+    try {
+      const response = await studentApi.getDetails(studentId);
+      setStudent(response.data);
+      refreshAchievement();
+    } catch (error) {
+      console.error("Error refreshing student data:", error);
+    }
+  }, [studentId, refreshAchievement]);
 
   if (loading) {
     return (
@@ -575,6 +594,25 @@ export default function StudentProfilePage() {
                 )}
               </div>
             )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-4 mt-4 border-t w-full">
+              <Button
+                onClick={() => setProgressDialogOpen(true)}
+                className="gap-2 bg-gradient-to-l from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-md"
+              >
+                <Mic className="h-4 w-4" />
+                تسجيل التسميع
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setEditMemorizationOpen(true)}
+                className="gap-2 border-primary/50 hover:bg-primary/5"
+              >
+                <Edit3 className="h-4 w-4" />
+                تعديل الحفظ
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -1065,6 +1103,34 @@ export default function StudentProfilePage() {
           open={targetDialogOpen}
           onOpenChange={setTargetDialogOpen}
           onTargetsUpdated={refreshAchievement}
+        />
+      )}
+
+      {/* Progress Recording Dialog */}
+      {student && student.halaqaId && (
+        <ProgressRecordingDialog
+          studentId={student.id}
+          studentName={student.fullName}
+          halaqaId={student.halaqaId}
+          currentSurahNumber={student.currentSurahNumber}
+          currentVerse={student.currentVerse}
+          open={progressDialogOpen}
+          onOpenChange={setProgressDialogOpen}
+          onProgressRecorded={refreshStudentData}
+        />
+      )}
+
+      {/* Edit Memorization Dialog */}
+      {student && (
+        <EditMemorizationDialog
+          studentId={student.id}
+          studentName={student.fullName}
+          currentDirection={student.memorizationDirection}
+          currentSurahNumber={student.currentSurahNumber}
+          currentVerse={student.currentVerse}
+          open={editMemorizationOpen}
+          onOpenChange={setEditMemorizationOpen}
+          onMemorizationUpdated={refreshStudentData}
         />
       )}
     </div>

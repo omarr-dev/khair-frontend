@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { studentApi, progressApi } from "@/services";
-import { Student, UpdateMemorizationDto, SetStudentTargetDto, AchievementHistory } from "@/types/student";
-import { CreateProgressRecord } from "@/types/progress";
+import { studentApi } from "@/services";
+import { Student, SetStudentTargetDto, AchievementHistory } from "@/types/student";
 import { surahs } from "@/lib/quran-data";
 import { useAuth } from "@/components/providers";
 import { Button } from "@/components/ui/button";
@@ -12,13 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +39,8 @@ import { toast } from "sonner";
 import { extractErrorMessage } from "@/lib/error-handler";
 import { convertArabicToEnglish } from "@/lib/utils";
 import { StudentTargetDialog } from "@/components/students/student-target-dialog";
+import { ProgressRecordingDialog } from "@/components/students/progress-recording-dialog";
+import { EditMemorizationDialog } from "@/components/students/edit-memorization-dialog";
 
 // Helper function to get surah name by number
 const getSurahName = (number: number) => {
@@ -129,23 +123,11 @@ export default function MyStudentsPage() {
   const [achievements, setAchievements] = useState<Record<number, AchievementHistory>>({});
   const [loadingAchievements, setLoadingAchievements] = useState(false);
 
-  // Progress form state
+  // Progress form state - just track which student is selected
   const [progressStudent, setProgressStudent] = useState<Student | null>(null);
-  const [progressType, setProgressType] = useState<"0" | "1" | "2">("0");
-  const [selectedSurah, setSelectedSurah] = useState("");
-  const [fromVerse, setFromVerse] = useState("");
-  const [toVerse, setToVerse] = useState("");
-  const [quality, setQuality] = useState<"0" | "1" | "2" | "3">("0");
-  const [notes, setNotes] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [loadingProgressData, setLoadingProgressData] = useState(false);
 
-  // Edit memorization dialog state
+  // Edit memorization dialog state - just track which student is selected
   const [editStudent, setEditStudent] = useState<Student | null>(null);
-  const [editDirection, setEditDirection] = useState<"Forward" | "Backward">("Forward");
-  const [editSurah, setEditSurah] = useState("");
-  const [editVerse, setEditVerse] = useState("");
-  const [saving, setSaving] = useState(false);
 
   // Target dialog state
   // Target dialog state
@@ -221,13 +203,6 @@ export default function MyStudentsPage() {
     }
   }, [students, fetchAllAchievements]);
 
-  // Clear toVerse when fromVerse changes if toVerse is now invalid
-  useEffect(() => {
-    if (fromVerse && toVerse && parseInt(toVerse) < parseInt(fromVerse)) {
-      setToVerse("");
-    }
-  }, [fromVerse, toVerse]);
-
   const filteredStudents = students.filter((student) =>
     student.fullName.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -260,180 +235,6 @@ export default function MyStudentsPage() {
       return newCollapsed;
     });
   }, []);
-
-  const handleProgressSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!progressStudent) return;
-
-    if (!user?.teacherId) {
-      toast.error("لا يمكن تحديد هوية المعلم. يرجى تسجيل الخروج والدخول مرة أخرى.");
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      const activeAssignment = progressStudent.assignments.find((a) => a.isActive);
-      if (!activeAssignment) {
-        toast.error("الطالب غير مسجل في حلقة نشطة");
-        return;
-      }
-
-      const data: CreateProgressRecord = {
-        studentId: progressStudent.id,
-        teacherId: user.teacherId,
-        halaqaId: activeAssignment.halaqaId,
-        date: new Date().toISOString(),
-        type: parseInt(progressType) as 0 | 1 | 2,
-        surahName: selectedSurah,
-        fromVerse: parseInt(fromVerse),
-        toVerse: parseInt(toVerse),
-        quality: parseInt(quality) as 0 | 1 | 2 | 3,
-        notes: notes || undefined,
-      };
-
-      await progressApi.create(data);
-      toast.success("تم حفظ التسميع بنجاح");
-
-      // Invalidate achievement cache for this student and re-fetch all
-      setAchievements(prev => {
-        const next = { ...prev };
-        delete next[progressStudent.id];
-        return next;
-      });
-
-      // Reset form
-      setProgressStudent(null);
-      setSelectedSurah("");
-      setFromVerse("");
-      setToVerse("");
-      setNotes("");
-
-      // Refresh students to get updated positions (preserve scroll)
-      fetchStudents(true);
-    } catch (error: unknown) {
-      console.error("Error creating progress:", error);
-      const errorMessage = extractErrorMessage(error, "حدث خطأ أثناء حفظ التسميع");
-      toast.error(errorMessage);
-    } finally {
-      setSubmitting(false);
-    }
-  }, [progressStudent, user?.teacherId, progressType, selectedSurah, fromVerse, toVerse, quality, notes, fetchStudents]);
-
-  const handleEditMemorization = useCallback((student: Student) => {
-    setEditStudent(student);
-    setEditDirection(student.memorizationDirection);
-    setEditSurah(student.currentSurahNumber.toString());
-    setEditVerse(student.currentVerse.toString());
-  }, []);
-
-  const handleSaveMemorization = useCallback(async () => {
-    if (!editStudent) return;
-
-    setSaving(true);
-    try {
-      const data: UpdateMemorizationDto = {
-        memorizationDirection: editDirection,
-        currentSurahNumber: parseInt(editSurah),
-        currentVerse: parseInt(editVerse),
-      };
-
-      await studentApi.updateMemorization(editStudent.id, data);
-      toast.success("تم تحديث موضع الحفظ بنجاح");
-      setEditStudent(null);
-      fetchStudents(true);
-    } catch (error) {
-      console.error("Error updating memorization:", error);
-      const errorMessage = extractErrorMessage(error, "حدث خطأ أثناء تحديث موضع الحفظ");
-      toast.error(errorMessage);
-    } finally {
-      setSaving(false);
-    }
-  }, [editStudent, editDirection, editSurah, editVerse, fetchStudents]);
-
-  const loadProgressByType = useCallback(async (student: Student, type: "0" | "1" | "2") => {
-    if (type === "0") {
-      // For new memorization: start from current position + 1, fields disabled
-      const currentSurah = surahs.find((s) => s.id === student.currentSurahNumber);
-      if (currentSurah) {
-        setSelectedSurah(currentSurah.name);
-        const startVerse = student.currentVerse + 1;
-        if (startVerse <= currentSurah.versesCount) {
-          setFromVerse(startVerse.toString());
-        }
-      }
-      setLoadingProgressData(false);
-    } else {
-      // For revision (1) or consolidation (2): get last progress of this type
-      setLoadingProgressData(true);
-      try {
-        const response = await progressApi.getLastByType(student.id, parseInt(type) as 0 | 1 | 2);
-        const lastProgress = response.data;
-        
-        if (lastProgress) {
-          // Start from where they left off in this type
-          const lastSurah = surahs.find(s => s.name === lastProgress.surahName);
-          
-          if (lastSurah) {
-            // Check if we need to move to the next verse or next surah
-            const nextVerse = lastProgress.toVerse + 1;
-            
-            if (nextVerse <= lastSurah.versesCount) {
-              // Continue in the same surah
-              setSelectedSurah(lastProgress.surahName);
-              setFromVerse(nextVerse.toString());
-              setToVerse("");
-            } else {
-              // Move to the next surah (if exists)
-              const nextSurahIndex = surahs.findIndex(s => s.name === lastProgress.surahName) + 1;
-              if (nextSurahIndex < surahs.length) {
-                const nextSurah = surahs[nextSurahIndex];
-                setSelectedSurah(nextSurah.name);
-                setFromVerse("1");
-                setToVerse("");
-              } else {
-                // Reached end of Quran, start over
-                const firstSurah = surahs[0];
-                setSelectedSurah(firstSurah.name);
-                setFromVerse("1");
-                setToVerse("");
-              }
-            }
-          } else {
-            // Fallback if surah not found
-            const firstSurah = surahs[0];
-            setSelectedSurah(firstSurah.name);
-            setFromVerse("1");
-            setToVerse("");
-          }
-        } else {
-          // No previous progress of this type, start from beginning
-          // Teacher will manually enter the position
-          const firstSurah = surahs[0];
-          setSelectedSurah(firstSurah.name);
-          setFromVerse("1");
-          setToVerse("");
-        }
-      } catch {
-        // If there's no record (404) or any other error, silently start from beginning
-        // The teacher will manually enter the correct position
-        console.log("No previous record found, starting from beginning");
-        const firstSurah = surahs[0];
-        setSelectedSurah(firstSurah.name);
-        setFromVerse("1");
-        setToVerse("");
-      } finally {
-        setLoadingProgressData(false);
-      }
-    }
-  }, []);
-
-  const openProgressForm = useCallback((student: Student) => {
-    setProgressStudent(student);
-    setProgressType("0"); // Default to new memorization
-    // Load initial data for new memorization
-    loadProgressByType(student, "0");
-  }, [loadProgressByType]);
 
   // ================== TARGET HANDLERS ==================
   
@@ -644,7 +445,7 @@ export default function MyStudentsPage() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => handleEditMemorization(student)}
+                                  onClick={() => setEditStudent(student)}
                                   title="تعديل موضع الحفظ"
                                   className="flex-1 sm:flex-none"
                                 >
@@ -661,7 +462,7 @@ export default function MyStudentsPage() {
                                 </Button>
                                 <Button
                                   size="sm"
-                                  onClick={() => openProgressForm(student)}
+                                  onClick={() => setProgressStudent(student)}
                                   className="flex-1 sm:flex-none"
                                 >
                                   <GraduationCap className="h-4 w-4 ml-2" />
@@ -725,271 +526,44 @@ export default function MyStudentsPage() {
       </div>
 
       {/* Progress Recording Dialog */}
-      <Dialog open={!!progressStudent} onOpenChange={() => setProgressStudent(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>تسجيل تسميع - {progressStudent?.fullName}</DialogTitle>
-            <DialogDescription>
-              الموقع الحالي: {progressStudent && getSurahName(progressStudent.currentSurahNumber)}
-              {progressStudent?.currentVerse ? ` آية ${progressStudent.currentVerse}` : ""}
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleProgressSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label>نوع التسميع</Label>
-              <Select 
-                value={progressType} 
-                onValueChange={async (v) => {
-                  const newType = v as "0" | "1" | "2";
-                  setProgressType(newType);
-                  if (progressStudent) {
-                    await loadProgressByType(progressStudent, newType);
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">
-                    <span className="flex items-center gap-2">
-                      <GraduationCap className="h-4 w-4" />
-                      حفظ جديد
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="1">
-                    <span className="flex items-center gap-2">
-                      <RefreshCw className="h-4 w-4" />
-                      مراجعة
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="2">
-                    <span className="flex items-center gap-2">
-                      <BookOpen className="h-4 w-4" />
-                      التثبيت
-                    </span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              {loadingProgressData && (
-                <p className="text-sm text-muted-foreground flex items-center gap-2">
-                  <RefreshCw className="h-3 w-3 animate-spin" />
-                  جاري تحميل البيانات...
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>السورة</Label>
-              <Select 
-                value={selectedSurah} 
-                onValueChange={setSelectedSurah} 
-                disabled={progressType === "0" || loadingProgressData}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر السورة" />
-                </SelectTrigger>
-                <SelectContent>
-                  {progressType === "0" ? (
-                    selectedSurah && (
-                      <SelectItem value={selectedSurah}>
-                        {selectedSurah}
-                      </SelectItem>
-                    )
-                  ) : (
-                    surahs.map((surah) => (
-                      <SelectItem key={surah.id} value={surah.name}>
-                        {surah.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>من آية</Label>
-                <Select 
-                  value={fromVerse} 
-                  onValueChange={setFromVerse} 
-                  disabled={progressType === "0" || loadingProgressData}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="اختر الآية" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {progressType === "0" ? (
-                      fromVerse && (
-                        <SelectItem value={fromVerse}>
-                          {fromVerse}
-                        </SelectItem>
-                      )
-                    ) : (
-                      selectedSurah && Array.from(
-                        { length: surahs.find(s => s.name === selectedSurah)?.versesCount || 0 },
-                        (_, i) => i + 1
-                      ).map((verse) => (
-                        <SelectItem key={verse} value={verse.toString()}>
-                          {verse}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>إلى آية</Label>
-                <Select value={toVerse} onValueChange={setToVerse} disabled={!selectedSurah || !fromVerse}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="اختر الآية" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {selectedSurah && fromVerse && Array.from(
-                      { length: (surahs.find(s => s.name === selectedSurah)?.versesCount || 0) - parseInt(fromVerse) + 1 },
-                      (_, i) => parseInt(fromVerse) + i
-                    ).map((verse) => (
-                      <SelectItem key={verse} value={verse.toString()}>
-                        {verse}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>التقييم</Label>
-              <Select value={quality} onValueChange={(v) => setQuality(v as "0" | "1" | "2" | "3")}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">ممتاز</SelectItem>
-                  <SelectItem value="1">جيد جداً</SelectItem>
-                  <SelectItem value="2">جيد</SelectItem>
-                  <SelectItem value="3">مقبول</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>ملاحظات (اختياري)</Label>
-              <Input
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="ملاحظات إضافية..."
-              />
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setProgressStudent(null)}
-              >
-                إلغاء
-              </Button>
-              <Button
-                type="submit"
-                disabled={!selectedSurah || !fromVerse || !toVerse}
-                loading={submitting}
-              >
-                حفظ التسميع
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {progressStudent && (
+        <ProgressRecordingDialog
+          studentId={progressStudent.id}
+          studentName={progressStudent.fullName}
+          halaqaId={progressStudent.assignments.find(a => a.isActive)?.halaqaId || 0}
+          currentSurahNumber={progressStudent.currentSurahNumber}
+          currentVerse={progressStudent.currentVerse}
+          open={!!progressStudent}
+          onOpenChange={(open) => !open && setProgressStudent(null)}
+          onProgressRecorded={() => {
+            // Invalidate achievement cache for this student
+            setAchievements(prev => {
+              const next = { ...prev };
+              if (progressStudent) delete next[progressStudent.id];
+              return next;
+            });
+            setProgressStudent(null);
+            fetchStudents(true);
+          }}
+        />
+      )}
 
       {/* Edit Memorization Dialog */}
-      <Dialog open={!!editStudent} onOpenChange={() => setEditStudent(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>تعديل موضع الحفظ - {editStudent?.fullName}</DialogTitle>
-            <DialogDescription>
-              قم بتحديد الاتجاه والموضع الحالي للحفظ
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>اتجاه الحفظ</Label>
-              <Select
-                value={editDirection}
-                onValueChange={(v) => setEditDirection(v as "Forward" | "Backward")}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Forward">
-                    <span className="flex items-center gap-2">
-                      <ArrowDown className="h-4 w-4" />
-                      من الفاتحة إلى الناس
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="Backward">
-                    <span className="flex items-center gap-2">
-                      <ArrowUp className="h-4 w-4" />
-                      من الناس إلى الفاتحة
-                    </span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>السورة الحالية</Label>
-              <Select value={editSurah} onValueChange={setEditSurah}>
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر السورة" />
-                </SelectTrigger>
-                <SelectContent>
-                  {surahs.map((surah) => (
-                    <SelectItem key={surah.id} value={surah.id.toString()}>
-                      {surah.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>الآية الحالية</Label>
-              <Select value={editVerse} onValueChange={setEditVerse} disabled={!editSurah}>
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر الآية" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">0 - لم يبدأ بعد</SelectItem>
-                  {editSurah && Array.from(
-                    { length: surahs.find(s => s.id === parseInt(editSurah))?.versesCount || 0 },
-                    (_, i) => i + 1
-                  ).map((verse) => (
-                    <SelectItem key={verse} value={verse.toString()}>
-                      {verse}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                اختر 0 إذا لم يبدأ الطالب بهذه السورة بعد
-              </p>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditStudent(null)}>
-              إلغاء
-            </Button>
-            <Button onClick={handleSaveMemorization} loading={saving}>
-              حفظ التغييرات
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {editStudent && (
+        <EditMemorizationDialog
+          studentId={editStudent.id}
+          studentName={editStudent.fullName}
+          currentDirection={editStudent.memorizationDirection}
+          currentSurahNumber={editStudent.currentSurahNumber}
+          currentVerse={editStudent.currentVerse}
+          open={!!editStudent}
+          onOpenChange={(open) => !open && setEditStudent(null)}
+          onMemorizationUpdated={() => {
+            setEditStudent(null);
+            fetchStudents(true);
+          }}
+        />
+      )}
 
       {/* Target Dialog */}
       {targetStudent && (

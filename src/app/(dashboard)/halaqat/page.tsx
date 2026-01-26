@@ -698,7 +698,7 @@ export default function HalaqatPage() {
                                         <Button
                                           size="sm"
                                           variant="ghost"
-                                          className="hidden sm:flex shrink-0"
+                                          className="shrink-0"
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             handleNavigate(student.id);

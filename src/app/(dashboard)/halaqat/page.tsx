@@ -699,9 +699,17 @@ export default function HalaqatPage() {
                                           size="sm"
                                           variant="ghost"
                                           className="hidden sm:flex shrink-0"
-                                          onClick={(e) => e.stopPropagation()}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleNavigate(student.id);
+                                          }}
+                                          disabled={navigatingTo === student.id.toString()}
                                         >
-                                          <Eye className="h-4 w-4" />
+                                          {navigatingTo === student.id.toString() ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                          ) : (
+                                            <Eye className="h-4 w-4" />
+                                          )}
                                         </Button>
                                       </div>
                                     </CardContent>

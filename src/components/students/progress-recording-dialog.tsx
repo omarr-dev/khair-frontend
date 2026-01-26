@@ -27,7 +27,7 @@ import {
   BookOpen,
   GraduationCap,
   RefreshCw,
-  Mic,
+
 } from "lucide-react";
 import { toast } from "sonner";
 import { extractErrorMessage } from "@/lib/error-handler";
@@ -211,7 +211,7 @@ export function ProgressRecordingDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Mic className="h-5 w-5 text-emerald-600" />
+          
             تسجيل تسميع - {studentName}
           </DialogTitle>
           <DialogDescription>
@@ -378,7 +378,7 @@ export function ProgressRecordingDialog({
               type="submit"
               disabled={!selectedSurah || !fromVerse || !toVerse}
               loading={submitting}
-              className="bg-gradient-to-l from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
+              className="bg-gradient-to-l from-black to-gray-900 hover:from-gray-800 hover:to-black"
             >
               حفظ التسميع
             </Button>

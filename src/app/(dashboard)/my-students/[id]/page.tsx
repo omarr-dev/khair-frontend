@@ -35,7 +35,6 @@ import {
   Edit3,
   CalendarDays,
   RefreshCw,
-  Mic,
 } from "lucide-react";
 import { extractErrorMessage } from "@/lib/error-handler";
 import { toast } from "sonner";
@@ -599,10 +598,10 @@ export default function StudentProfilePage() {
             <div className="flex flex-wrap items-center justify-center gap-3 pt-4 mt-4 border-t w-full">
               <Button
                 onClick={() => setProgressDialogOpen(true)}
-                className="gap-2 bg-gradient-to-l from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-md"
+                className="gap-2"
               >
-                <Mic className="h-4 w-4" />
-                تسجيل التسميع
+                <Edit3 className="h-4 w-4" />
+                تسجيل تسميع
               </Button>
               <Button
                 variant="outline"

@@ -27,9 +27,10 @@ import {
   BookOpen,
   GraduationCap,
   RefreshCw,
-
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { extractErrorMessage } from "@/lib/error-handler";
 
 interface ProgressRecordingDialogProps {
@@ -223,38 +224,33 @@ export function ProgressRecordingDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label>نوع التسميع</Label>
-            <Select 
-              value={progressType} 
-              onValueChange={async (v) => {
-                const newType = v as "0" | "1" | "2";
-                setProgressType(newType);
-                await loadProgressByType(newType);
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0">
-                  <span className="flex items-center gap-2">
-                    <GraduationCap className="h-4 w-4" />
-                    حفظ جديد
-                  </span>
-                </SelectItem>
-                <SelectItem value="1">
-                  <span className="flex items-center gap-2">
-                    <RefreshCw className="h-4 w-4" />
-                    مراجعة
-                  </span>
-                </SelectItem>
-                <SelectItem value="2">
-                  <span className="flex items-center gap-2">
-                    <BookOpen className="h-4 w-4" />
-                    التثبيت
-                  </span>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex rounded-lg border bg-muted p-1 gap-1">
+              {[
+                { value: "0" as const, label: "حفظ جديد", icon: GraduationCap },
+                { value: "1" as const, label: "مراجعة", icon: RefreshCw },
+                { value: "2" as const, label: "تثبيت", icon: BookOpen },
+              ].map((type) => (
+                <button
+                  key={type.value}
+                  type="button"
+                  onClick={async () => {
+                    setProgressType(type.value);
+                    await loadProgressByType(type.value);
+                  }}
+                  disabled={loadingProgressData}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-all",
+                    progressType === type.value
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-background/50",
+                    loadingProgressData && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  <type.icon className="h-4 w-4" />
+                  {type.label}
+                </button>
+              ))}
+            </div>
             {loadingProgressData && (
               <p className="text-sm text-muted-foreground flex items-center gap-2">
                 <RefreshCw className="h-3 w-3 animate-spin" />
@@ -365,6 +361,18 @@ export function ProgressRecordingDialog({
               placeholder="ملاحظات إضافية..."
             />
           </div>
+
+          {/* Validation messages */}
+          {(!selectedSurah || !fromVerse || !toVerse) && (
+            <div className="flex items-start gap-2 text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-500 p-3 rounded-md">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              <div>
+                {!selectedSurah && <p>يرجى اختيار السورة</p>}
+                {selectedSurah && !fromVerse && <p>يرجى تحديد آية البداية</p>}
+                {selectedSurah && fromVerse && !toVerse && <p>يرجى تحديد آية النهاية</p>}
+              </div>
+            </div>
+          )}
 
           <DialogFooter>
             <Button

@@ -390,43 +390,42 @@ export default function MyStudentsPage() {
                               </div>
 
                               {/* Action Buttons */}
-                              <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                                 <Button
                                   size="sm"
-                                  variant="outline"
-                                  onClick={() => handleNavigate(student.id)}
-                                  loading={navigatingTo === student.id.toString()}
-                                  title="عرض الملف الشخصي"
-                                  className="flex-1 sm:flex-none"
+                                  onClick={() => setProgressStudent(student)}
+                                  className="flex-1 sm:flex-none order-1"
                                 >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => setEditStudent(student)}
-                                  title="تعديل موضع الحفظ"
-                                  className="flex-1 sm:flex-none"
-                                >
-                                  <Edit3 className="h-4 w-4" />
+                                  <GraduationCap className="h-4 w-4 ml-1.5" />
+                                  تسجيل تسميع
                                 </Button>
                                 <Button
                                   size="sm"
                                   variant="outline"
                                   onClick={() => setTargetStudent(student)}
-                                  title="إدارة الأهداف"
-                                  className={`flex-1 sm:flex-none ${hasTarget ? 'border-primary text-primary' : ''}`}
+                                  className={`flex-1 sm:flex-none order-2 ${hasTarget ? 'border-primary text-primary' : ''}`}
                                 >
-                                  <Target className="h-4 w-4" />
+                                  <Target className="h-4 w-4 ml-1.5" />
+                                  أهداف
                                 </Button>
                                 <Button
                                   size="sm"
-                                  onClick={() => setProgressStudent(student)}
-                                  className="flex-1 sm:flex-none"
+                                  variant="outline"
+                                  onClick={() => setEditStudent(student)}
+                                  className="flex-1 sm:flex-none order-3"
                                 >
-                                  <GraduationCap className="h-4 w-4 ml-2" />
-                                  <span className="hidden sm:inline">تسجيل تسميع</span>
-                                  <span className="sm:hidden">تسميع</span>
+                                  <Edit3 className="h-4 w-4 ml-1.5" />
+                                  تعديل
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleNavigate(student.id)}
+                                  loading={navigatingTo === student.id.toString()}
+                                  className="flex-1 sm:flex-none order-4"
+                                >
+                                  <Eye className="h-4 w-4 ml-1.5" />
+                                  عرض
                                 </Button>
                               </div>
                             </div>

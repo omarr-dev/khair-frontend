@@ -82,23 +82,13 @@ export const studentApi = {
   
   // ================== ACHIEVEMENTS ==================
   
-  /** 
+  /**
    * Get student's achievement history for a date range.
    * For single-day queries, use the same date for startDate and endDate.
    * Returns daily achievements, streak info, and summary statistics.
    */
-  getAchievementHistory: (studentId: number, startDate: string, endDate: string) => 
-    api.get<AchievementHistory>(`/students/${studentId}/achievement-history`, { 
-      params: { startDate, endDate } 
-    }),
-  
-  /** 
-   * Get achievement history for all of the teacher's students in a single batch call.
-   * Optimized for the "My Students" page to show streaks efficiently.
-   * Returns a map of studentId -> AchievementHistory
-   */
-  getMyStudentsAchievements: (startDate: string, endDate: string) =>
-    api.get<Record<number, AchievementHistory>>('/students/my-students/achievements', {
+  getAchievementHistory: (studentId: number, startDate: string, endDate: string) =>
+    api.get<AchievementHistory>(`/students/${studentId}/achievement-history`, {
       params: { startDate, endDate }
     }),
 };

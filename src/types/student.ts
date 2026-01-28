@@ -28,6 +28,27 @@ export interface Student {
   teacherName?: string;
   createdAt: string;
   assignments: StudentAssignment[];
+  // Streak tracking
+  currentStreak: number;
+  longestStreak: number;
+  // Today's achievement (optional - only if target is set)
+  todayAchievement?: TodayAchievement;
+}
+
+export interface TodayAchievement {
+  hasTarget: boolean;
+  // Targets
+  memorizationLinesTarget?: number | null;
+  revisionPagesTarget?: number | null;
+  consolidationPagesTarget?: number | null;
+  // Achieved today
+  memorizationLinesAchieved: number;
+  revisionPagesAchieved: number;
+  consolidationPagesAchieved: number;
+  // Percentages
+  memorizationPercentage: number;
+  revisionPercentage: number;
+  consolidationPercentage: number;
 }
 
 export interface CreateStudentDto {

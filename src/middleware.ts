@@ -88,11 +88,11 @@ export function middleware(request: NextRequest) {
 <body>
   <div class="container">
     <div class="icon">🌙</div>
-    <h1>مرحبا/h1>
+    <h1>مرحبا</h1>
     <p>
       تم التغيير إلى دومين جديد
       <br>
-      <span class="highlight">حياك هنا/span>
+      <span class="highlight">حياك هنا</span>
     </p>
     <a href="https://maarij.sa" class="button">
       <span class="domain">maarij.sa</span>

@@ -99,7 +99,7 @@ export default function HomePage() {
   const [loadingAtRisk, setLoadingAtRisk] = useState(true);
 
   // Filters
-  const [datePeriod, setDatePeriod] = useState<DatePeriod>("week");
+  const [datePeriod, setDatePeriod] = useState<DatePeriod>("today");
   const [selectedHalaqaId, setSelectedHalaqaId] = useState<number | undefined>(
     undefined
   );

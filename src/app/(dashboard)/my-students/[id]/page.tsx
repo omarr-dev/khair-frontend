@@ -211,7 +211,7 @@ export default function StudentProfilePage() {
   const [editMemorizationOpen, setEditMemorizationOpen] = useState(false);
 
   // Achievement date range state
-  const [dateRangeOption, setDateRangeOption] = useState<DateRangeOption>("week");
+  const [dateRangeOption, setDateRangeOption] = useState<DateRangeOption>("today");
   const [customStartDate, setCustomStartDate] = useState<string>("");
   const [customEndDate, setCustomEndDate] = useState<string>("");
   const [showCustomPicker, setShowCustomPicker] = useState(false);

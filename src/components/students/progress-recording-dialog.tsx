@@ -6,7 +6,7 @@ import { CreateProgressRecord } from "@/types/progress";
 import { surahs } from "@/lib/quran-data";
 import { useAuth } from "@/components/providers";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -160,8 +160,10 @@ export function ProgressRecordingDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!user?.teacherId) {
-      toast.error("لا يمكن تحديد هوية المعلم. يرجى تسجيل الخروج والدخول مرة أخرى.");
+    // For teachers, use teacherId. For supervisors, use their user id
+    const recorderId = user?.teacherId || user?.id;
+    if (!recorderId) {
+      toast.error("لا يمكن تحديد هوية المستخدم. يرجى تسجيل الخروج والدخول مرة أخرى.");
       return;
     }
 
@@ -175,7 +177,7 @@ export function ProgressRecordingDialog({
     try {
       const data: CreateProgressRecord = {
         studentId,
-        teacherId: user.teacherId,
+        teacherId: recorderId,
         halaqaId,
         date: new Date().toISOString(),
         type: parseInt(progressType) as 0 | 1 | 2,
@@ -355,10 +357,11 @@ export function ProgressRecordingDialog({
 
           <div className="space-y-2">
             <Label>ملاحظات (اختياري)</Label>
-            <Input
+            <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="ملاحظات إضافية..."
+              rows={3}
             />
           </div>
 

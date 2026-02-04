@@ -39,6 +39,7 @@ interface ProgressRecordingDialogProps {
   halaqaId: number;
   currentSurahNumber: number;
   currentVerse: number;
+  memorizationDirection: "Forward" | "Backward";
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onProgressRecorded?: () => void;
@@ -50,6 +51,7 @@ export function ProgressRecordingDialog({
   halaqaId,
   currentSurahNumber,
   currentVerse,
+  memorizationDirection,
   open,
   onOpenChange,
   onProgressRecorded,
@@ -98,45 +100,69 @@ export function ProgressRecordingDialog({
             const nextVerse = lastProgress.toVerse + 1;
             
             if (nextVerse <= lastSurah.versesCount) {
+              // Continue in same surah
               setSelectedSurah(lastProgress.surahName);
               setFromVerse(nextVerse.toString());
               setToVerse("");
             } else {
-              const nextSurahIndex = surahs.findIndex(s => s.name === lastProgress.surahName) + 1;
-              if (nextSurahIndex < surahs.length) {
-                const nextSurah = surahs[nextSurahIndex];
-                setSelectedSurah(nextSurah.name);
-                setFromVerse("1");
-                setToVerse("");
+              // Move to next surah based on memorization direction
+              const currentSurahIndex = surahs.findIndex(s => s.name === lastProgress.surahName);
+              
+              if (memorizationDirection === "Forward") {
+                // Forward: move to next surah (index + 1)
+                if (currentSurahIndex < surahs.length - 1) {
+                  const nextSurah = surahs[currentSurahIndex + 1];
+                  setSelectedSurah(nextSurah.name);
+                  setFromVerse("1");
+                  setToVerse("");
+                } else {
+                  // Reached end, wrap to beginning
+                  const firstSurah = surahs[0];
+                  setSelectedSurah(firstSurah.name);
+                  setFromVerse("1");
+                  setToVerse("");
+                }
               } else {
-                const firstSurah = surahs[0];
-                setSelectedSurah(firstSurah.name);
-                setFromVerse("1");
-                setToVerse("");
+                // Backward: move to previous surah (index - 1)
+                if (currentSurahIndex > 0) {
+                  const previousSurah = surahs[currentSurahIndex - 1];
+                  setSelectedSurah(previousSurah.name);
+                  setFromVerse("1");
+                  setToVerse("");
+                } else {
+                  // Reached beginning, wrap to end
+                  const lastSurah = surahs[surahs.length - 1];
+                  setSelectedSurah(lastSurah.name);
+                  setFromVerse("1");
+                  setToVerse("");
+                }
               }
             }
           } else {
-            const firstSurah = surahs[0];
-            setSelectedSurah(firstSurah.name);
+            // If surah not found, start from beginning based on direction
+            const startSurah = memorizationDirection === "Forward" ? surahs[0] : surahs[surahs.length - 1];
+            setSelectedSurah(startSurah.name);
             setFromVerse("1");
             setToVerse("");
           }
         } else {
-          const firstSurah = surahs[0];
-          setSelectedSurah(firstSurah.name);
+          // No previous progress, start from beginning based on direction
+          const startSurah = memorizationDirection === "Forward" ? surahs[0] : surahs[surahs.length - 1];
+          setSelectedSurah(startSurah.name);
           setFromVerse("1");
           setToVerse("");
         }
       } catch {
-        const firstSurah = surahs[0];
-        setSelectedSurah(firstSurah.name);
+        // On error, start from beginning based on direction
+        const startSurah = memorizationDirection === "Forward" ? surahs[0] : surahs[surahs.length - 1];
+        setSelectedSurah(startSurah.name);
         setFromVerse("1");
         setToVerse("");
       } finally {
         setLoadingProgressData(false);
       }
     }
-  }, [studentId, currentSurahNumber, currentVerse]);
+  }, [studentId, currentSurahNumber, currentVerse, memorizationDirection]);
 
   // Initialize form when dialog opens
   useEffect(() => {

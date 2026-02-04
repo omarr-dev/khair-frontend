@@ -1113,6 +1113,7 @@ export default function StudentProfilePage() {
           halaqaId={student.halaqaId}
           currentSurahNumber={student.currentSurahNumber}
           currentVerse={student.currentVerse}
+          memorizationDirection={student.memorizationDirection}
           open={progressDialogOpen}
           onOpenChange={setProgressDialogOpen}
           onProgressRecorded={refreshStudentData}

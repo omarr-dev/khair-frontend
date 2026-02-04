@@ -486,6 +486,7 @@ export default function MyStudentsPage() {
           halaqaId={progressStudent.assignments.find(a => a.isActive)?.halaqaId || 0}
           currentSurahNumber={progressStudent.currentSurahNumber}
           currentVerse={progressStudent.currentVerse}
+          memorizationDirection={progressStudent.memorizationDirection}
           open={!!progressStudent}
           onOpenChange={(open) => !open && setProgressStudent(null)}
           onProgressRecorded={() => {

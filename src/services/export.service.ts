@@ -20,14 +20,15 @@ export const exportApi = {
     });
   },
   
-  exportAttendance: (fromDate: string, toDate: string, halaqaId?: number) => {
+  exportAttendance: (fromDate: string, toDate: string, halaqaId?: number, teacherId?: number) => {
     const params = new URLSearchParams();
     params.append('fromDate', fromDate);
     params.append('toDate', toDate);
     if (halaqaId) params.append('halaqaId', halaqaId.toString());
-    return api.get('/export/attendance', { 
+    if (teacherId) params.append('teacherId', teacherId.toString());
+    return api.get('/export/attendance', {
       params,
-      responseType: 'blob' 
+      responseType: 'blob'
     });
   },
   
@@ -42,25 +43,27 @@ export const exportApi = {
     });
   },
   
-  exportTeacherPerformance: (fromDate: string, toDate: string, halaqaId?: number) => {
+  exportTeacherPerformance: (fromDate: string, toDate: string, halaqaId?: number, teacherId?: number) => {
     const params = new URLSearchParams();
     params.append('fromDate', fromDate);
     params.append('toDate', toDate);
     if (halaqaId) params.append('halaqaId', halaqaId.toString());
-    return api.get('/export/teacher-performance', { 
+    if (teacherId) params.append('teacherId', teacherId.toString());
+    return api.get('/export/teacher-performance', {
       params,
-      responseType: 'blob' 
+      responseType: 'blob'
     });
   },
-  
-  exportTeacherAttendance: (fromDate: string, toDate: string, halaqaId?: number) => {
+
+  exportTeacherAttendance: (fromDate: string, toDate: string, halaqaId?: number, teacherId?: number) => {
     const params = new URLSearchParams();
     params.append('fromDate', fromDate);
     params.append('toDate', toDate);
     if (halaqaId) params.append('halaqaId', halaqaId.toString());
-    return api.get('/export/teacher-attendance', { 
+    if (teacherId) params.append('teacherId', teacherId.toString());
+    return api.get('/export/teacher-attendance', {
       params,
-      responseType: 'blob' 
+      responseType: 'blob'
     });
   },
 };

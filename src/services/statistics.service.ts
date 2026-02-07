@@ -15,6 +15,7 @@ import {
 export interface ReportStatsParams {
   dateRange: string;
   halaqaId?: number;
+  teacherId?: number;
   fromDate?: string; // ISO date string (YYYY-MM-DD)
   toDate?: string;   // ISO date string (YYYY-MM-DD)
 }
@@ -47,6 +48,7 @@ export const statisticsApi = {
       params: {
         dateRange: params.dateRange,
         halaqaId: params.halaqaId || undefined,
+        teacherId: params.teacherId || undefined,
         fromDate: params.fromDate || undefined,
         toDate: params.toDate || undefined,
       }

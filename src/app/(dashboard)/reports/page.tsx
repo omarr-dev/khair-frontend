@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
-import { statisticsApi, halaqatApi, exportApi } from "@/services";
+import { statisticsApi, halaqatApi, exportApi, teachersApi } from "@/services";
 import { ReportStats } from "@/types/statistics";
 import { Halaqa } from "@/types/halaqa";
+import { Teacher } from "@/types/teacher";
 import { useAuth } from "@/components/providers";
 import { roleUtils } from "@/types/auth";
 import { DateRangePicker, DateRange } from "@/components/shared";
@@ -65,7 +66,9 @@ export default function ReportsPage() {
   const [dateRangeOption, setDateRangeOption] = useState<DateRangeOption>("week");
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
   const [selectedHalaqa, setSelectedHalaqa] = useState<string>("all");
+  const [selectedTeacher, setSelectedTeacher] = useState<string>("all");
   const [halaqat, setHalaqat] = useState<Halaqa[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [reportStats, setReportStats] = useState<ReportStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -75,14 +78,17 @@ export default function ReportsPage() {
 
   useEffect(() => {
     fetchHalaqat();
-  }, []);
+    if (isSupervisor) {
+      fetchTeachers();
+    }
+  }, [isSupervisor]);
 
   useEffect(() => {
     // Only fetch if not custom, or if custom and dates are set
     if (dateRangeOption !== "custom" || customDateRange) {
       fetchReportData();
     }
-  }, [dateRangeOption, selectedHalaqa, customDateRange]);
+  }, [dateRangeOption, selectedHalaqa, selectedTeacher, customDateRange]);
 
   const fetchHalaqat = async () => {
     try {
@@ -93,23 +99,34 @@ export default function ReportsPage() {
     }
   };
 
+  const fetchTeachers = async () => {
+    try {
+      const response = await teachersApi.getAll();
+      setTeachers(response.data);
+    } catch (error) {
+      console.error("Error fetching teachers:", error);
+    }
+  };
+
   const fetchReportData = async () => {
     setLoading(true);
     try {
       const halaqaId = selectedHalaqa !== "all" ? parseInt(selectedHalaqa) : undefined;
-      
+      const teacherId = selectedTeacher !== "all" ? parseInt(selectedTeacher) : undefined;
+
       // Build params based on date range option
       const params = {
         dateRange: dateRangeOption,
         halaqaId,
-        fromDate: dateRangeOption === "custom" && customDateRange 
-          ? format(customDateRange.from, "yyyy-MM-dd") 
+        teacherId,
+        fromDate: dateRangeOption === "custom" && customDateRange
+          ? format(customDateRange.from, "yyyy-MM-dd")
           : undefined,
-        toDate: dateRangeOption === "custom" && customDateRange 
-          ? format(customDateRange.to, "yyyy-MM-dd") 
+        toDate: dateRangeOption === "custom" && customDateRange
+          ? format(customDateRange.to, "yyyy-MM-dd")
           : undefined,
       };
-      
+
       const response = await statisticsApi.getReportStats(params);
       setReportStats(response.data);
     } catch (error) {
@@ -175,11 +192,12 @@ export default function ReportsPage() {
 
   const handleExportStudents = async () => {
     if (!isSupervisor) return;
-    
+
     setExporting(true);
     try {
       const halaqaId = selectedHalaqa !== "all" ? parseInt(selectedHalaqa) : undefined;
-      const response = await exportApi.exportStudents(halaqaId);
+      const teacherId = selectedTeacher !== "all" ? parseInt(selectedTeacher) : undefined;
+      const response = await exportApi.exportStudents(halaqaId, teacherId);
       downloadFile(response.data as Blob, `students_${new Date().toISOString().split('T')[0]}.xlsx`);
       toast.success("تم تصدير الطلاب بنجاح");
     } catch (error) {
@@ -209,12 +227,13 @@ export default function ReportsPage() {
 
   const handleExportAttendance = async () => {
     if (!isSupervisor) return;
-    
+
     setExporting(true);
     try {
       const { fromDate, toDate } = getDateRange();
       const halaqaId = selectedHalaqa !== "all" ? parseInt(selectedHalaqa) : undefined;
-      const response = await exportApi.exportAttendance(fromDate, toDate, halaqaId);
+      const teacherId = selectedTeacher !== "all" ? parseInt(selectedTeacher) : undefined;
+      const response = await exportApi.exportAttendance(fromDate, toDate, halaqaId, teacherId);
       downloadFile(response.data as Blob, `attendance_${fromDate}_to_${toDate}.xlsx`);
       toast.success("تم تصدير تقرير الحضور بنجاح");
     } catch (error) {
@@ -245,12 +264,13 @@ export default function ReportsPage() {
 
   const handleExportTeacherPerformance = async () => {
     if (!isSupervisor) return;
-    
+
     setExporting(true);
     try {
       const { fromDate, toDate } = getDateRange();
       const halaqaId = selectedHalaqa !== "all" ? parseInt(selectedHalaqa) : undefined;
-      const response = await exportApi.exportTeacherPerformance(fromDate, toDate, halaqaId);
+      const teacherId = selectedTeacher !== "all" ? parseInt(selectedTeacher) : undefined;
+      const response = await exportApi.exportTeacherPerformance(fromDate, toDate, halaqaId, teacherId);
       downloadFile(response.data as Blob, `teacher_performance_${fromDate}_to_${toDate}.xlsx`);
       toast.success("تم تصدير تقرير أداء المعلمين بنجاح");
     } catch (error) {
@@ -263,12 +283,13 @@ export default function ReportsPage() {
 
   const handleExportTeacherAttendance = async () => {
     if (!isSupervisor) return;
-    
+
     setExporting(true);
     try {
       const { fromDate, toDate } = getDateRange();
       const halaqaId = selectedHalaqa !== "all" ? parseInt(selectedHalaqa) : undefined;
-      const response = await exportApi.exportTeacherAttendance(fromDate, toDate, halaqaId);
+      const teacherId = selectedTeacher !== "all" ? parseInt(selectedTeacher) : undefined;
+      const response = await exportApi.exportTeacherAttendance(fromDate, toDate, halaqaId, teacherId);
       downloadFile(response.data as Blob, `teacher_attendance_${fromDate}_to_${toDate}.xlsx`);
       toast.success("تم تصدير تقرير حضور المعلمين بنجاح");
     } catch (error) {
@@ -442,7 +463,7 @@ export default function ReportsPage() {
       {/* Filters */}
       <Card>
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>الفترة الزمنية</Label>
               <Select 
@@ -490,6 +511,25 @@ export default function ReportsPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {isSupervisor && (
+              <div className="space-y-2">
+                <Label>المعلم</Label>
+                <Select value={selectedTeacher} onValueChange={setSelectedTeacher}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">جميع المعلمين</SelectItem>
+                    {teachers.map((teacher) => (
+                      <SelectItem key={teacher.id} value={teacher.id.toString()}>
+                        {teacher.fullName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

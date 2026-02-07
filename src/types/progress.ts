@@ -9,6 +9,7 @@ export interface ProgressRecord {
   date: string;
   type: string;
   surahName: string;
+  toSurahName?: string | null;
   fromVerse: number;
   toVerse: number;
   quality: string;
@@ -23,6 +24,7 @@ export interface CreateProgressRecord {
   date: string;
   type: 0 | 1 | 2; // 0: Memorization (حفظ), 1: Revision (مراجعة), 2: Consolidation (التثبيت)
   surahName: string;
+  toSurahName?: string;
   fromVerse: number;
   toVerse: number;
   quality: 0 | 1 | 2 | 3; // 0: Excellent, 1: VeryGood, 2: Good, 3: Acceptable

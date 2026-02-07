@@ -21,17 +21,20 @@ export interface ReportStatsParams {
 
 export interface DailyAchievementParams {
   halaqaId?: number;
+  teacherId?: number;
   fromDate?: string; // ISO date string (YYYY-MM-DD)
   toDate?: string;   // ISO date string (YYYY-MM-DD)
 }
 
 export interface StreakLeaderboardParams {
   halaqaId?: number;
+  teacherId?: number;
   limit?: number;
 }
 
 export interface TargetAdoptionParams {
   halaqaId?: number;
+  teacherId?: number;
   includeBreakdown?: boolean;
 }
 
@@ -87,6 +90,7 @@ export const statisticsApi = {
     api.get<DailyAchievementStats>('/statistics/daily-achievement', {
       params: {
         halaqaId: params?.halaqaId || undefined,
+        teacherId: params?.teacherId || undefined,
         fromDate: params?.fromDate || undefined,
         toDate: params?.toDate || undefined,
       }
@@ -97,6 +101,7 @@ export const statisticsApi = {
     api.get<StreakLeaderboard>('/statistics/streak-leaderboard', {
       params: {
         halaqaId: params?.halaqaId || undefined,
+        teacherId: params?.teacherId || undefined,
         limit: params?.limit || undefined,
       }
     }),
@@ -106,6 +111,7 @@ export const statisticsApi = {
     api.get<TargetAdoptionOverview>('/statistics/target-adoption-overview', {
       params: {
         halaqaId: params?.halaqaId || undefined,
+        teacherId: params?.teacherId || undefined,
         includeBreakdown: params?.includeBreakdown || undefined,
       }
     }),

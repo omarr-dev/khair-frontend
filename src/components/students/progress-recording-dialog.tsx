@@ -60,12 +60,16 @@ export function ProgressRecordingDialog({
   
   const [progressType, setProgressType] = useState<"0" | "1" | "2">("0");
   const [selectedSurah, setSelectedSurah] = useState("");
+  const [toSurah, setToSurah] = useState("");
   const [fromVerse, setFromVerse] = useState("");
   const [toVerse, setToVerse] = useState("");
   const [quality, setQuality] = useState<"0" | "1" | "2" | "3">("0");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loadingProgressData, setLoadingProgressData] = useState(false);
+  // Save the initial values when dialog opens to prevent losing them when switching types
+  const [savedCurrentVerse, setSavedCurrentVerse] = useState<number>(currentVerse);
+  const [savedCurrentSurahNumber, setSavedCurrentSurahNumber] = useState<number>(currentSurahNumber);
 
   // Helper function to get surah name by number
   const getSurahName = (number: number) => {
@@ -73,17 +77,32 @@ export function ProgressRecordingDialog({
     return surah?.name || "غير محدد";
   };
 
+  // Helper function to get filtered surahs for "To Surah" based on direction
+  const getFilteredToSurahs = () => {
+    if (!selectedSurah) return surahs;
+    
+    const fromSurahIndex = surahs.findIndex(s => s.name === selectedSurah);
+    if (fromSurahIndex === -1) return surahs;
+
+    if (memorizationDirection === "Forward") {
+      // Forward: show surahs >= selected surah
+      return surahs.filter((_, index) => index >= fromSurahIndex);
+    } else {
+      // Backward: show surahs <= selected surah
+      return surahs.filter((_, index) => index <= fromSurahIndex);
+    }
+  };
+
   // Load progress data by type
   const loadProgressByType = useCallback(async (type: "0" | "1" | "2") => {
     if (type === "0") {
-      // For new memorization: start from current position + 1
-      const currentSurah = surahs.find((s) => s.id === currentSurahNumber);
+      // For new memorization: start from saved position + 1
+      const currentSurah = surahs.find((s) => s.id === savedCurrentSurahNumber);
       if (currentSurah) {
         setSelectedSurah(currentSurah.name);
-        const startVerse = currentVerse + 1;
-        if (startVerse <= currentSurah.versesCount) {
-          setFromVerse(startVerse.toString());
-        }
+        setToSurah(currentSurah.name); // Default to same surah
+        const startVerse = savedCurrentVerse + 1;
+        setFromVerse(startVerse.toString());
       }
       setLoadingProgressData(false);
     } else {
@@ -102,6 +121,7 @@ export function ProgressRecordingDialog({
             if (nextVerse <= lastSurah.versesCount) {
               // Continue in same surah
               setSelectedSurah(lastProgress.surahName);
+              setToSurah(lastProgress.toSurahName || lastProgress.surahName);
               setFromVerse(nextVerse.toString());
               setToVerse("");
             } else {
@@ -113,12 +133,14 @@ export function ProgressRecordingDialog({
                 if (currentSurahIndex < surahs.length - 1) {
                   const nextSurah = surahs[currentSurahIndex + 1];
                   setSelectedSurah(nextSurah.name);
+                  setToSurah(nextSurah.name);
                   setFromVerse("1");
                   setToVerse("");
                 } else {
                   // Reached end, wrap to beginning
                   const firstSurah = surahs[0];
                   setSelectedSurah(firstSurah.name);
+                  setToSurah(firstSurah.name);
                   setFromVerse("1");
                   setToVerse("");
                 }
@@ -127,12 +149,14 @@ export function ProgressRecordingDialog({
                 if (currentSurahIndex > 0) {
                   const previousSurah = surahs[currentSurahIndex - 1];
                   setSelectedSurah(previousSurah.name);
+                  setToSurah(previousSurah.name);
                   setFromVerse("1");
                   setToVerse("");
                 } else {
                   // Reached beginning, wrap to end
                   const lastSurah = surahs[surahs.length - 1];
                   setSelectedSurah(lastSurah.name);
+                  setToSurah(lastSurah.name);
                   setFromVerse("1");
                   setToVerse("");
                 }
@@ -142,6 +166,7 @@ export function ProgressRecordingDialog({
             // If surah not found, start from beginning based on direction
             const startSurah = memorizationDirection === "Forward" ? surahs[0] : surahs[surahs.length - 1];
             setSelectedSurah(startSurah.name);
+            setToSurah(startSurah.name);
             setFromVerse("1");
             setToVerse("");
           }
@@ -149,6 +174,7 @@ export function ProgressRecordingDialog({
           // No previous progress, start from beginning based on direction
           const startSurah = memorizationDirection === "Forward" ? surahs[0] : surahs[surahs.length - 1];
           setSelectedSurah(startSurah.name);
+          setToSurah(startSurah.name);
           setFromVerse("1");
           setToVerse("");
         }
@@ -156,31 +182,50 @@ export function ProgressRecordingDialog({
         // On error, start from beginning based on direction
         const startSurah = memorizationDirection === "Forward" ? surahs[0] : surahs[surahs.length - 1];
         setSelectedSurah(startSurah.name);
+        setToSurah(startSurah.name);
         setFromVerse("1");
         setToVerse("");
       } finally {
         setLoadingProgressData(false);
       }
     }
-  }, [studentId, currentSurahNumber, currentVerse, memorizationDirection]);
+  }, [studentId, savedCurrentSurahNumber, savedCurrentVerse, memorizationDirection]);
 
-  // Initialize form when dialog opens
+  // Initialize form when dialog opens - save current values first
   useEffect(() => {
     if (open) {
+      // Save current values when dialog opens
+      setSavedCurrentVerse(currentVerse);
+      setSavedCurrentSurahNumber(currentSurahNumber);
       setProgressType("0");
       setQuality("0");
       setNotes("");
       setToVerse("");
-      loadProgressByType("0");
     }
-  }, [open, loadProgressByType]);
+  }, [open, currentVerse, currentSurahNumber]);
 
-  // Clear toVerse when fromVerse changes if toVerse is now invalid
+  // Load progress data when progressType changes (and dialog is open)
   useEffect(() => {
-    if (fromVerse && toVerse && parseInt(toVerse) < parseInt(fromVerse)) {
-      setToVerse("");
+    if (open && savedCurrentSurahNumber > 0) {
+      loadProgressByType(progressType);
     }
-  }, [fromVerse, toVerse]);
+  }, [progressType, open, savedCurrentSurahNumber, loadProgressByType]);
+
+  // Clear toVerse when fromVerse changes if toVerse is now invalid (same surah only)
+  useEffect(() => {
+    if (selectedSurah && toSurah && selectedSurah === toSurah && fromVerse && toVerse) {
+      if (parseInt(toVerse) < parseInt(fromVerse)) {
+        setToVerse("");
+      }
+    }
+  }, [fromVerse, toVerse, selectedSurah, toSurah]);
+
+  // Update toSurah when selectedSurah changes (if toSurah is not set or invalid)
+  useEffect(() => {
+    if (selectedSurah && !toSurah) {
+      setToSurah(selectedSurah);
+    }
+  }, [selectedSurah, toSurah]);
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -208,6 +253,7 @@ export function ProgressRecordingDialog({
         date: new Date().toISOString(),
         type: parseInt(progressType) as 0 | 1 | 2,
         surahName: selectedSurah,
+        toSurahName: toSurah !== selectedSurah ? toSurah : undefined,
         fromVerse: parseInt(fromVerse),
         toVerse: parseInt(toVerse),
         quality: parseInt(quality) as 0 | 1 | 2 | 3,
@@ -261,9 +307,8 @@ export function ProgressRecordingDialog({
                 <button
                   key={type.value}
                   type="button"
-                  onClick={async () => {
+                  onClick={() => {
                     setProgressType(type.value);
-                    await loadProgressByType(type.value);
                   }}
                   disabled={loadingProgressData}
                   className={cn(
@@ -287,35 +332,39 @@ export function ProgressRecordingDialog({
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label>السورة</Label>
-            <Select 
-              value={selectedSurah} 
-              onValueChange={setSelectedSurah} 
-              disabled={progressType === "0" || loadingProgressData}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="اختر السورة" />
-              </SelectTrigger>
-              <SelectContent>
-                {progressType === "0" ? (
-                  selectedSurah && (
-                    <SelectItem value={selectedSurah}>
-                      {selectedSurah}
-                    </SelectItem>
-                  )
-                ) : (
-                  surahs.map((surah) => (
-                    <SelectItem key={surah.id} value={surah.name}>
-                      {surah.name}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
+          {/* Row 1: From Surah and From Verse */}
           <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>من سورة</Label>
+              <Select 
+                value={selectedSurah} 
+                onValueChange={(value) => {
+                  setSelectedSurah(value);
+                  if (!toSurah) setToSurah(value);
+                }} 
+                disabled={progressType === "0" || loadingProgressData}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="اختر السورة" />
+                </SelectTrigger>
+                <SelectContent>
+                  {progressType === "0" ? (
+                    selectedSurah && (
+                      <SelectItem value={selectedSurah}>
+                        {selectedSurah}
+                      </SelectItem>
+                    )
+                  ) : (
+                    surahs.map((surah) => (
+                      <SelectItem key={surah.id} value={surah.name}>
+                        {surah.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2">
               <Label>من آية</Label>
               <Select 
@@ -346,21 +395,59 @@ export function ProgressRecordingDialog({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Row 2: To Surah and To Verse */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>إلى سورة</Label>
+              <Select 
+                value={toSurah} 
+                onValueChange={setToSurah}
+                disabled={!selectedSurah || loadingProgressData}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="نفس السورة" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getFilteredToSurahs().map((surah) => (
+                    <SelectItem key={surah.id} value={surah.name}>
+                      {surah.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2">
               <Label>إلى آية</Label>
-              <Select value={toVerse} onValueChange={setToVerse} disabled={!selectedSurah || !fromVerse}>
+              <Select 
+                value={toVerse} 
+                onValueChange={setToVerse} 
+                disabled={!toSurah}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="اختر الآية" />
                 </SelectTrigger>
                 <SelectContent>
-                  {selectedSurah && fromVerse && Array.from(
-                    { length: (surahs.find(s => s.name === selectedSurah)?.versesCount || 0) - parseInt(fromVerse) + 1 },
-                    (_, i) => parseInt(fromVerse) + i
-                  ).map((verse) => (
-                    <SelectItem key={verse} value={verse.toString()}>
-                      {verse}
-                    </SelectItem>
-                  ))}
+                  {toSurah && (() => {
+                    const toSurahInfo = surahs.find(s => s.name === toSurah);
+                    if (!toSurahInfo) return null;
+                    
+                    // If same surah, start from fromVerse
+                    const startVerse = (toSurah === selectedSurah && fromVerse) 
+                      ? parseInt(fromVerse) 
+                      : 1;
+                    
+                    return Array.from(
+                      { length: toSurahInfo.versesCount - startVerse + 1 },
+                      (_, i) => startVerse + i
+                    ).map((verse) => (
+                      <SelectItem key={verse} value={verse.toString()}>
+                        {verse}
+                      </SelectItem>
+                    ));
+                  })()}
                 </SelectContent>
               </Select>
             </div>
@@ -392,16 +479,27 @@ export function ProgressRecordingDialog({
           </div>
 
           {/* Validation messages */}
-          {(!selectedSurah || !fromVerse || !toVerse) && (
-            <div className="flex items-start gap-2 text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-500 p-3 rounded-md">
-              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-              <div>
-                {!selectedSurah && <p>يرجى اختيار السورة</p>}
-                {selectedSurah && !fromVerse && <p>يرجى تحديد آية البداية</p>}
-                {selectedSurah && fromVerse && !toVerse && <p>يرجى تحديد آية النهاية</p>}
-              </div>
-            </div>
-          )}
+          {(() => {
+            const hasEmptyFields = !selectedSurah || !toSurah || !fromVerse || !toVerse;
+            const sameSurah = selectedSurah && toSurah && selectedSurah === toSurah;
+            const invalidVerseRange = sameSurah && fromVerse && toVerse && parseInt(toVerse) < parseInt(fromVerse);
+            
+            if (hasEmptyFields || invalidVerseRange) {
+              return (
+                <div className="flex items-start gap-2 text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-500 p-3 rounded-md">
+                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <div>
+                    {!selectedSurah && <p>يرجى اختيار السورة</p>}
+                    {selectedSurah && !fromVerse && <p>يرجى تحديد آية البداية</p>}
+                    {selectedSurah && fromVerse && !toSurah && <p>يرجى اختيار السورة النهائية</p>}
+                    {selectedSurah && fromVerse && toSurah && !toVerse && <p>يرجى تحديد آية النهاية</p>}
+                    {invalidVerseRange && <p>في نفس السورة، يجب أن تكون "إلى آية" أكبر من أو تساوي "من آية"</p>}
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()}
 
           <DialogFooter>
             <Button
@@ -413,7 +511,12 @@ export function ProgressRecordingDialog({
             </Button>
             <Button
               type="submit"
-              disabled={!selectedSurah || !fromVerse || !toVerse}
+              disabled={(() => {
+                const hasEmptyFields = !selectedSurah || !toSurah || !fromVerse || !toVerse;
+                const sameSurah = selectedSurah && toSurah && selectedSurah === toSurah;
+                const invalidVerseRange = sameSurah && fromVerse && toVerse && parseInt(toVerse) < parseInt(fromVerse);
+                return Boolean(hasEmptyFields || invalidVerseRange);
+              })()}
               loading={submitting}
               className="bg-gradient-to-l from-black to-gray-900 hover:from-gray-800 hover:to-black"
             >

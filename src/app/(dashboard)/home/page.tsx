@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers";
-import { statisticsApi, halaqatApi } from "@/services";
+import { statisticsApi, halaqatApi, teachersApi } from "@/services";
 import { extractErrorMessage } from "@/lib/error-handler";
 import { toast } from "sonner";
 import {
@@ -13,6 +13,7 @@ import {
   AtRiskStudent,
 } from "@/types/statistics";
 import { Halaqa } from "@/types/halaqa";
+import { Teacher } from "@/types/teacher";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -91,6 +92,7 @@ export default function HomePage() {
     useState<TargetAdoptionOverview | null>(null);
   const [atRiskStudents, setAtRiskStudents] = useState<AtRiskStudent[]>([]);
   const [halaqat, setHalaqat] = useState<Halaqa[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
 
   // Loading states
   const [loadingAchievement, setLoadingAchievement] = useState(true);
@@ -101,6 +103,9 @@ export default function HomePage() {
   // Filters
   const [datePeriod, setDatePeriod] = useState<DatePeriod>("today");
   const [selectedHalaqaId, setSelectedHalaqaId] = useState<number | undefined>(
+    undefined
+  );
+  const [selectedTeacherId, setSelectedTeacherId] = useState<number | undefined>(
     undefined
   );
 
@@ -114,12 +119,16 @@ export default function HomePage() {
     router.push(path);
   };
 
-  // Fetch halaqat for filter (supervisors only)
+  // Fetch halaqat and teachers for filter (supervisors only)
   useEffect(() => {
     if (isSupervisor) {
       halaqatApi
         .getAll()
         .then((res) => setHalaqat(res.data))
+        .catch(console.error);
+      teachersApi
+        .getAll()
+        .then((res) => setTeachers(res.data))
         .catch(console.error);
     }
   }, [isSupervisor]);
@@ -134,6 +143,7 @@ export default function HomePage() {
           fromDate,
           toDate,
           halaqaId: selectedHalaqaId,
+          teacherId: selectedTeacherId,
         });
         setDailyAchievement(response.data);
       } catch (error) {
@@ -144,7 +154,7 @@ export default function HomePage() {
       }
     };
     fetchAchievement();
-  }, [datePeriod, selectedHalaqaId]);
+  }, [datePeriod, selectedHalaqaId, selectedTeacherId]);
 
   // Fetch streak leaderboard
   useEffect(() => {
@@ -154,6 +164,7 @@ export default function HomePage() {
         const response = await statisticsApi.getStreakLeaderboard({
           limit: 5,
           halaqaId: selectedHalaqaId,
+          teacherId: selectedTeacherId,
         });
         setStreakLeaderboard(response.data);
       } catch (error) {
@@ -164,7 +175,7 @@ export default function HomePage() {
       }
     };
     fetchStreak();
-  }, [selectedHalaqaId]);
+  }, [selectedHalaqaId, selectedTeacherId]);
 
   // Fetch target adoption
   useEffect(() => {
@@ -173,6 +184,7 @@ export default function HomePage() {
       try {
         const response = await statisticsApi.getTargetAdoptionOverview({
           halaqaId: selectedHalaqaId,
+          teacherId: selectedTeacherId,
         });
         setTargetAdoption(response.data);
       } catch (error) {
@@ -183,7 +195,7 @@ export default function HomePage() {
       }
     };
     fetchAdoption();
-  }, [selectedHalaqaId]);
+  }, [selectedHalaqaId, selectedTeacherId]);
 
   // Fetch at-risk students
   useEffect(() => {
@@ -232,28 +244,58 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Halaqa Filter for Supervisors */}
-      {isSupervisor && halaqat.length > 0 && (
-        <div className="flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
-          <span className="text-sm text-muted-foreground">تصفية حسب الحلقة:</span>
-          <Select
-            value={selectedHalaqaId?.toString() ?? "all"}
-            onValueChange={(v) =>
-              setSelectedHalaqaId(v === "all" ? undefined : parseInt(v))
-            }
-          >
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="جميع الحلقات" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">جميع الحلقات</SelectItem>
-              {halaqat.map((h) => (
-                <SelectItem key={h.id} value={h.id.toString()}>
-                  {h.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {/* Filters for Supervisors */}
+      {isSupervisor && (halaqat.length > 0 || teachers.length > 0) && (
+        <div className="flex flex-wrap items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
+          {/* Halaqa Filter */}
+          {halaqat.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">الحلقة:</span>
+              <Select
+                value={selectedHalaqaId?.toString() ?? "all"}
+                onValueChange={(v) =>
+                  setSelectedHalaqaId(v === "all" ? undefined : parseInt(v))
+                }
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="جميع الحلقات" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">جميع الحلقات</SelectItem>
+                  {halaqat.map((h) => (
+                    <SelectItem key={h.id} value={h.id.toString()}>
+                      {h.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Teacher Filter */}
+          {teachers.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">المعلم:</span>
+              <Select
+                value={selectedTeacherId?.toString() ?? "all"}
+                onValueChange={(v) =>
+                  setSelectedTeacherId(v === "all" ? undefined : parseInt(v))
+                }
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="جميع المعلمين" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">جميع المعلمين</SelectItem>
+                  {teachers.map((t) => (
+                    <SelectItem key={t.id} value={t.id.toString()}>
+                      {t.fullName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       )}
 

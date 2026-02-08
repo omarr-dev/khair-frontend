@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { studentApi } from "@/services";
+import { studentApi, attendanceApi } from "@/services";
 import { Student, SetStudentTargetDto } from "@/types/student";
+import { AttendanceRecord } from "@/types/attendance";
 import { surahs } from "@/lib/quran-data";
 import { useAuth } from "@/components/providers";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { AttendanceBadge } from "@/components/shared/attendance-badge";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +35,10 @@ import {
   Eye,
   Target,
   Users,
+  RotateCcw,
+  Check,
+  X,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { extractErrorMessage } from "@/lib/error-handler";
@@ -128,6 +134,11 @@ export default function MyStudentsPage() {
   // Target dialog state
   const [targetStudent, setTargetStudent] = useState<Student | null>(null);
 
+  // Attendance state
+  const [attendanceMap, setAttendanceMap] = useState<Record<number, AttendanceRecord>>({});
+  const [savingAttendance, setSavingAttendance] = useState<Record<number, boolean>>({});
+  const [editingAttendance, setEditingAttendance] = useState<Set<number>>(new Set());
+
   // Bulk target dialog state
   const [bulkTargetHalaqa, setBulkTargetHalaqa] = useState<HalaqaGroup | null>(null);
   const [bulkMemorizationTarget, setBulkMemorizationTarget] = useState("");
@@ -188,6 +199,62 @@ export default function MyStudentsPage() {
       return groups;
     }, [] as HalaqaGroup[]);
   }, [filteredStudents]);
+
+  // Fetch today's attendance for all halaqas when students load
+  useEffect(() => {
+    const fetchAttendance = async () => {
+      const today = getTodayDate();
+      const halaqaIds = new Set<number>();
+      for (const s of students) {
+        const active = s.assignments.find(a => a.isActive);
+        if (active?.halaqaId) halaqaIds.add(active.halaqaId);
+      }
+
+      const map: Record<number, AttendanceRecord> = {};
+      await Promise.all(
+        Array.from(halaqaIds).map(async (halaqaId) => {
+          try {
+            const response = await attendanceApi.getByDate(halaqaId, today);
+            for (const record of response.data.records) {
+              map[record.studentId] = record;
+            }
+          } catch {
+            // Silently ignore - attendance just won't show
+          }
+        })
+      );
+      setAttendanceMap(map);
+    };
+
+    if (students.length > 0) {
+      fetchAttendance();
+    }
+  }, [students]);
+
+  // Handle recording attendance
+  const handleAttendance = useCallback(async (studentId: number, halaqaId: number, status: 0 | 1) => {
+    setSavingAttendance(prev => ({ ...prev, [studentId]: true }));
+    try {
+      const response = await attendanceApi.create({
+        studentId,
+        halaqaId,
+        date: getTodayDate(),
+        status,
+      });
+      setAttendanceMap(prev => ({ ...prev, [studentId]: response.data }));
+      setEditingAttendance(prev => {
+        const next = new Set(prev);
+        next.delete(studentId);
+        return next;
+      });
+      toast.success(status === 0 ? "تم تسجيل الحضور" : "تم تسجيل الغياب");
+    } catch (error) {
+      const errorMessage = extractErrorMessage(error, "حدث خطأ أثناء تسجيل الحضور");
+      toast.error(errorMessage);
+    } finally {
+      setSavingAttendance(prev => ({ ...prev, [studentId]: false }));
+    }
+  }, []);
 
   const toggleHalaqa = useCallback((halaqaName: string) => {
     setCollapsedHalaqas(prev => {
@@ -430,6 +497,61 @@ export default function MyStudentsPage() {
                               </div>
                             </div>
                             
+                            {/* Attendance Row */}
+                            {(() => {
+                              const activeHalaqaId = student.assignments.find(a => a.isActive)?.halaqaId;
+                              const record = attendanceMap[student.id];
+                              const isSaving = savingAttendance[student.id];
+                              const isEditing = editingAttendance.has(student.id);
+                              const showButtons = !record || isEditing;
+
+                              if (!activeHalaqaId) return null;
+
+                              return (
+                                <div className="flex items-center gap-2">
+                                  {showButtons ? (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={isSaving}
+                                        onClick={() => handleAttendance(student.id, activeHalaqaId, 0)}
+                                        className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-950/50"
+                                      >
+                                        {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5 ml-1" />}
+                                        حاضر
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={isSaving}
+                                        onClick={() => handleAttendance(student.id, activeHalaqaId, 1)}
+                                        className="bg-red-50 text-red-700 border-red-200 hover:bg-red-100 hover:text-red-800 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-950/50"
+                                      >
+                                        {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5 ml-1" />}
+                                        غائب
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <AttendanceBadge
+                                        status={record.status === "Present" ? "present" : "absent"}
+                                      />
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-7 px-2 text-muted-foreground"
+                                        onClick={() => setEditingAttendance(prev => new Set(prev).add(student.id))}
+                                      >
+                                        <RotateCcw className="h-3 w-3 ml-1" />
+                                        تعديل
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              );
+                            })()}
+
                             {/* Achievement Progress Row - Only show if there's a target */}
                             {hasTarget && todayAchievement && (
                               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 p-3 bg-muted/30 rounded-lg border border-muted">

@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { studentApi, halaqatApi, teachersApi } from "@/services";
-import { PaginatedResponse, StudentFilterParams } from "@/types/api";
+import { studentApi, teachersApi } from "@/services";
+import { StudentFilterParams } from "@/types/api";
 import { Student, CreateStudentDto, UpdateStudentDto, StudentAssignment } from "@/types/student";
-import { Halaqa } from "@/types/halaqa";
 import { Teacher } from "@/types/teacher";
 import { useAuth } from "@/components/providers";
 import { useDebounce } from "@/hooks";
@@ -48,18 +47,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Search,
   UserPlus,
+  UserCheck,
   Edit,
   Trash2,
-  Users,
   Eye,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  Filter,
-  X,
   Loader2,
   User,
   Phone,
@@ -68,19 +60,30 @@ import {
   UserCircle,
   BookOpen,
   GraduationCap,
-  ArrowUpDown
+  ArrowUpDown,
+  MoreVertical,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { formatSaudiPhoneNumber } from "@/lib/phone-formatter";
 import { AxiosError } from "axios";
+import { useManage } from "../manage-context";
+import { FilterBar } from "../shared/filter-bar";
+import { Pagination } from "../shared/pagination";
 
-export default function StudentsPage() {
+export function StudentsView() {
   const router = useRouter();
+  const { halaqat, globalSearch } = useManage();
   const [students, setStudents] = useState<Student[]>([]);
-  const [halaqat, setHalaqat] = useState<Halaqa[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -95,11 +98,6 @@ export default function StudentsPage() {
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
   const { user } = useAuth();
 
-  const handleNavigate = (studentId: number) => {
-    setNavigatingTo(studentId.toString());
-    router.push(`/my-students/${studentId}`);
-  };
-
   // Pagination state
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
@@ -107,15 +105,15 @@ export default function StudentsPage() {
   const [totalPages, setTotalPages] = useState(0);
 
   // Filter state
-  const [searchTerm, setSearchTerm] = useState("");
+  const [localSearch, setLocalSearch] = useState("");
   const [filterHalaqa, setFilterHalaqa] = useState<string>("all");
   const [filterTeacher, setFilterTeacher] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("name");
   const [sortOrder, setSortOrder] = useState<string>("asc");
-  const [showFilters, setShowFilters] = useState(false);
 
-  // Debounced search
-  const debouncedSearch = useDebounce(searchTerm, 300);
+  // Combined search (global + local)
+  const effectiveSearch = globalSearch || localSearch;
+  const debouncedSearch = useDebounce(effectiveSearch, 300);
 
   // Form state
   const [firstName, setFirstName] = useState("");
@@ -134,17 +132,44 @@ export default function StudentsPage() {
   // Assignment form state
   const [assignHalaqa, setAssignHalaqa] = useState("");
   const [assignTeacher, setAssignTeacher] = useState("");
-  
+
   // Loading states
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchHalaqat();
-  }, []);
+  const handleNavigate = (studentId: number) => {
+    setNavigatingTo(studentId.toString());
+    router.push(`/my-students/${studentId}`);
+  };
+
+  const fetchStudents = useCallback(async () => {
+    try {
+      setLoading(true);
+
+      const params: StudentFilterParams = {
+        page,
+        pageSize,
+        search: debouncedSearch || undefined,
+        halaqaId: filterHalaqa !== "all" ? parseInt(filterHalaqa) : undefined,
+        teacherId: filterTeacher !== "all" ? parseInt(filterTeacher) : undefined,
+        sortBy: sortBy as "name" | "juz" | "createdAt",
+        sortOrder: sortOrder as "asc" | "desc",
+      };
+
+      const response = await studentApi.getPaginated(params);
+      setStudents(response.data.items);
+      setTotalCount(response.data.totalCount);
+      setTotalPages(response.data.totalPages);
+    } catch (error) {
+      console.error("Error fetching students:", error);
+      toast.error("حدث خطأ أثناء تحميل الطلاب");
+    } finally {
+      setLoading(false);
+    }
+  }, [page, pageSize, debouncedSearch, filterHalaqa, filterTeacher, sortBy, sortOrder]);
 
   useEffect(() => {
     fetchStudents();
-  }, [page, debouncedSearch, filterHalaqa, filterTeacher, sortBy, sortOrder]);
+  }, [fetchStudents]);
 
   useEffect(() => {
     if (selectedHalaqa) {
@@ -160,41 +185,6 @@ export default function StudentsPage() {
       fetchTeachersByHalaqa(parseInt(assignHalaqa));
     }
   }, [assignHalaqa]);
-
-  const fetchStudents = async () => {
-    try {
-      setLoading(true);
-
-      const params: StudentFilterParams = {
-        page,
-        pageSize,
-        search: debouncedSearch || undefined,
-        halaqaId: filterHalaqa !== "all" ? parseInt(filterHalaqa) : undefined,
-        teacherId: filterTeacher !== "all" ? parseInt(filterTeacher) : undefined,
-        sortBy: sortBy as 'name' | 'juz' | 'createdAt',
-        sortOrder: sortOrder as 'asc' | 'desc',
-      };
-
-      const response = await studentApi.getPaginated(params);
-      setStudents(response.data.items);
-      setTotalCount(response.data.totalCount);
-      setTotalPages(response.data.totalPages);
-    } catch (error) {
-      console.error("Error fetching students:", error);
-      toast.error("حدث خطأ أثناء تحميل الطلاب");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchHalaqat = async () => {
-    try {
-      const response = await halaqatApi.getAll();
-      setHalaqat(response.data);
-    } catch (error) {
-      console.error("Error fetching halaqat:", error);
-    }
-  };
 
   const fetchTeachersByHalaqa = async (halaqaId: number) => {
     try {
@@ -238,7 +228,7 @@ export default function StudentsPage() {
   };
 
   const resetFilters = () => {
-    setSearchTerm("");
+    setLocalSearch("");
     setFilterHalaqa("all");
     setFilterTeacher("all");
     setSortBy("name");
@@ -296,7 +286,6 @@ export default function StudentsPage() {
       toast.error("حدث خطأ أثناء حذف التعيين");
     }
   };
-
 
   const openEditDialog = (student: Student) => {
     setEditingStudent(student);
@@ -356,20 +345,19 @@ export default function StudentsPage() {
       console.error("Error saving student:", error);
       const axiosError = error as AxiosError<{ message?: string; errors?: Record<string, string[]> }>;
       let errorMessage = "حدث خطأ أثناء حفظ بيانات الطالب";
-      
+
       if (axiosError.response?.data) {
         const data = axiosError.response.data;
         if (data.message) {
           errorMessage = data.message;
         } else if (data.errors) {
-          // Combine all validation errors
           const allErrors = Object.values(data.errors).flat();
           if (allErrors.length > 0) {
             errorMessage = allErrors.join("، ");
           }
         }
       }
-      
+
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -401,20 +389,20 @@ export default function StudentsPage() {
     return format(new Date(date), "dd MMMM yyyy", { locale: ar });
   };
 
-  // Pagination handlers
-  const goToPage = (newPage: number) => {
-    setPage(Math.max(1, Math.min(newPage, totalPages)));
-  };
+  const hasActiveFilters = localSearch !== "" || filterHalaqa !== "all" || filterTeacher !== "all";
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">الطلاب</h1>
-        {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && (
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) resetForm();
-          }}>
+      {/* Add Button */}
+      {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && (
+        <div className="flex justify-end">
+          <Dialog
+            open={isDialogOpen}
+            onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) resetForm();
+            }}
+          >
             <DialogTrigger asChild>
               <Button>
                 <UserPlus className="ml-2 h-4 w-4" />
@@ -429,7 +417,6 @@ export default function StudentsPage() {
                   </div>
                   {editingStudent ? "تعديل بيانات الطالب" : "إضافة طالب جديد"}
                 </DialogTitle>
-                
               </DialogHeader>
               <form onSubmit={handleSubmit}>
                 <div className="space-y-6 py-4 max-h-[60vh] overflow-y-auto px-1">
@@ -495,7 +482,7 @@ export default function StudentsPage() {
                               id="idNumber"
                               value={idNumber}
                               onChange={(e) => {
-                                const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                const value = e.target.value.replace(/\D/g, "").slice(0, 10);
                                 setIdNumber(value);
                               }}
                               placeholder=""
@@ -584,18 +571,13 @@ export default function StudentsPage() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="Forward">
-                                <span className="flex items-center gap-2">
-                                  من الفاتحة إلى الناس 
-                                </span>
+                                <span className="flex items-center gap-2">من الفاتحة إلى الناس</span>
                               </SelectItem>
                               <SelectItem value="Backward">
-                                <span className="flex items-center gap-2">
-                                  من الناس إلى الفاتحة 
-                                </span>
+                                <span className="flex items-center gap-2">من الناس إلى الفاتحة</span>
                               </SelectItem>
                             </SelectContent>
                           </Select>
-                         
                         </div>
                       </div>
                     </div>
@@ -680,277 +662,253 @@ export default function StudentsPage() {
               </form>
             </DialogContent>
           </Dialog>
-        )}
-      </div>
-
-      {/* Stats Card */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">إجمالي الطلاب</CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{totalCount}</div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
 
       {/* Search and Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="space-y-4">
-            {/* Search Bar */}
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="البحث بالاسم أو رقم ولي الأمر..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setPage(1);
-                  }}
-                  className="pr-10"
-                />
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                <Filter className="h-4 w-4 ml-2" />
-                فلترة
-              </Button>
-              {(searchTerm || filterHalaqa !== "all" || filterTeacher !== "all") && (
-                <Button variant="ghost" onClick={resetFilters}>
-                  <X className="h-4 w-4 ml-2" />
-                  مسح
-                </Button>
-              )}
-            </div>
-
-            {/* Filter Options */}
-            {showFilters && (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t">
-                <div className="space-y-2">
-                  <Label>الحلقة</Label>
-                  <Select
-                    value={filterHalaqa}
-                    onValueChange={(v) => {
-                      setFilterHalaqa(v);
-                      setPage(1);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="جميع الحلقات" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">جميع الحلقات</SelectItem>
-                      {halaqat.map((halaqa) => (
-                        <SelectItem key={halaqa.id} value={halaqa.id.toString()}>
-                          {halaqa.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>ترتيب حسب</Label>
-                  <Select
-                    value={sortBy}
-                    onValueChange={(v) => {
-                      setSortBy(v);
-                      setPage(1);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="name">الاسم</SelectItem>
-                      <SelectItem value="juz">الأجزاء المحفوظة</SelectItem>
-                      <SelectItem value="createdAt">تاريخ التسجيل</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>اتجاه الترتيب</Label>
-                  <Select
-                    value={sortOrder}
-                    onValueChange={(v) => {
-                      setSortOrder(v);
-                      setPage(1);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="asc">تصاعدي</SelectItem>
-                      <SelectItem value="desc">تنازلي</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <FilterBar
+        searchTerm={localSearch}
+        onSearchChange={(value) => {
+          setLocalSearch(value);
+          setPage(1);
+        }}
+        searchPlaceholder="البحث بالاسم أو رقم ولي الأمر..."
+        halaqat={halaqat}
+        filterHalaqa={filterHalaqa}
+        onFilterHalaqaChange={(v) => {
+          setFilterHalaqa(v);
+          setPage(1);
+        }}
+        sortBy={sortBy}
+        onSortByChange={(v) => {
+          setSortBy(v);
+          setPage(1);
+        }}
+        sortByOptions={[
+          { value: "name", label: "الاسم" },
+          { value: "juz", label: "الأجزاء المحفوظة" },
+          { value: "createdAt", label: "تاريخ التسجيل" },
+        ]}
+        sortOrder={sortOrder}
+        onSortOrderChange={(v) => {
+          setSortOrder(v);
+          setPage(1);
+        }}
+        onReset={resetFilters}
+        hasActiveFilters={hasActiveFilters}
+      />
 
       {/* Students Table */}
       <Card>
         <CardHeader>
-          <CardTitle>قائمة الطلاب</CardTitle>
+          <CardTitle className="flex items-center justify-between">
+            <span>قائمة الطلاب</span>
+            <Badge variant="secondary">{totalCount} طالب</Badge>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="text-center py-8">جاري التحميل...</div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>الاسم</TableHead>
-                    <TableHead>تاريخ الميلاد</TableHead>
-                    <TableHead>ولي الأمر</TableHead>
-                    <TableHead>الهاتف</TableHead>
-                    <TableHead>الأجزاء المحفوظة</TableHead>
-                    <TableHead>الحلقة</TableHead>
-                    <TableHead>المعلم</TableHead>
-                    {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && <TableHead>إجراءات</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {students.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center">
-                        لا يوجد طلاب
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    students.map((student) => (
-                      <TableRow
-                        key={student.id}
-                        className={`cursor-pointer hover:bg-muted/50 ${navigatingTo === student.id.toString() ? 'opacity-70' : ''}`}
-                        onClick={() => handleNavigate(student.id)}
-                      >
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            {navigatingTo === student.id.toString() && (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            )}
-                            {student.fullName}
-                          </div>
-                        </TableCell>
-                        <TableCell>{formatDate(student.dateOfBirth)}</TableCell>
-                        <TableCell>{student.guardianName || "-"}</TableCell>
-                        <TableCell>{student.guardianPhone || "-"}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3">
+                {students.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">لا يوجد طلاب</div>
+                ) : (
+                  students.map((student) => (
+                    <div
+                      key={student.id}
+                      className={cn(
+                        "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors hover:bg-muted/50",
+                        navigatingTo === student.id.toString() && "opacity-70"
+                      )}
+                      onClick={() => handleNavigate(student.id)}
+                    >
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
+                        {navigatingTo === student.id.toString() ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          student.fullName.charAt(0)
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold truncate">{student.fullName}</p>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                          {student.currentHalaqa && (
+                            <Badge variant="outline" className="text-[10px] gap-1">
+                              <BookOpen className="h-2.5 w-2.5" />
+                              {student.currentHalaqa}
+                            </Badge>
+                          )}
+                          <Badge variant="secondary" className="text-[10px]">
                             {student.juzMemorized.toFixed(1)} جزء
                           </Badge>
-                        </TableCell>
-                        <TableCell>{student.currentHalaqa || "-"}</TableCell>
-                        <TableCell>{student.teacherName || "-"}</TableCell>
+                        </div>
+                        {student.teacherName && (
+                          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                            <UserCheck className="h-3 w-3" />
+                            {student.teacherName}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleNavigate(student.id);
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && (
-                          <TableCell>
-                            <div className="flex gap-2">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
                               <Button
                                 size="sm"
-                                variant="outline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleNavigate(student.id);
-                                }}
-                                loading={navigatingTo === student.id.toString()}
+                                variant="ghost"
+                                className="h-8 w-8 p-0"
+                                onClick={(e) => e.stopPropagation()}
                               >
-                                <Eye className="h-4 w-4 ml-1" />
-                                تفاصيل الطالب
+                                <MoreVertical className="h-4 w-4" />
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openManageAssignments(student);
-                                }}
-                              >
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openManageAssignments(student); }}>
+                                <BookOpen className="h-4 w-4 ml-2" />
                                 حلقاته
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openEditDialog(student);
-                                }}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEditDialog(student); }}>
+                                <Edit className="h-4 w-4 ml-2" />
+                                تعديل
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={(e) => { e.stopPropagation(); openDeleteDialog(student); }}
+                                className="text-destructive focus:text-destructive"
                               >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openDeleteDialog(student);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                                <Trash2 className="h-4 w-4 ml-2" />
+                                حذف
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>الاسم</TableHead>
+                      <TableHead>تاريخ الميلاد</TableHead>
+                      <TableHead>ولي الأمر</TableHead>
+                      <TableHead>الهاتف</TableHead>
+                      <TableHead>الأجزاء المحفوظة</TableHead>
+                      <TableHead>الحلقة</TableHead>
+                      <TableHead>المعلم</TableHead>
+                      {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && (
+                        <TableHead>إجراءات</TableHead>
+                      )}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {students.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center">
+                          لا يوجد طلاب
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      students.map((student) => (
+                        <TableRow
+                          key={student.id}
+                          className={`cursor-pointer hover:bg-muted/50 ${navigatingTo === student.id.toString() ? "opacity-70" : ""}`}
+                          onClick={() => handleNavigate(student.id)}
+                        >
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              {navigatingTo === student.id.toString() && (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              )}
+                              {student.fullName}
                             </div>
                           </TableCell>
-                        )}
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                          <TableCell>{formatDate(student.dateOfBirth)}</TableCell>
+                          <TableCell>{student.guardianName || "-"}</TableCell>
+                          <TableCell>{student.guardianPhone || "-"}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{student.juzMemorized.toFixed(1)} جزء</Badge>
+                          </TableCell>
+                          <TableCell>{student.currentHalaqa || "-"}</TableCell>
+                          <TableCell>{student.teacherName || "-"}</TableCell>
+                          {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && (
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleNavigate(student.id);
+                                  }}
+                                >
+                                  <Eye className="h-4 w-4 ml-1" />
+                                  تفاصيل
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openManageAssignments(student);
+                                  }}
+                                >
+                                  حلقاته
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openEditDialog(student);
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openDeleteDialog(student);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                  <div className="text-sm text-muted-foreground">
-                    عرض {((page - 1) * pageSize) + 1} - {Math.min(page * pageSize, totalCount)} من {totalCount}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => goToPage(1)}
-                      disabled={page === 1}
-                    >
-                      <ChevronsRight className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => goToPage(page - 1)}
-                      disabled={page === 1}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                    <span className="text-sm px-2">
-                      صفحة {page} من {totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => goToPage(page + 1)}
-                      disabled={page === totalPages}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => goToPage(totalPages)}
-                      disabled={page === totalPages}
-                    >
-                      <ChevronsLeft className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <Pagination
+                page={page}
+                pageSize={pageSize}
+                totalCount={totalCount}
+                totalPages={totalPages}
+                onPageChange={setPage}
+              />
             </>
           )}
         </CardContent>
@@ -960,16 +918,11 @@ export default function StudentsPage() {
       <Dialog open={isAssignmentDialogOpen} onOpenChange={setIsAssignmentDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>
-              إدارة تعيينات الطالب: {managingStudent?.fullName}
-            </DialogTitle>
-            <DialogDescription>
-              يمكنك إضافة أو حذف تعيينات الطالب في الحلقات
-            </DialogDescription>
+            <DialogTitle>إدارة تعيينات الطالب: {managingStudent?.fullName}</DialogTitle>
+            <DialogDescription>يمكنك إضافة أو حذف تعيينات الطالب في الحلقات</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Current Assignments */}
             <div>
               <h3 className="text-sm font-medium mb-2">التعيينات الحالية</h3>
               {studentAssignments.length === 0 ? (
@@ -983,19 +936,13 @@ export default function StudentsPage() {
                     >
                       <div className="flex-1">
                         <p className="font-medium">{assignment.halaqaName}</p>
-                        <p className="text-sm text-muted-foreground">
-                          المعلم: {assignment.teacherName}
-                        </p>
+                        <p className="text-sm text-muted-foreground">المعلم: {assignment.teacherName}</p>
                         <Badge variant={assignment.isActive ? "default" : "secondary"} className="mt-1">
                           {assignment.isActive ? "نشط" : "غير نشط"}
                         </Badge>
                       </div>
                       <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => openDeleteAssignmentDialog(assignment)}
-                        >
+                        <Button size="sm" variant="destructive" onClick={() => openDeleteAssignmentDialog(assignment)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -1005,7 +952,6 @@ export default function StudentsPage() {
               )}
             </div>
 
-            {/* Add New Assignment */}
             <div>
               <h3 className="text-sm font-medium mb-2">إضافة تعيين جديد</h3>
               <form onSubmit={handleAddAssignment} className="space-y-3">
@@ -1026,11 +972,7 @@ export default function StudentsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="assignTeacher">المعلم</Label>
-                  <Select
-                    value={assignTeacher}
-                    onValueChange={setAssignTeacher}
-                    disabled={!assignHalaqa}
-                  >
+                  <Select value={assignTeacher} onValueChange={setAssignTeacher} disabled={!assignHalaqa}>
                     <SelectTrigger>
                       <SelectValue placeholder={assignHalaqa ? "اختر المعلم" : "اختر الحلقة أولاً"} />
                     </SelectTrigger>
@@ -1058,8 +1000,7 @@ export default function StudentsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
             <AlertDialogDescription>
-              هل أنت متأكد من حذف الطالب &quot;{studentToDelete?.fullName}&quot;؟
-              لا يمكن التراجع عن هذا الإجراء.
+              هل أنت متأكد من حذف الطالب &quot;{studentToDelete?.fullName}&quot;؟ لا يمكن التراجع عن هذا الإجراء.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1080,8 +1021,8 @@ export default function StudentsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>تأكيد حذف التعيين</AlertDialogTitle>
             <AlertDialogDescription>
-              هل أنت متأكد من حذف تعيين الطالب &quot;{managingStudent?.fullName}&quot; من حلقة &quot;{assignmentToDelete?.halaqaName}&quot;؟
-              لا يمكن التراجع عن هذا الإجراء.
+              هل أنت متأكد من حذف تعيين الطالب &quot;{managingStudent?.fullName}&quot; من حلقة &quot;
+              {assignmentToDelete?.halaqaName}&quot;؟ لا يمكن التراجع عن هذا الإجراء.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

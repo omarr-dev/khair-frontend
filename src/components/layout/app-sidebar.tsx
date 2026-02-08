@@ -18,8 +18,6 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   Home,
-  Users,
-  UserCheck,
   BookOpen,
   ChartBar,
   LogOut,
@@ -27,6 +25,7 @@ import {
   ChevronLeft,
   UsersRound,
   ClipboardCheck,
+  ClipboardList,
 } from "lucide-react";
 import { useAuth, useTenant } from "@/components/providers";
 
@@ -39,9 +38,8 @@ const teacherMenuItems = [
 // Menu items for HalaqaSupervisors - can manage their assigned halaqas including teacher attendance
 const halaqaSupervisorMenuItems = [
   { title: "الرئيسية", href: "/home", icon: Home },
-  { title: "الحلقات", href: "/halaqat", icon: BookOpen },
-  { title: "المعلمين", href: "/teachers", icon: UserCheck },
-  { title: "الطلاب", href: "/students", icon: Users },
+  { title: "إدارة الحلقات", href: "/halaqat", icon: BookOpen },
+  { title: "المتابعة", href: "/follow-up", icon: ClipboardList },
   { title: "حضور المعلمين", href: "/teacher-attendance", icon: ClipboardCheck },
   { title: "التقارير", href: "/reports", icon: ChartBar },
 ];
@@ -49,9 +47,8 @@ const halaqaSupervisorMenuItems = [
 // Menu items for full supervisors - full access including teacher attendance
 const supervisorMenuItems = [
   { title: "الرئيسية", href: "/home", icon: Home },
-  { title: "الحلقات", href: "/halaqat", icon: BookOpen },
-  { title: "المعلمين", href: "/teachers", icon: UserCheck },
-  { title: "الطلاب", href: "/students", icon: Users },
+  { title: "إدارة الحلقات", href: "/halaqat", icon: BookOpen },
+  { title: "المتابعة", href: "/follow-up", icon: ClipboardList },
   { title: "حضور المعلمين", href: "/teacher-attendance", icon: ClipboardCheck },
   { title: "التقارير", href: "/reports", icon: ChartBar },
 ];

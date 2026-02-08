@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { teachersApi, halaqatApi } from "@/services";
-import { PaginatedResponse, TeacherFilterParams } from "@/types/api";
+import { useState, useEffect, useCallback } from "react";
+import { teachersApi } from "@/services";
+import { TeacherFilterParams } from "@/types/api";
 import { Teacher, TeacherHalaqa } from "@/types/teacher";
-import { Halaqa } from "@/types/halaqa";
 import { useAuth } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,20 +50,16 @@ import {
   Plus,
   List,
   X,
-  Search,
-  Filter,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   Loader2,
-  User
+  User,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { toast } from "sonner";
+import { useManage } from "../manage-context";
+import { FilterBar } from "../shared/filter-bar";
+import { Pagination } from "../shared/pagination";
 
-// Debounce hook
 function useDebounceValue<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
@@ -81,15 +76,14 @@ function useDebounceValue<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-export default function TeachersPage() {
+export function TeachersView() {
+  const { halaqat, globalSearch } = useManage();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [halaqat, setHalaqat] = useState<Halaqa[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [teacherToDelete, setTeacherToDelete] = useState<Teacher | null>(null);
-  // Combined Halaqat Management Dialog
   const [isManageHalaqatDialogOpen, setIsManageHalaqatDialogOpen] = useState(false);
   const [selectedTeacherForHalaqat, setSelectedTeacherForHalaqat] = useState<Teacher | null>(null);
   const [teacherHalaqat, setTeacherHalaqat] = useState<TeacherHalaqa[]>([]);
@@ -106,14 +100,14 @@ export default function TeachersPage() {
   const [totalPages, setTotalPages] = useState(0);
 
   // Filter state
-  const [searchTerm, setSearchTerm] = useState("");
+  const [localSearch, setLocalSearch] = useState("");
   const [filterHalaqa, setFilterHalaqa] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("name");
   const [sortOrder, setSortOrder] = useState<string>("asc");
-  const [showFilters, setShowFilters] = useState(false);
 
-  // Debounced search
-  const debouncedSearch = useDebounceValue(searchTerm, 300);
+  // Combined search
+  const effectiveSearch = globalSearch || localSearch;
+  const debouncedSearch = useDebounceValue(effectiveSearch, 300);
 
   // Form state
   const [fullName, setFullName] = useState("");
@@ -125,15 +119,7 @@ export default function TeachersPage() {
   const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchHalaqat();
-  }, []);
-
-  useEffect(() => {
-    fetchTeachers();
-  }, [page, debouncedSearch, filterHalaqa, sortBy, sortOrder]);
-
-  const fetchTeachers = async () => {
+  const fetchTeachers = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -142,8 +128,8 @@ export default function TeachersPage() {
         pageSize,
         search: debouncedSearch || undefined,
         halaqaId: filterHalaqa !== "all" ? parseInt(filterHalaqa) : undefined,
-        sortBy: sortBy as 'name' | 'studentsCount' | 'halaqatCount' | 'joinDate',
-        sortOrder: sortOrder as 'asc' | 'desc',
+        sortBy: sortBy as "name" | "studentsCount" | "halaqatCount" | "joinDate",
+        sortOrder: sortOrder as "asc" | "desc",
       };
 
       const response = await teachersApi.getPaginated(params);
@@ -156,16 +142,11 @@ export default function TeachersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, pageSize, debouncedSearch, filterHalaqa, sortBy, sortOrder]);
 
-  const fetchHalaqat = async () => {
-    try {
-      const response = await halaqatApi.getAll();
-      setHalaqat(response.data);
-    } catch (error) {
-      console.error("Error fetching halaqat:", error);
-    }
-  };
+  useEffect(() => {
+    fetchTeachers();
+  }, [fetchTeachers]);
 
   const resetForm = () => {
     setFullName("");
@@ -182,14 +163,13 @@ export default function TeachersPage() {
   };
 
   const resetFilters = () => {
-    setSearchTerm("");
+    setLocalSearch("");
     setFilterHalaqa("all");
     setSortBy("name");
     setSortOrder("asc");
     setPage(1);
   };
 
-  // Combined Halaqat Management Dialog
   const openManageHalaqatDialog = async (teacher: Teacher) => {
     setSelectedTeacherForHalaqat(teacher);
     setIsManageHalaqatDialogOpen(true);
@@ -225,7 +205,6 @@ export default function TeachersPage() {
       toast.success("تم إزالة المعلم من الحلقة بنجاح");
       setIsRemoveHalaqaDialogOpen(false);
       setHalaqaToRemove(null);
-      // Refresh the halaqat list
       const response = await teachersApi.getHalaqat(selectedTeacherForHalaqat.id);
       setTeacherHalaqat(response.data);
       fetchTeachers();
@@ -240,19 +219,16 @@ export default function TeachersPage() {
 
     setIsAssigning(true);
     try {
-      await teachersApi.assignToHalaqa(
-        selectedTeacherForHalaqat.id,
-        parseInt(selectedHalaqa)
-      );
+      await teachersApi.assignToHalaqa(selectedTeacherForHalaqat.id, parseInt(selectedHalaqa));
       toast.success("تم تعيين المعلم في الحلقة بنجاح");
       resetHalaqaForm();
-      // Refresh the halaqat list
       const response = await teachersApi.getHalaqat(selectedTeacherForHalaqat.id);
       setTeacherHalaqat(response.data);
       fetchTeachers();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error assigning teacher to halaqa:", error);
-      const errorMessage = error.response?.data?.message || "حدث خطأ أثناء تعيين المعلم";
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      const errorMessage = axiosError.response?.data?.message || "حدث خطأ أثناء تعيين المعلم";
       toast.error(errorMessage);
     } finally {
       setIsAssigning(false);
@@ -300,24 +276,22 @@ export default function TeachersPage() {
       setIsDialogOpen(false);
       resetForm();
       fetchTeachers();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error saving teacher:", error);
-      
-      const responseData = error.response?.data;
-      const statusCode = error.response?.status;
-      
-      // Handle validation errors (field-level)
+
+      const axiosError = error as { response?: { data?: { message?: string; errors?: Record<string, string[]> }; status?: number } };
+      const responseData = axiosError.response?.data;
+      const statusCode = axiosError.response?.status;
+
       if (statusCode === 400 && responseData?.errors) {
         setValidationErrors(responseData.errors);
         toast.error("يرجى التأكد من صحة البيانات المدخلة");
         return;
       }
-      
-      // Handle specific error messages from backend
+
       if (statusCode === 400 && responseData?.message) {
         const message = responseData.message;
-        
-        // Duplicate phone number error
+
         if (message.includes("مستخدم بالفعل") || message.includes("already")) {
           setValidationErrors({ PhoneNumber: ["رقم الجوال مسجل مسبقاً لمعلم آخر. يرجى استخدام رقم مختلف."] });
           toast.error("رقم الجوال مسجل مسبقاً", {
@@ -325,22 +299,17 @@ export default function TeachersPage() {
           });
           return;
         }
-        
-        // Invalid phone number format
+
         if (message.includes("رقم الجوال يجب") || message.includes("سعودي")) {
           setValidationErrors({ PhoneNumber: [message] });
-          toast.error("رقم الجوال غير صالح", {
-            description: message,
-          });
+          toast.error("رقم الجوال غير صالح", { description: message });
           return;
         }
-        
-        // Generic message error
+
         toast.error(message);
         return;
       }
-      
-      // Fallback error
+
       toast.error("حدث خطأ أثناء حفظ بيانات المعلم", {
         description: "يرجى المحاولة مرة أخرى أو التواصل مع الدعم الفني",
       });
@@ -373,20 +342,20 @@ export default function TeachersPage() {
     return format(new Date(date), "dd MMMM yyyy", { locale: ar });
   };
 
-  // Pagination handlers
-  const goToPage = (newPage: number) => {
-    setPage(Math.max(1, Math.min(newPage, totalPages)));
-  };
+  const hasActiveFilters = localSearch !== "" || filterHalaqa !== "all";
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">المعلمين</h1>
-        {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && (
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) resetForm();
-          }}>
+      {/* Add Button */}
+      {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && (
+        <div className="flex justify-end">
+          <Dialog
+            open={isDialogOpen}
+            onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) resetForm();
+            }}
+          >
             <DialogTrigger asChild>
               <Button>
                 <UserPlus className="ml-2 h-4 w-4" />
@@ -401,7 +370,6 @@ export default function TeachersPage() {
                   </div>
                   {editingTeacher ? "تعديل بيانات المعلم" : "إضافة معلم جديد"}
                 </DialogTitle>
-
               </DialogHeader>
               <form onSubmit={handleSubmit}>
                 <div className="space-y-6 py-4 max-h-[60vh] overflow-y-auto px-1">
@@ -430,7 +398,7 @@ export default function TeachersPage() {
                             }}
                             placeholder="مثال: أحمد محمد العلي"
                             required
-                            className={`pr-10 ${validationErrors.FullName ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                            className={`pr-10 ${validationErrors.FullName ? "border-destructive focus-visible:ring-destructive" : ""}`}
                             autoFocus
                           />
                         </div>
@@ -449,8 +417,7 @@ export default function TeachersPage() {
                             id="idNumber"
                             value={idNumber}
                             onChange={(e) => {
-                              // Only allow numbers
-                              const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                              const value = e.target.value.replace(/\D/g, "").slice(0, 10);
                               setIdNumber(value);
                               if (validationErrors.IdNumber) {
                                 setValidationErrors({ ...validationErrors, IdNumber: [] });
@@ -458,7 +425,7 @@ export default function TeachersPage() {
                             }}
                             placeholder=""
                             dir="ltr"
-                            className={`pr-10 text-left ${validationErrors.IdNumber ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                            className={`pr-10 text-left ${validationErrors.IdNumber ? "border-destructive focus-visible:ring-destructive" : ""}`}
                             maxLength={10}
                           />
                         </div>
@@ -499,7 +466,7 @@ export default function TeachersPage() {
                             placeholder="+966 5X XXX XXXX"
                             required
                             dir="ltr"
-                            className={`pr-10 text-left ${validationErrors.PhoneNumber ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                            className={`pr-10 text-left ${validationErrors.PhoneNumber ? "border-destructive focus-visible:ring-destructive" : ""}`}
                           />
                         </div>
                         <p className="text-xs text-muted-foreground">
@@ -528,7 +495,7 @@ export default function TeachersPage() {
                             }}
                             placeholder="example@email.com"
                             dir="ltr"
-                            className={`pr-10 text-left ${validationErrors.Email ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                            className={`pr-10 text-left ${validationErrors.Email ? "border-destructive focus-visible:ring-destructive" : ""}`}
                           />
                         </div>
                         {validationErrors.Email && (
@@ -549,7 +516,7 @@ export default function TeachersPage() {
                     </div>
                     <div className="space-y-3 pr-6">
                       <div className="space-y-2">
-                        <Label htmlFor="qualification">المؤهل </Label>
+                        <Label htmlFor="qualification">المؤهل</Label>
                         <div className="relative">
                           <Award className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                           <Input
@@ -562,7 +529,7 @@ export default function TeachersPage() {
                               }
                             }}
                             placeholder="مثال: إجازة في القراءات العشر"
-                            className={`pr-10 ${validationErrors.Qualification ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                            className={`pr-10 ${validationErrors.Qualification ? "border-destructive focus-visible:ring-destructive" : ""}`}
                           />
                         </div>
                         {validationErrors.Qualification && (
@@ -603,135 +570,42 @@ export default function TeachersPage() {
               </form>
             </DialogContent>
           </Dialog>
-        )}
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">إجمالي المعلمين</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalCount}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">إجمالي الحلقات</CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{halaqat.length}</div>
-          </CardContent>
-        </Card>
-      </div>
+        </div>
+      )}
 
       {/* Search and Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="space-y-4">
-            {/* Search Bar */}
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="البحث بالاسم أو رقم الهاتف..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setPage(1);
-                  }}
-                  className="pr-10"
-                />
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                <Filter className="h-4 w-4 ml-2" />
-                فلترة
-              </Button>
-              {(searchTerm || filterHalaqa !== "all") && (
-                <Button variant="ghost" onClick={resetFilters}>
-                  <X className="h-4 w-4 ml-2" />
-                  مسح
-                </Button>
-              )}
-            </div>
-
-            {/* Filter Options */}
-            {showFilters && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
-                <div className="space-y-2">
-                  <Label>الحلقة</Label>
-                  <Select
-                    value={filterHalaqa}
-                    onValueChange={(v) => {
-                      setFilterHalaqa(v);
-                      setPage(1);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="جميع الحلقات" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">جميع الحلقات</SelectItem>
-                      {halaqat.map((halaqa) => (
-                        <SelectItem key={halaqa.id} value={halaqa.id.toString()}>
-                          {halaqa.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>ترتيب حسب</Label>
-                  <Select
-                    value={sortBy}
-                    onValueChange={(v) => {
-                      setSortBy(v);
-                      setPage(1);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="name">الاسم</SelectItem>
-                      <SelectItem value="studentsCount">عدد الطلاب</SelectItem>
-                      <SelectItem value="halaqatCount">عدد الحلقات</SelectItem>
-                      <SelectItem value="joinDate">تاريخ الانضمام</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>اتجاه الترتيب</Label>
-                  <Select
-                    value={sortOrder}
-                    onValueChange={(v) => {
-                      setSortOrder(v);
-                      setPage(1);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="asc">تصاعدي</SelectItem>
-                      <SelectItem value="desc">تنازلي</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <FilterBar
+        searchTerm={localSearch}
+        onSearchChange={(value) => {
+          setLocalSearch(value);
+          setPage(1);
+        }}
+        searchPlaceholder="البحث بالاسم أو رقم الهاتف..."
+        halaqat={halaqat}
+        filterHalaqa={filterHalaqa}
+        onFilterHalaqaChange={(v) => {
+          setFilterHalaqa(v);
+          setPage(1);
+        }}
+        sortBy={sortBy}
+        onSortByChange={(v) => {
+          setSortBy(v);
+          setPage(1);
+        }}
+        sortByOptions={[
+          { value: "name", label: "الاسم" },
+          { value: "studentsCount", label: "عدد الطلاب" },
+          { value: "halaqatCount", label: "عدد الحلقات" },
+          { value: "joinDate", label: "تاريخ الانضمام" },
+        ]}
+        sortOrder={sortOrder}
+        onSortOrderChange={(v) => {
+          setSortOrder(v);
+          setPage(1);
+        }}
+        onReset={resetFilters}
+        hasActiveFilters={hasActiveFilters}
+      />
 
       {/* Teachers Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -746,26 +620,15 @@ export default function TeachersPage() {
                 <div className="flex justify-between items-start">
                   <div>
                     <CardTitle className="text-xl">{teacher.fullName}</CardTitle>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      انضم في {formatDate(teacher.joinDate)}
-                    </div>
+                    <div className="text-sm text-muted-foreground mt-1">انضم في {formatDate(teacher.joinDate)}</div>
                   </div>
                   <div className="flex gap-1">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => openManageHalaqatDialog(teacher)}
-                      title="إدارة الحلقات"
-                    >
+                    <Button size="sm" variant="ghost" onClick={() => openManageHalaqatDialog(teacher)} title="إدارة الحلقات">
                       <List className="h-4 w-4" />
                     </Button>
                     {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && (
                       <>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => openEditDialog(teacher)}
-                        >
+                        <Button size="sm" variant="ghost" onClick={() => openEditDialog(teacher)}>
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
@@ -823,55 +686,15 @@ export default function TeachersPage() {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 border-t">
-          <div className="text-sm text-muted-foreground">
-            عرض {((page - 1) * pageSize) + 1} - {Math.min(page * pageSize, totalCount)} من {totalCount}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => goToPage(1)}
-              disabled={page === 1}
-            >
-              <ChevronsRight className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => goToPage(page - 1)}
-              disabled={page === 1}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <span className="text-sm px-2">
-              صفحة {page} من {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => goToPage(page + 1)}
-              disabled={page === totalPages}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => goToPage(totalPages)}
-              disabled={page === totalPages}
-            >
-              <ChevronsLeft className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <Pagination page={page} pageSize={pageSize} totalCount={totalCount} totalPages={totalPages} onPageChange={setPage} />
 
       {/* Combined Manage Halaqat Dialog */}
-      <Dialog open={isManageHalaqatDialogOpen} onOpenChange={(open) => {
-        if (!open) closeManageHalaqatDialog();
-      }}>
+      <Dialog
+        open={isManageHalaqatDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) closeManageHalaqatDialog();
+        }}
+      >
         <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -880,11 +703,9 @@ export default function TeachersPage() {
               </div>
               إدارة حلقات المعلم
             </DialogTitle>
-            <DialogDescription>
-              {selectedTeacherForHalaqat?.fullName}
-            </DialogDescription>
+            <DialogDescription>{selectedTeacherForHalaqat?.fullName}</DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-6 py-4">
             {/* Current Halaqat Section */}
             <div className="space-y-3">
@@ -897,7 +718,7 @@ export default function TeachersPage() {
                   {teacherHalaqat.length} حلقة
                 </Badge>
               </div>
-              
+
               <div className="border rounded-lg divide-y max-h-[250px] overflow-y-auto">
                 {isLoadingHalaqat ? (
                   <div className="flex items-center justify-center py-8">
@@ -950,15 +771,15 @@ export default function TeachersPage() {
                 )}
               </div>
             </div>
-            
-            {/* Add New Halaqa Section - Only for supervisors */}
+
+            {/* Add New Halaqa Section */}
             {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && (
               <div className="space-y-3 pt-2 border-t">
                 <h4 className="text-sm font-medium flex items-center gap-2">
                   <Plus className="h-4 w-4 text-muted-foreground" />
                   إضافة حلقة جديدة
                 </h4>
-                
+
                 <div className="flex gap-2">
                   <Select value={selectedHalaqa} onValueChange={setSelectedHalaqa}>
                     <SelectTrigger className="flex-1">
@@ -966,24 +787,20 @@ export default function TeachersPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {halaqat
-                        .filter(h => !teacherHalaqat.some(th => th.halaqaId === h.id))
+                        .filter((h) => !teacherHalaqat.some((th) => th.halaqaId === h.id))
                         .map((halaqa) => (
                           <SelectItem key={halaqa.id} value={halaqa.id.toString()}>
                             {halaqa.name}
                           </SelectItem>
                         ))}
-                      {halaqat.filter(h => !teacherHalaqat.some(th => th.halaqaId === h.id)).length === 0 && (
+                      {halaqat.filter((h) => !teacherHalaqat.some((th) => th.halaqaId === h.id)).length === 0 && (
                         <div className="px-2 py-4 text-sm text-muted-foreground text-center">
                           تم تعيين جميع الحلقات
                         </div>
                       )}
                     </SelectContent>
                   </Select>
-                  <Button 
-                    onClick={handleAssignToHalaqa}
-                    disabled={!selectedHalaqa || isAssigning}
-                    className="shrink-0"
-                  >
+                  <Button onClick={handleAssignToHalaqa} disabled={!selectedHalaqa || isAssigning} className="shrink-0">
                     {isAssigning ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
@@ -997,7 +814,7 @@ export default function TeachersPage() {
               </div>
             )}
           </div>
-          
+
           <DialogFooter className="border-t pt-4">
             <Button variant="outline" onClick={closeManageHalaqatDialog}>
               إغلاق
@@ -1012,8 +829,7 @@ export default function TeachersPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
             <AlertDialogDescription>
-              هل أنت متأكد من حذف المعلم &quot;{teacherToDelete?.fullName}&quot;؟
-              لا يمكن التراجع عن هذا الإجراء.
+              هل أنت متأكد من حذف المعلم &quot;{teacherToDelete?.fullName}&quot;؟ لا يمكن التراجع عن هذا الإجراء.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1034,8 +850,8 @@ export default function TeachersPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>تأكيد الإزالة</AlertDialogTitle>
             <AlertDialogDescription>
-              هل أنت متأكد من إزالة المعلم &quot;{selectedTeacherForHalaqat?.fullName}&quot; من حلقة &quot;{halaqaToRemove?.halaqaName}&quot;؟
-              لا يمكن التراجع عن هذا الإجراء.
+              هل أنت متأكد من إزالة المعلم &quot;{selectedTeacherForHalaqat?.fullName}&quot; من حلقة &quot;
+              {halaqaToRemove?.halaqaName}&quot;؟ لا يمكن التراجع عن هذا الإجراء.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

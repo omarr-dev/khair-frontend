@@ -12,6 +12,7 @@ export { statisticsApi } from './statistics.service';
 export { exportApi } from './export.service';
 export { teacherAttendanceApi } from './teacher-attendance.service';
 export { resolveTenant, tenantApi } from './tenant.service';
+export { followUpApi } from './follow-up.service';
 
 
 

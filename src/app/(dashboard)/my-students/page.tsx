@@ -535,7 +535,7 @@ export default function MyStudentsPage() {
                                   ) : (
                                     <>
                                       <AttendanceBadge
-                                        status={record.status === "Present" ? "present" : "absent"}
+                                        status={record.status === "حاضر" ? "present" : "absent"}
                                       />
                                       <Button
                                         size="sm"

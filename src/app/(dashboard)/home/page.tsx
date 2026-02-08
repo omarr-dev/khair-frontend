@@ -687,17 +687,10 @@ export default function HomePage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap justify-end">
-                      {student.attendanceRate < 70 && (
-                        <Badge variant="destructive" className="gap-1 text-xs">
-                          <ArrowDown className="h-3 w-3" />
-                          {toArabicNumerals(Math.round(student.attendanceRate))}%
-                        </Badge>
-                      )}
-                      {student.consecutiveAbsences >= 3 && (
-                        <Badge variant="destructive" className="text-xs">
-                          {toArabicNumerals(student.consecutiveAbsences)} غياب
-                        </Badge>
-                      )}
+                      {/* Show consecutive absences count */}
+                      <Badge variant="destructive" className="text-xs">
+                        {toArabicNumerals(student.consecutiveAbsences)} غياب
+                      </Badge>
                       {student.daysSinceLastProgress >= 7 && (
                         <Badge variant="secondary" className="text-xs">
                           {toArabicNumerals(student.daysSinceLastProgress)} يوم

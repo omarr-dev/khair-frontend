@@ -503,7 +503,8 @@ export default function MyStudentsPage() {
                               const record = attendanceMap[student.id];
                               const isSaving = savingAttendance[student.id];
                               const isEditing = editingAttendance.has(student.id);
-                              const showButtons = !record || isEditing;
+                              const hasRealRecord = record && record.id !== 0;
+                              const showButtons = !hasRealRecord || isEditing;
 
                               if (!activeHalaqaId) return null;
 

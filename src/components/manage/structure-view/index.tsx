@@ -27,8 +27,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { halaqatApi } from "@/services";
-import { HalaqaHierarchy } from "@/types/halaqa";
+import { halaqatApi, studentApi, teachersApi } from "@/services";
+import { HalaqaHierarchy, TeacherInHalaqa, StudentInHalaqa } from "@/types/halaqa";
+import { Student, StudentAssignment } from "@/types/student";
+import { Teacher } from "@/types/teacher";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   ArrowDown,
   ArrowUp,
@@ -71,6 +80,42 @@ export function StructureView() {
   const [halaqaToDelete, setHalaqaToDelete] = useState<HalaqaHierarchy | null>(null);
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
   const { user } = useAuth();
+
+  // Teacher action state
+  const [isTeacherEditDialogOpen, setIsTeacherEditDialogOpen] = useState(false);
+  const [editingTeacher, setEditingTeacher] = useState<TeacherInHalaqa | null>(null);
+  const [teacherFullName, setTeacherFullName] = useState("");
+  const [teacherPhone, setTeacherPhone] = useState("");
+  const [teacherEmail, setTeacherEmail] = useState("");
+  const [teacherIdNumber, setTeacherIdNumber] = useState("");
+  const [teacherQualification, setTeacherQualification] = useState("");
+  const [isTeacherSubmitting, setIsTeacherSubmitting] = useState(false);
+  const [isTeacherDeleteDialogOpen, setIsTeacherDeleteDialogOpen] = useState(false);
+  const [teacherToDelete, setTeacherToDelete] = useState<TeacherInHalaqa | null>(null);
+
+  // Student action state
+  const [isStudentEditDialogOpen, setIsStudentEditDialogOpen] = useState(false);
+  const [editingStudentData, setEditingStudentData] = useState<Student | null>(null);
+  const [studentFirstName, setStudentFirstName] = useState("");
+  const [studentLastName, setStudentLastName] = useState("");
+  const [studentDateOfBirth, setStudentDateOfBirth] = useState("");
+  const [studentGuardianName, setStudentGuardianName] = useState("");
+  const [studentGuardianPhone, setStudentGuardianPhone] = useState("");
+  const [studentPhone, setStudentPhone] = useState("");
+  const [studentIdNumber, setStudentIdNumber] = useState("");
+  const [isStudentSubmitting, setIsStudentSubmitting] = useState(false);
+  const [isStudentDeleteDialogOpen, setIsStudentDeleteDialogOpen] = useState(false);
+  const [studentToDelete, setStudentToDelete] = useState<StudentInHalaqa | null>(null);
+
+  // Student assignments state
+  const [isAssignmentDialogOpen, setIsAssignmentDialogOpen] = useState(false);
+  const [managingStudent, setManagingStudent] = useState<StudentInHalaqa | null>(null);
+  const [studentAssignments, setStudentAssignments] = useState<StudentAssignment[]>([]);
+  const [assignHalaqa, setAssignHalaqa] = useState("");
+  const [assignTeacher, setAssignTeacher] = useState("");
+  const [availableTeachers, setAvailableTeachers] = useState<Teacher[]>([]);
+  const [isDeleteAssignmentDialogOpen, setIsDeleteAssignmentDialogOpen] = useState(false);
+  const [assignmentToDelete, setAssignmentToDelete] = useState<StudentAssignment | null>(null);
 
   // Collapsed state for halaqat and teachers
   // Smart default: expand all when <=5 halaqat, collapse when >5
@@ -182,6 +227,217 @@ export function StructureView() {
     } catch (error: unknown) {
       const axiosError = error as { response?: { data?: { message?: string } } };
       toast.error(axiosError.response?.data?.message || "حدث خطأ أثناء الحذف");
+    }
+  };
+
+  // ---- Teacher Actions ----
+  const openTeacherEditDialog = async (teacher: TeacherInHalaqa) => {
+    setEditingTeacher(teacher);
+    try {
+      const response = await teachersApi.getById(teacher.id);
+      const fullTeacher = response.data;
+      setTeacherFullName(fullTeacher.fullName);
+      setTeacherPhone(fullTeacher.phoneNumber || "");
+      setTeacherEmail(fullTeacher.email || "");
+      setTeacherIdNumber(fullTeacher.idNumber || "");
+      setTeacherQualification(fullTeacher.qualification || "");
+      setIsTeacherEditDialogOpen(true);
+    } catch {
+      toast.error("حدث خطأ أثناء جلب بيانات المعلم");
+    }
+  };
+
+  const resetTeacherForm = () => {
+    setTeacherFullName("");
+    setTeacherPhone("");
+    setTeacherEmail("");
+    setTeacherIdNumber("");
+    setTeacherQualification("");
+    setEditingTeacher(null);
+  };
+
+  const handleTeacherEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTeacher) return;
+    setIsTeacherSubmitting(true);
+    try {
+      await teachersApi.update(editingTeacher.id, {
+        fullName: teacherFullName,
+        phoneNumber: teacherPhone || undefined,
+        email: teacherEmail || undefined,
+        idNumber: teacherIdNumber || undefined,
+        qualification: teacherQualification || undefined,
+      });
+      toast.success("تم تحديث بيانات المعلم بنجاح");
+      setIsTeacherEditDialogOpen(false);
+      resetTeacherForm();
+      refreshHierarchy();
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      toast.error(axiosError.response?.data?.message || "حدث خطأ أثناء تحديث بيانات المعلم");
+    } finally {
+      setIsTeacherSubmitting(false);
+    }
+  };
+
+  const openTeacherDeleteDialog = (teacher: TeacherInHalaqa) => {
+    setTeacherToDelete(teacher);
+    setIsTeacherDeleteDialogOpen(true);
+  };
+
+  const handleTeacherDelete = async () => {
+    if (!teacherToDelete) return;
+    try {
+      await teachersApi.delete(teacherToDelete.id);
+      toast.success("تم حذف المعلم بنجاح");
+      refreshHierarchy();
+      setIsTeacherDeleteDialogOpen(false);
+      setTeacherToDelete(null);
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      toast.error(axiosError.response?.data?.message || "حدث خطأ أثناء حذف المعلم");
+    }
+  };
+
+  // ---- Student Actions ----
+  const openStudentEditDialog = async (student: StudentInHalaqa) => {
+    try {
+      const response = await studentApi.getById(student.id);
+      const fullStudent = response.data;
+      setEditingStudentData(fullStudent);
+      setStudentFirstName(fullStudent.firstName);
+      setStudentLastName(fullStudent.lastName);
+      setStudentDateOfBirth(fullStudent.dateOfBirth || "");
+      setStudentGuardianName(fullStudent.guardianName || "");
+      setStudentGuardianPhone(fullStudent.guardianPhone || "");
+      setStudentPhone(fullStudent.phone || "");
+      setStudentIdNumber(fullStudent.idNumber || "");
+      setIsStudentEditDialogOpen(true);
+    } catch {
+      toast.error("حدث خطأ أثناء جلب بيانات الطالب");
+    }
+  };
+
+  const resetStudentForm = () => {
+    setStudentFirstName("");
+    setStudentLastName("");
+    setStudentDateOfBirth("");
+    setStudentGuardianName("");
+    setStudentGuardianPhone("");
+    setStudentPhone("");
+    setStudentIdNumber("");
+    setEditingStudentData(null);
+  };
+
+  const handleStudentEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingStudentData) return;
+    setIsStudentSubmitting(true);
+    try {
+      await studentApi.update(editingStudentData.id, {
+        firstName: studentFirstName,
+        lastName: studentLastName,
+        dateOfBirth: studentDateOfBirth || undefined,
+        guardianName: studentGuardianName || undefined,
+        guardianPhone: studentGuardianPhone || undefined,
+        phone: studentPhone || undefined,
+        idNumber: studentIdNumber || undefined,
+      });
+      toast.success("تم تحديث بيانات الطالب بنجاح");
+      setIsStudentEditDialogOpen(false);
+      resetStudentForm();
+      refreshHierarchy();
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      toast.error(axiosError.response?.data?.message || "حدث خطأ أثناء تحديث بيانات الطالب");
+    } finally {
+      setIsStudentSubmitting(false);
+    }
+  };
+
+  const openStudentDeleteDialog = (student: StudentInHalaqa) => {
+    setStudentToDelete(student);
+    setIsStudentDeleteDialogOpen(true);
+  };
+
+  const handleStudentDelete = async () => {
+    if (!studentToDelete) return;
+    try {
+      await studentApi.delete(studentToDelete.id);
+      toast.success("تم حذف الطالب بنجاح");
+      refreshHierarchy();
+      setIsStudentDeleteDialogOpen(false);
+      setStudentToDelete(null);
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      toast.error(axiosError.response?.data?.message || "حدث خطأ أثناء حذف الطالب");
+    }
+  };
+
+  // ---- Student Assignments ----
+  const fetchStudentAssignments = async (studentId: number) => {
+    try {
+      const response = await studentApi.getAssignments(studentId);
+      setStudentAssignments(response.data);
+    } catch {
+      setStudentAssignments([]);
+    }
+  };
+
+  const openManageAssignments = async (student: StudentInHalaqa) => {
+    setManagingStudent(student);
+    await fetchStudentAssignments(student.id);
+    setIsAssignmentDialogOpen(true);
+  };
+
+  const fetchTeachersByHalaqa = async (halaqaId: number) => {
+    try {
+      const response = await teachersApi.getByHalaqa(halaqaId);
+      setAvailableTeachers(response.data as Teacher[]);
+    } catch {
+      setAvailableTeachers([]);
+    }
+  };
+
+  const handleAddAssignment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!managingStudent || !assignHalaqa || !assignTeacher) return;
+    try {
+      await studentApi.assign({
+        studentId: managingStudent.id,
+        halaqaId: parseInt(assignHalaqa),
+        teacherId: parseInt(assignTeacher),
+      });
+      toast.success("تم إضافة التعيين بنجاح");
+      await fetchStudentAssignments(managingStudent.id);
+      setAssignHalaqa("");
+      setAssignTeacher("");
+      refreshHierarchy();
+    } catch {
+      toast.error("حدث خطأ أثناء إضافة التعيين");
+    }
+  };
+
+  const openDeleteAssignmentDialog = (assignment: StudentAssignment) => {
+    setAssignmentToDelete(assignment);
+    setIsDeleteAssignmentDialogOpen(true);
+  };
+
+  const handleDeleteAssignment = async () => {
+    if (!managingStudent || !assignmentToDelete) return;
+    try {
+      await studentApi.deleteAssignment(
+        assignmentToDelete.studentId,
+        assignmentToDelete.halaqaId,
+        assignmentToDelete.teacherId
+      );
+      toast.success("تم حذف التعيين بنجاح");
+      await fetchStudentAssignments(managingStudent.id);
+      setIsDeleteAssignmentDialogOpen(false);
+      setAssignmentToDelete(null);
+      refreshHierarchy();
+    } catch {
+      toast.error("حدث خطأ أثناء حذف التعيين");
     }
   };
 
@@ -503,7 +759,71 @@ export function StructureView() {
                             <Users className="h-3 w-3" />
                             {teacher.studentCount} طالب
                           </Badge>
-                          <div>
+                          <div className="flex items-center gap-1">
+                            {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && (
+                              <>
+                                <div className="hidden sm:flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 w-7 p-0"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openTeacherEditDialog(teacher);
+                                    }}
+                                    aria-label={`تعديل ${teacher.fullName}`}
+                                  >
+                                    <Edit className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openTeacherDeleteDialog(teacher);
+                                    }}
+                                    aria-label={`حذف ${teacher.fullName}`}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="sm:hidden h-7 w-7 p-0"
+                                      onClick={(e) => e.stopPropagation()}
+                                      aria-label="خيارات المعلم"
+                                    >
+                                      <MoreVertical className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openTeacherEditDialog(teacher);
+                                      }}
+                                    >
+                                      <Edit className="h-4 w-4 ml-2" />
+                                      تعديل
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openTeacherDeleteDialog(teacher);
+                                      }}
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4 ml-2" />
+                                      حذف
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </>
+                            )}
                             {collapsedTeachers.has(`${halaqa.id}-${teacher.id}`) ? (
                               <ChevronDown className="h-4 w-4" aria-hidden="true" />
                             ) : (
@@ -580,16 +900,17 @@ export function StructureView() {
                                         </div>
                                       </div>
                                     </div>
-                                    <div className="flex justify-end">
+                                    <div className="flex items-center gap-1 shrink-0">
                                       <Button
                                         size="sm"
                                         variant="ghost"
-                                        className="shrink-0"
+                                        className="h-7 w-7 p-0"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           handleNavigate(student.id);
                                         }}
                                         disabled={navigatingTo === student.id.toString()}
+                                        aria-label="تفاصيل"
                                       >
                                         {navigatingTo === student.id.toString() ? (
                                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -597,6 +918,91 @@ export function StructureView() {
                                           <Eye className="h-4 w-4" />
                                         )}
                                       </Button>
+                                      {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && (
+                                        <>
+                                          <div className="hidden sm:flex gap-1">
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-7 w-7 p-0"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                openManageAssignments(student);
+                                              }}
+                                              aria-label="حلقاته"
+                                            >
+                                              <BookOpen className="h-3.5 w-3.5" />
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-7 w-7 p-0"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                openStudentEditDialog(student);
+                                              }}
+                                              aria-label="تعديل"
+                                            >
+                                              <Edit className="h-3.5 w-3.5" />
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                openStudentDeleteDialog(student);
+                                              }}
+                                              aria-label="حذف"
+                                            >
+                                              <Trash2 className="h-3.5 w-3.5" />
+                                            </Button>
+                                          </div>
+                                          <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="sm:hidden h-7 w-7 p-0"
+                                                onClick={(e) => e.stopPropagation()}
+                                                aria-label="خيارات الطالب"
+                                              >
+                                                <MoreVertical className="h-3.5 w-3.5" />
+                                              </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                              <DropdownMenuItem
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  openManageAssignments(student);
+                                                }}
+                                              >
+                                                <BookOpen className="h-4 w-4 ml-2" />
+                                                حلقاته
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  openStudentEditDialog(student);
+                                                }}
+                                              >
+                                                <Edit className="h-4 w-4 ml-2" />
+                                                تعديل
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  openStudentDeleteDialog(student);
+                                                }}
+                                                className="text-destructive focus:text-destructive"
+                                              >
+                                                <Trash2 className="h-4 w-4 ml-2" />
+                                                حذف
+                                              </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
+                                        </>
+                                      )}
                                     </div>
                                   </div>
                                 </CardContent>
@@ -617,7 +1023,7 @@ export function StructureView() {
         </>
       )}
 
-      {/* Delete Confirmation Dialog */}
+      {/* Halaqa Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -630,6 +1036,339 @@ export function StructureView() {
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              حذف
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Teacher Edit Dialog */}
+      <Dialog
+        open={isTeacherEditDialogOpen}
+        onOpenChange={(open) => {
+          setIsTeacherEditDialogOpen(open);
+          if (!open) resetTeacherForm();
+        }}
+      >
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>تعديل بيانات المعلم</DialogTitle>
+            <DialogDescription>تعديل بيانات المعلم {editingTeacher?.fullName}</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleTeacherEditSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="teacherFullName">
+                  الاسم الكامل
+                  <span className="text-destructive mr-1">*</span>
+                </Label>
+                <Input
+                  id="teacherFullName"
+                  value={teacherFullName}
+                  onChange={(e) => setTeacherFullName(e.target.value)}
+                  required
+                  className="h-11"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="teacherPhone">رقم الجوال</Label>
+                <Input
+                  id="teacherPhone"
+                  value={teacherPhone}
+                  onChange={(e) => setTeacherPhone(e.target.value)}
+                  dir="ltr"
+                  className="h-11 text-left"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="teacherEmail">البريد الإلكتروني</Label>
+                <Input
+                  id="teacherEmail"
+                  value={teacherEmail}
+                  onChange={(e) => setTeacherEmail(e.target.value)}
+                  type="email"
+                  dir="ltr"
+                  className="h-11 text-left"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="teacherIdNumber">رقم الهوية</Label>
+                <Input
+                  id="teacherIdNumber"
+                  value={teacherIdNumber}
+                  onChange={(e) => setTeacherIdNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  dir="ltr"
+                  className="h-11 text-left"
+                  maxLength={10}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="teacherQualification">المؤهل</Label>
+                <Input
+                  id="teacherQualification"
+                  value={teacherQualification}
+                  onChange={(e) => setTeacherQualification(e.target.value)}
+                  className="h-11"
+                />
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button type="submit" disabled={isTeacherSubmitting} className="w-full sm:w-auto">
+                {isTeacherSubmitting ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : null}
+                تحديث
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Teacher Delete Confirmation Dialog */}
+      <AlertDialog open={isTeacherDeleteDialogOpen} onOpenChange={setIsTeacherDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>تأكيد حذف المعلم</AlertDialogTitle>
+            <AlertDialogDescription>
+              هل أنت متأكد من حذف المعلم &quot;{teacherToDelete?.fullName}&quot;؟ لا يمكن التراجع عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleTeacherDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              حذف
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Student Edit Dialog */}
+      <Dialog
+        open={isStudentEditDialogOpen}
+        onOpenChange={(open) => {
+          setIsStudentEditDialogOpen(open);
+          if (!open) resetStudentForm();
+        }}
+      >
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>تعديل بيانات الطالب</DialogTitle>
+            <DialogDescription>تعديل بيانات الطالب {editingStudentData?.fullName}</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleStudentEditSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="studentFirstName">
+                    الاسم الأول
+                    <span className="text-destructive mr-1">*</span>
+                  </Label>
+                  <Input
+                    id="studentFirstName"
+                    value={studentFirstName}
+                    onChange={(e) => setStudentFirstName(e.target.value)}
+                    required
+                    className="h-11"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="studentLastName">
+                    الاسم الأخير
+                    <span className="text-destructive mr-1">*</span>
+                  </Label>
+                  <Input
+                    id="studentLastName"
+                    value={studentLastName}
+                    onChange={(e) => setStudentLastName(e.target.value)}
+                    required
+                    className="h-11"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="studentDateOfBirth">تاريخ الميلاد</Label>
+                <Input
+                  id="studentDateOfBirth"
+                  type="date"
+                  value={studentDateOfBirth}
+                  onChange={(e) => setStudentDateOfBirth(e.target.value)}
+                  className="h-11"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="studentGuardianName">اسم ولي الأمر</Label>
+                <Input
+                  id="studentGuardianName"
+                  value={studentGuardianName}
+                  onChange={(e) => setStudentGuardianName(e.target.value)}
+                  className="h-11"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="studentGuardianPhone">رقم ولي الأمر</Label>
+                <Input
+                  id="studentGuardianPhone"
+                  value={studentGuardianPhone}
+                  onChange={(e) => setStudentGuardianPhone(e.target.value)}
+                  dir="ltr"
+                  className="h-11 text-left"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="studentPhone">رقم هاتف الطالب</Label>
+                <Input
+                  id="studentPhone"
+                  value={studentPhone}
+                  onChange={(e) => setStudentPhone(e.target.value)}
+                  dir="ltr"
+                  className="h-11 text-left"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="studentIdNumber">رقم الهوية</Label>
+                <Input
+                  id="studentIdNumber"
+                  value={studentIdNumber}
+                  onChange={(e) => setStudentIdNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  dir="ltr"
+                  className="h-11 text-left"
+                  maxLength={10}
+                />
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button type="submit" disabled={isStudentSubmitting} className="w-full sm:w-auto">
+                {isStudentSubmitting ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : null}
+                تحديث
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Student Delete Confirmation Dialog */}
+      <AlertDialog open={isStudentDeleteDialogOpen} onOpenChange={setIsStudentDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>تأكيد حذف الطالب</AlertDialogTitle>
+            <AlertDialogDescription>
+              هل أنت متأكد من حذف الطالب &quot;{studentToDelete?.fullName}&quot;؟ لا يمكن التراجع عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleStudentDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              حذف
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Student Assignments Management Dialog */}
+      <Dialog open={isAssignmentDialogOpen} onOpenChange={setIsAssignmentDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>إدارة تعيينات الطالب: {managingStudent?.fullName}</DialogTitle>
+            <DialogDescription>يمكنك إضافة أو حذف تعيينات الطالب في الحلقات</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-medium mb-2">التعيينات الحالية</h3>
+              {studentAssignments.length === 0 ? (
+                <p className="text-sm text-muted-foreground">لا توجد تعيينات</p>
+              ) : (
+                <div className="space-y-2">
+                  {studentAssignments.map((assignment) => (
+                    <div
+                      key={`${assignment.halaqaId}-${assignment.teacherId}`}
+                      className="flex items-center justify-between p-3 border rounded-lg"
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium">{assignment.halaqaName}</p>
+                        <p className="text-sm text-muted-foreground">المعلم: {assignment.teacherName}</p>
+                        <Badge variant={assignment.isActive ? "default" : "secondary"} className="mt-1">
+                          {assignment.isActive ? "نشط" : "غير نشط"}
+                        </Badge>
+                      </div>
+                      <Button size="sm" variant="destructive" onClick={() => openDeleteAssignmentDialog(assignment)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h3 className="text-sm font-medium mb-2">إضافة تعيين جديد</h3>
+              <form onSubmit={handleAddAssignment} className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="assignHalaqa">الحلقة</Label>
+                  <Select
+                    value={assignHalaqa}
+                    onValueChange={(val) => {
+                      setAssignHalaqa(val);
+                      setAssignTeacher("");
+                      fetchTeachersByHalaqa(Number(val));
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر الحلقة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {halaqatHierarchy.map((h) => (
+                        <SelectItem key={h.id} value={h.id.toString()}>
+                          {h.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="assignTeacher">المعلم</Label>
+                  <Select value={assignTeacher} onValueChange={setAssignTeacher} disabled={!assignHalaqa}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={assignHalaqa ? "اختر المعلم" : "اختر الحلقة أولاً"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableTeachers.map((t) => (
+                        <SelectItem key={t.id} value={t.id.toString()}>
+                          {t.fullName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button type="submit" disabled={!assignHalaqa || !assignTeacher}>
+                  إضافة التعيين
+                </Button>
+              </form>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Assignment Confirmation Dialog */}
+      <AlertDialog open={isDeleteAssignmentDialogOpen} onOpenChange={setIsDeleteAssignmentDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>تأكيد حذف التعيين</AlertDialogTitle>
+            <AlertDialogDescription>
+              هل أنت متأكد من حذف تعيين الطالب &quot;{managingStudent?.fullName}&quot; من حلقة &quot;
+              {assignmentToDelete?.halaqaName}&quot;؟ لا يمكن التراجع عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAssignment}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               حذف

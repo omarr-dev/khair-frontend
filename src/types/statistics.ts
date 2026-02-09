@@ -48,6 +48,7 @@ export interface AtRiskStudent {
   teacherName: string;
   attendanceRate: number;
   daysSinceLastProgress: number;
+  daysSinceLastAttendance: number;
   consecutiveAbsences: number;
 }
 

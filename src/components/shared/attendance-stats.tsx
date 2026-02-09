@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, UserCheck, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,13 +16,11 @@ interface AttendanceStatsProps {
   className?: string;
 }
 
-// Helper function to calculate percentage
 function getPercentage(value: number, total: number): number {
   if (total === 0) return 0;
   return Math.round((value / total) * 100);
 }
 
-// Card variant - Full card with header (for page header)
 function CardVariant({
   label,
   total,
@@ -37,31 +35,70 @@ function CardVariant({
   const notRecordedPct = getPercentage(notRecorded, total);
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{label}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold mb-3">{total}</div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span className="text-xs text-muted-foreground">
-              حاضر: {present} ({presentPct}%)
-            </span>
+    <Card className="overflow-hidden">
+      <CardContent className="p-0">
+        <div className="p-4 sm:p-5">
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">{label}</p>
+              <p className="text-3xl font-bold tabular-nums">{total}</p>
+            </div>
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Icon className="h-5 w-5 text-primary" />
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-red-500" />
-            <span className="text-xs text-muted-foreground">
-              غائب: {absent} ({absentPct}%)
-            </span>
+
+          {/* Stacked progress bar */}
+          <div className="h-2.5 rounded-full bg-muted overflow-hidden flex mb-3">
+            {presentPct > 0 && (
+              <div
+                className="h-full bg-emerald-500 transition-all duration-700 ease-out first:rounded-r-full"
+                style={{ width: `${presentPct}%` }}
+              />
+            )}
+            {absentPct > 0 && (
+              <div
+                className="h-full bg-red-500 transition-all duration-700 ease-out"
+                style={{ width: `${absentPct}%` }}
+              />
+            )}
+            {notRecordedPct > 0 && (
+              <div
+                className="h-full bg-gray-400 dark:bg-gray-500 transition-all duration-700 ease-out last:rounded-l-full"
+                style={{ width: `${notRecordedPct}%` }}
+              />
+            )}
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-gray-400" />
-            <span className="text-xs text-muted-foreground">
-              لم يُسجَّل: {notRecorded} ({notRecordedPct}%)
-            </span>
+
+          {/* Legend */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              <span className="text-xs text-muted-foreground">
+                حاضر {present}
+              </span>
+              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                ({presentPct}%)
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+              <span className="text-xs text-muted-foreground">
+                غائب {absent}
+              </span>
+              <span className="text-xs font-medium text-red-600 dark:text-red-400">
+                ({absentPct}%)
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-gray-400" />
+              <span className="text-xs text-muted-foreground">
+                لم يُسجَّل {notRecorded}
+              </span>
+              <span className="text-xs font-medium text-gray-500">
+                ({notRecordedPct}%)
+              </span>
+            </div>
           </div>
         </div>
       </CardContent>
@@ -69,7 +106,6 @@ function CardVariant({
   );
 }
 
-// Inline variant - Horizontal badges (for Halaqa/Teacher level)
 function InlineVariant({
   label,
   total,
@@ -97,7 +133,6 @@ function InlineVariant({
   );
 }
 
-// Compact variant - Small inline for mobile
 function CompactVariant({
   present,
   absent,

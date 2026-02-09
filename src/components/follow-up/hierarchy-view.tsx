@@ -13,11 +13,12 @@ import { cn } from "@/lib/utils";
 import {
   BookOpen,
   ChevronDown,
-  ChevronUp,
   Eye,
   Loader2,
   UserCheck,
   Users,
+  ChevronsDownUp,
+  ChevronsUpDown,
 } from "lucide-react";
 
 export function HierarchyView() {
@@ -25,7 +26,6 @@ export function HierarchyView() {
   const { halaqat } = useFollowUp();
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
 
-  // Collapsed state for halaqat and teachers
   const [collapsedHalaqat, setCollapsedHalaqat] = useState<Set<number>>(
     () => new Set(halaqat.map((h) => h.id))
   );
@@ -40,6 +40,8 @@ export function HierarchyView() {
       return new Set(teacherKeys);
     }
   );
+
+  const allHalaqatCollapsed = collapsedHalaqat.size === halaqat.length;
 
   const handleNavigate = (studentId: number) => {
     setNavigatingTo(studentId.toString());
@@ -67,16 +69,51 @@ export function HierarchyView() {
     setCollapsedTeachers(newCollapsed);
   };
 
+  const toggleAll = () => {
+    if (allHalaqatCollapsed) {
+      setCollapsedHalaqat(new Set());
+    } else {
+      setCollapsedHalaqat(new Set(halaqat.map((h) => h.id)));
+    }
+  };
+
   if (halaqat.length === 0) {
     return (
-      <div className="text-center py-12 text-muted-foreground">
-        لا توجد بيانات للعرض
+      <div className="flex flex-col items-center justify-center py-16 px-4">
+        <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+          <BookOpen className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <p className="text-lg font-medium text-muted-foreground mb-1">لا توجد بيانات للعرض</p>
+        <p className="text-sm text-muted-foreground/70">لم يتم تسجيل أي بيانات متابعة لهذا التاريخ</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
+      {/* Section header with expand/collapse */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">الحلقات ({halaqat.length})</h2>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={toggleAll}
+          className="gap-1.5 text-xs text-muted-foreground"
+        >
+          {allHalaqatCollapsed ? (
+            <>
+              <ChevronsUpDown className="h-3.5 w-3.5" />
+              توسيع الكل
+            </>
+          ) : (
+            <>
+              <ChevronsDownUp className="h-3.5 w-3.5" />
+              طي الكل
+            </>
+          )}
+        </Button>
+      </div>
+
       {halaqat.map((halaqa) => (
         <HalaqaCard
           key={halaqa.id}
@@ -114,13 +151,10 @@ function HalaqaCard({
   navigatingTo,
 }: HalaqaCardProps) {
   return (
-    <div className="space-y-2">
+    <Card className="overflow-hidden transition-shadow hover:shadow-md">
       {/* Halaqa Header */}
       <div
-        className={cn(
-          "flex flex-col gap-3 p-3 sm:p-4 rounded-lg border cursor-pointer transition-colors",
-          "bg-primary/5 border-primary/20 hover:bg-primary/10"
-        )}
+        className="cursor-pointer"
         onClick={onToggle}
         role="button"
         tabIndex={0}
@@ -133,84 +167,97 @@ function HalaqaCard({
           }
         }}
       >
-        {/* Top Row: Name + Counts + Chevron */}
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-lg sm:text-xl font-bold truncate">{halaqa.name}</h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="gap-1 text-xs">
-              <UserCheck className="h-3 w-3" />
-              {halaqa.teacherStats.total}
-            </Badge>
-            <Badge variant="outline" className="gap-1 text-xs">
-              <Users className="h-3 w-3" />
-              {halaqa.studentStats.total}
-            </Badge>
-            {isCollapsed ? (
-              <ChevronDown className="h-5 w-5 text-primary" aria-hidden="true" />
-            ) : (
-              <ChevronUp className="h-5 w-5 text-primary" aria-hidden="true" />
-            )}
-          </div>
-        </div>
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex flex-col gap-3">
+            {/* Top Row: Icon + Name + Badges + Chevron */}
+            <div className="flex items-center gap-3">
+              <div className="h-11 w-11 sm:h-12 sm:w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base sm:text-lg font-bold truncate">{halaqa.name}</h3>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Badge variant="secondary" className="gap-1 text-xs h-6">
+                  <UserCheck className="h-3 w-3" />
+                  {halaqa.teacherStats.total}
+                </Badge>
+                <Badge variant="outline" className="gap-1 text-xs h-6">
+                  <Users className="h-3 w-3" />
+                  {halaqa.studentStats.total}
+                </Badge>
+                <ChevronDown
+                  className={cn(
+                    "h-5 w-5 text-muted-foreground transition-transform duration-200",
+                    !isCollapsed && "rotate-180"
+                  )}
+                  aria-hidden="true"
+                />
+              </div>
+            </div>
 
-        {/* Stats Row */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-          <AttendanceStats
-            label="الطلاب"
-            total={halaqa.studentStats.total}
-            present={halaqa.studentStats.present}
-            absent={halaqa.studentStats.absent}
-            notRecorded={halaqa.studentStats.notRecorded}
-            variant="inline"
-          />
-          <div className="hidden sm:block text-muted-foreground">|</div>
-          <AttendanceStats
-            label="المعلمين"
-            total={halaqa.teacherStats.total}
-            present={halaqa.teacherStats.present}
-            absent={halaqa.teacherStats.absent}
-            notRecorded={halaqa.teacherStats.notRecorded}
-            variant="inline"
-          />
-        </div>
+            {/* Stats Row */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <AttendanceStats
+                label="الطلاب"
+                total={halaqa.studentStats.total}
+                present={halaqa.studentStats.present}
+                absent={halaqa.studentStats.absent}
+                notRecorded={halaqa.studentStats.notRecorded}
+                variant="inline"
+              />
+              <div className="hidden sm:block text-muted-foreground/30">|</div>
+              <AttendanceStats
+                label="المعلمين"
+                total={halaqa.teacherStats.total}
+                present={halaqa.teacherStats.present}
+                absent={halaqa.teacherStats.absent}
+                notRecorded={halaqa.teacherStats.notRecorded}
+                variant="inline"
+              />
+            </div>
 
-        {/* Achievement Row */}
-        <AchievementBar
-          memorization={halaqa.achievement.memorization}
-          revision={halaqa.achievement.revision}
-          consolidation={halaqa.achievement.consolidation}
-          variant="compact"
-        />
+            {/* Achievement Row */}
+            <AchievementBar
+              memorization={halaqa.achievement.memorization}
+              revision={halaqa.achievement.revision}
+              consolidation={halaqa.achievement.consolidation}
+              variant="compact"
+            />
+          </div>
+        </CardContent>
       </div>
 
       {/* Teachers (when expanded) */}
-      {!isCollapsed && (
-        <div className="space-y-2 pr-2 sm:pr-4 lg:pr-6">
-          {halaqa.teachers.length === 0 ? (
-            <div className="p-4 text-sm text-muted-foreground text-center bg-muted/50 rounded-lg mr-2 sm:mr-4">
-              لا يوجد معلمين في هذه الحلقة
-            </div>
-          ) : (
-            halaqa.teachers.map((teacher) => (
-              <TeacherCard
-                key={teacher.id}
-                teacher={teacher}
-                halaqaId={halaqa.id}
-                isCollapsed={collapsedTeachers.has(`${halaqa.id}-${teacher.id}`)}
-                onToggle={() => onToggleTeacher(teacher.id)}
-                onNavigateStudent={onNavigateStudent}
-                navigatingTo={navigatingTo}
-              />
-            ))
-          )}
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows] duration-300 ease-in-out",
+          isCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]"
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="border-t border-dashed px-3 sm:px-4 pb-3 sm:pb-4 pt-3 space-y-2">
+            {halaqa.teachers.length === 0 ? (
+              <div className="p-4 text-sm text-muted-foreground text-center bg-muted/30 rounded-lg">
+                لا يوجد معلمين في هذه الحلقة
+              </div>
+            ) : (
+              halaqa.teachers.map((teacher) => (
+                <TeacherCard
+                  key={teacher.id}
+                  teacher={teacher}
+                  halaqaId={halaqa.id}
+                  isCollapsed={collapsedTeachers.has(`${halaqa.id}-${teacher.id}`)}
+                  onToggle={() => onToggleTeacher(teacher.id)}
+                  onNavigateStudent={onNavigateStudent}
+                  navigatingTo={navigatingTo}
+                />
+              ))
+            )}
+          </div>
         </div>
-      )}
-    </div>
+      </div>
+    </Card>
   );
 }
 
@@ -232,77 +279,94 @@ function TeacherCard({
   navigatingTo,
 }: TeacherCardProps) {
   return (
-    <div className="space-y-2">
+    <div className="rounded-lg border border-amber-200/60 bg-amber-50/40 dark:bg-amber-950/10 dark:border-amber-900/30 overflow-hidden">
       {/* Teacher Header */}
       <div
-        className={cn(
-          "flex flex-col gap-2 p-3 rounded-lg border cursor-pointer transition-colors mr-2 sm:mr-4",
-          "bg-secondary/30 border-secondary/50 hover:bg-secondary/50"
-        )}
+        className="p-3 sm:p-4 cursor-pointer hover:bg-amber-100/40 dark:hover:bg-amber-950/20 transition-colors"
         onClick={onToggle}
+        role="button"
+        tabIndex={0}
+        aria-expanded={!isCollapsed}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
       >
-        {/* Top Row: Name + Badge + Chevron */}
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
-            <UserCheck className="h-5 w-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold truncate">المعلم {teacher.fullName}</h3>
-              <AttendanceBadge status={teacher.attendanceStatus} showIcon={false} />
+        <div className="flex flex-col gap-2">
+          {/* Top Row: Avatar + Name + Badge + Chevron */}
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+              <UserCheck className="h-4 w-4 text-amber-700 dark:text-amber-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="font-semibold text-sm truncate">المعلم {teacher.fullName}</h4>
+                <AttendanceBadge status={teacher.attendanceStatus} showIcon={false} />
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Badge variant="outline" className="gap-1 text-xs h-6">
+                <Users className="h-3 w-3" />
+                {teacher.studentStats.total}
+              </Badge>
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                  !isCollapsed && "rotate-180"
+                )}
+                aria-hidden="true"
+              />
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="gap-1 text-xs">
-              <Users className="h-3 w-3" />
-              {teacher.studentStats.total}
-            </Badge>
-            {isCollapsed ? (
-              <ChevronDown className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <ChevronUp className="h-4 w-4" aria-hidden="true" />
-            )}
-          </div>
+
+          {/* Stats Row */}
+          <AttendanceStats
+            label="الطلاب"
+            total={teacher.studentStats.total}
+            present={teacher.studentStats.present}
+            absent={teacher.studentStats.absent}
+            notRecorded={teacher.studentStats.notRecorded}
+            variant="inline"
+          />
+
+          {/* Achievement Row */}
+          <AchievementBar
+            memorization={teacher.achievement.memorization}
+            revision={teacher.achievement.revision}
+            consolidation={teacher.achievement.consolidation}
+            variant="compact"
+          />
         </div>
-
-        {/* Stats Row */}
-        <AttendanceStats
-          label="الطلاب"
-          total={teacher.studentStats.total}
-          present={teacher.studentStats.present}
-          absent={teacher.studentStats.absent}
-          notRecorded={teacher.studentStats.notRecorded}
-          variant="inline"
-        />
-
-        {/* Achievement Row */}
-        <AchievementBar
-          memorization={teacher.achievement.memorization}
-          revision={teacher.achievement.revision}
-          consolidation={teacher.achievement.consolidation}
-          variant="compact"
-        />
       </div>
 
       {/* Students (when expanded) */}
-      {!isCollapsed && (
-        <div className="space-y-1 pr-2 sm:pr-4 lg:pr-6 mr-2 sm:mr-4">
-          {teacher.students.length === 0 ? (
-            <div className="p-3 text-sm text-muted-foreground text-center bg-muted/30 rounded-lg mr-2 sm:mr-4">
-              لا يوجد طلاب مسجلين لهذا المعلم
-            </div>
-          ) : (
-            teacher.students.map((student) => (
-              <StudentCard
-                key={student.id}
-                student={student}
-                onNavigate={() => onNavigateStudent(student.id)}
-                isNavigating={navigatingTo === student.id.toString()}
-              />
-            ))
-          )}
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows] duration-300 ease-in-out",
+          isCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]"
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="border-t border-dashed px-3 pb-3 pt-2 space-y-1.5">
+            {teacher.students.length === 0 ? (
+              <div className="p-3 text-sm text-muted-foreground text-center bg-muted/20 rounded-lg">
+                لا يوجد طلاب مسجلين لهذا المعلم
+              </div>
+            ) : (
+              teacher.students.map((student) => (
+                <StudentCard
+                  key={student.id}
+                  student={student}
+                  onNavigate={() => onNavigateStudent(student.id)}
+                  isNavigating={navigatingTo === student.id.toString()}
+                />
+              ))
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -316,10 +380,12 @@ interface StudentCardProps {
 
 function StudentCard({ student, onNavigate, isNavigating }: StudentCardProps) {
   return (
-    <Card
+    <div
       className={cn(
-        "mr-2 sm:mr-4 cursor-pointer hover:shadow-md transition-shadow",
-        isNavigating && "opacity-70"
+        "group rounded-lg border border-blue-200/60 bg-blue-50/30 dark:bg-blue-950/10 dark:border-blue-900/30 p-3 cursor-pointer",
+        "hover:border-blue-300/60 hover:bg-blue-50/60 dark:hover:bg-blue-950/20 hover:shadow-sm",
+        "transition-all duration-150",
+        isNavigating && "opacity-60 pointer-events-none"
       )}
       onClick={onNavigate}
       role="button"
@@ -332,48 +398,46 @@ function StudentCard({ student, onNavigate, isNavigating }: StudentCardProps) {
         }
       }}
     >
-      <CardContent className="p-3 sm:p-4">
-        <div className="flex flex-col gap-2">
-          {/* Top Row: Name + Badge + View Button */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium shrink-0">
-                {isNavigating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  student.fullName.charAt(0)
-                )}
-              </div>
-              <span className="font-medium truncate">{student.fullName}</span>
-              <AttendanceBadge status={student.attendanceStatus} />
-            </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="shrink-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                onNavigate();
-              }}
-              disabled={isNavigating}
-            >
+      <div className="flex flex-col gap-2">
+        {/* Top Row: Avatar + Name + Badge + View Button */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-xs font-bold text-blue-700 dark:text-blue-400 shrink-0">
               {isNavigating ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Eye className="h-4 w-4" />
+                student.fullName.charAt(0)
               )}
-            </Button>
+            </div>
+            <span className="font-medium text-sm truncate">{student.fullName}</span>
+            <AttendanceBadge status={student.attendanceStatus} />
           </div>
-
-          {/* Achievement Row */}
-          <AchievementBar
-            memorization={student.achievement.memorization}
-            revision={student.achievement.revision}
-            consolidation={student.achievement.consolidation}
-            variant="compact"
-          />
+          <Button
+            size="sm"
+            variant="ghost"
+            className="shrink-0 h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigate();
+            }}
+            disabled={isNavigating}
+          >
+            {isNavigating ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Eye className="h-4 w-4" />
+            )}
+          </Button>
         </div>
-      </CardContent>
-    </Card>
+
+        {/* Achievement Row */}
+        <AchievementBar
+          memorization={student.achievement.memorization}
+          revision={student.achievement.revision}
+          consolidation={student.achievement.consolidation}
+          variant="compact"
+        />
+      </div>
+    </div>
   );
 }

@@ -691,11 +691,6 @@ export default function HomePage() {
                       <Badge variant="destructive" className="text-xs">
                         {toArabicNumerals(student.consecutiveAbsences)} غياب
                       </Badge>
-                      {student.daysSinceLastAttendance >= 7 && (
-                        <Badge variant="secondary" className="text-xs">
-                          {toArabicNumerals(student.daysSinceLastAttendance)} يوم
-                        </Badge>
-                      )}
                       <Button
                         size="sm"
                         variant="ghost"

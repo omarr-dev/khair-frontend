@@ -100,10 +100,10 @@ const AchievementProgressBar = memo(function AchievementProgressBar({
         <span className="text-muted-foreground">{label}</span>
         <div className="flex items-center gap-2">
           <span className="font-medium">
-            {achieved}/{target} {unit}
+            {Math.round(achieved)}/{Math.round(target)} {unit}
           </span>
           <span className={cn("text-xs font-bold min-w-[36px] text-left", colors.text)}>
-            {percentage.toFixed(0)}%
+            {Math.round(percentage)}%
           </span>
         </div>
       </div>

@@ -109,7 +109,7 @@ function ProgressIndicator({
         <span className="text-xs text-muted-foreground truncate">{label}:</span>
       </div>
       <span className={`text-xs font-medium ${textColorClass} whitespace-nowrap`}>
-        {achieved}/{target} {unit}
+        {Math.round(achieved)}/{Math.round(target)} {unit}
       </span>
     </div>
   );

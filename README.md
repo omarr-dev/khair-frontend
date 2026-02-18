@@ -1,36 +1,116 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Khair — Quranic Circle Management System
+
+A full-featured web platform for managing Islamic Quranic teaching circles (Halaqat). Built for educational institutions to track student memorization progress, manage attendance, and generate supervisory analytics — all in a fully Arabic RTL interface.
+
+---
+
+## Features
+
+- **Memorization Tracking** — Record daily progress by Surah, verse, and Juz for each student across memorization, revision, and consolidation
+- **Attendance Management** — Track student and teacher attendance with consecutive-absence alerts
+- **Achievement Streaks** — Leaderboard showing top-performing students based on daily streaks
+- **Analytics & Reports** — Interactive charts with date-range filtering; export reports to Excel
+- **Role-Based Access** — Separate views and permissions for Teachers, Supervisors, and Halaqa Supervisors
+- **Multi-Tenant** — Supports multiple organizations with dynamic branding (logo, name) per subdomain
+- **Dark Mode** — Full light/dark theme support
+- **Offline Indicator** — Detects and displays connectivity status
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 15 (App Router) |
+| Language | TypeScript 5 |
+| UI Components | shadcn/ui + Radix UI |
+| Styling | Tailwind CSS v4 |
+| Forms | React Hook Form + Zod |
+| Charts | Recharts |
+| HTTP Client | Axios |
+| Tables | TanStack React Table |
+| Notifications | Sonner |
+| Theming | next-themes |
+
+---
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+
+- A running instance of the Khair backend API
+
+### Installation
+
+```bash
+git clone https://github.com/omarr-dev/khair-frontend.git
+cd khair-frontend
+npm install
+```
+
+### Environment Setup
+
+```bash
+cp .env.example .env.local
+```
+
+Edit `.env.local` and set your API URL:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:5000
+```
+
+### Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Production Build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm start
+```
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Project Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+src/
+├── app/                  # Next.js App Router pages
+│   ├── (auth)/           # Login flow
+│   └── (dashboard)/      # Protected dashboard pages
+│       ├── home/
+│       ├── my-students/
+│       ├── halaqat/
+│       ├── reports/
+│       ├── follow-up/
+│       └── teacher-attendance/
+├── components/
+│   ├── ui/               # shadcn/ui base components
+│   ├── shared/           # Reusable app-level components
+│   ├── layout/           # Sidebar and page layout
+│   ├── students/         # Student dialogs and forms
+│   └── manage/           # Admin management views
+├── services/             # Axios API service layer
+├── types/                # TypeScript interfaces and models
+├── hooks/                # Custom React hooks
+└── lib/                  # Utilities, Quran data, helpers
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## Authentication
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Login is phone-number based. On successful login, a JWT token is stored client-side and attached to all subsequent API requests via an Axios interceptor. Unauthorized responses (401) automatically redirect to the login page.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## License
+
+This project is source-available. All rights reserved unless otherwise stated.

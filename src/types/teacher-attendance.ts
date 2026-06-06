@@ -51,6 +51,21 @@ export interface TeacherAttendanceRecord {
   createdAt: string;
 }
 
+// Teacher self check-in
+export interface TeacherSelfAttendanceStatus {
+  date: string;
+  dayName: string;
+  checkedIn: boolean;
+  hasActiveHalaqaToday: boolean;
+  halaqatCount: number;
+}
+
+export interface TeacherSelfCheckInResult {
+  checkedIn: boolean;
+  recordsCreated: number;
+  message: string;
+}
+
 // Monthly Teacher Attendance Types (for salary calculation)
 export interface TeacherMonthlySummary {
   teacherId: number;

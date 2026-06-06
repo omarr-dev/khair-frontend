@@ -4,12 +4,21 @@ import {
   BulkTeacherAttendance,
   TeacherAttendanceRecord,
   MonthlyAttendanceReport,
+  TeacherSelfAttendanceStatus,
+  TeacherSelfCheckInResult,
 } from '@/types/teacher-attendance';
 
 export const teacherAttendanceApi = {
-  getToday: () => 
+  getToday: () =>
     api.get<TodayTeacherAttendanceResponse>('/teacherattendance/today'),
-    
+
+  // Teacher self check-in
+  getMyStatus: () =>
+    api.get<TeacherSelfAttendanceStatus>('/my-attendance/today'),
+
+  checkIn: () =>
+    api.post<TeacherSelfCheckInResult>('/my-attendance/check-in'),
+
   saveBulk: (data: BulkTeacherAttendance) => 
     api.post('/teacherattendance/bulk', data),
     

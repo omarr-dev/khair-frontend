@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { HeroBanner } from "@/components/shared";
+import { HeroBanner, TeacherCheckInCard } from "@/components/shared";
 import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
@@ -227,6 +227,9 @@ export default function HomePage() {
 
       {/* Hero Banner with Poem */}
       <HeroBanner className="animate-in fade-in slide-in-from-top-4 duration-500" />
+
+      {/* Self check-in (Teachers only) */}
+      {user?.role === "Teacher" && <TeacherCheckInCard />}
 
       {/* Quick Access to My Students - Compact (Teachers only) */}
       {user?.role === "Teacher" && (

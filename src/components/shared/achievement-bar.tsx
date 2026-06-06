@@ -94,7 +94,7 @@ function ProgressMetric({
           "text-[11px] font-medium whitespace-nowrap tabular-nums",
           isComplete ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
         )}>
-          {achieved}/{target}
+          {Math.round(achieved)}/{Math.round(target)}
         </span>
         {isComplete && <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />}
       </div>
@@ -110,7 +110,7 @@ function ProgressMetric({
         </div>
         <div className="flex items-center gap-1">
           <span className={cn("text-sm font-semibold tabular-nums", colors.text)}>
-            {achieved}/{target}
+            {Math.round(achieved)}/{Math.round(target)}
           </span>
           <span className="text-xs text-muted-foreground">{unit}</span>
           {isComplete && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />}

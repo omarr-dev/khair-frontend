@@ -155,26 +155,28 @@ export default function MyStudentsPage() {
   }, [router]);
 
   const fetchStudents = useCallback(async (preserveScroll = false) => {
-    // Save scroll position if needed
+    // On a background refresh (e.g. after recording a recitation) keep the list
+    // mounted instead of showing the loading skeleton. Swapping in the skeleton
+    // collapses the page height and bounces the scroll position to the top.
     const scrollPosition = preserveScroll ? window.scrollY : 0;
-    
-    setLoading(true);
+
+    if (!preserveScroll) setLoading(true);
     try {
       const response = await studentApi.getMyStudents();
       setStudents(response.data);
-      
-      // Restore scroll position after state update
+
+      // Belt-and-suspenders: restore scroll after the data re-renders in place.
       if (preserveScroll && scrollPosition > 0) {
-        setTimeout(() => {
+        requestAnimationFrame(() => {
           window.scrollTo({ top: scrollPosition, behavior: 'auto' });
-        }, 0);
+        });
       }
     } catch (error) {
       console.error("Error fetching students:", error);
       const errorMessage = extractErrorMessage(error, "حدث خطأ أثناء تحميل الطلاب");
       toast.error(errorMessage);
     } finally {
-      setLoading(false);
+      if (!preserveScroll) setLoading(false);
     }
   }, []);
 
@@ -186,9 +188,18 @@ export default function MyStudentsPage() {
     student.fullName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Ordering for attendance: present first, then late, then not-recorded, then absent.
+  const attendanceOrder = useCallback((studentId: number) => {
+    const record = attendanceMap[studentId];
+    if (!record) return 2;
+    if (record.status === "حاضر") return 0;
+    if (record.status === "متأخر") return 1;
+    return 3; // غائب
+  }, [attendanceMap]);
+
   // Group students by their Halaqa
   const groupedStudents: HalaqaGroup[] = useMemo(() => {
-    return filteredStudents.reduce((groups, student) => {
+    const groups = filteredStudents.reduce((groups, student) => {
       const halaqaName = student.currentHalaqa || "بدون حلقة";
       const activeAssignment = student.assignments.find(a => a.isActive);
       let group = groups.find(g => g.halaqaName === halaqaName);
@@ -201,7 +212,14 @@ export default function MyStudentsPage() {
       group.students.push(student);
       return groups;
     }, [] as HalaqaGroup[]);
-  }, [filteredStudents]);
+
+    // Sort each group so present students appear first, absent ones last.
+    // Array.sort is stable, so students with the same status keep their order.
+    groups.forEach(group => {
+      group.students.sort((a, b) => attendanceOrder(a.id) - attendanceOrder(b.id));
+    });
+    return groups;
+  }, [filteredStudents, attendanceOrder]);
 
   // Fetch today's attendance for all halaqas when students load
   useEffect(() => {

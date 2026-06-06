@@ -86,22 +86,23 @@ interface HalaqaGroup {
 }
 
 // Progress indicator component
-function ProgressIndicator({ 
-  label, 
-  achieved, 
-  target, 
+function ProgressIndicator({
+  label,
+  achieved,
+  target,
   unit,
-  percentage 
-}: { 
-  label: string; 
-  achieved: number; 
-  target: number;
+  percentage
+}: {
+  label: string;
+  achieved: number;
+  target?: number | null;
   unit: string;
   percentage: number;
 }) {
-  const colorClass = getProgressColor(percentage);
-  const textColorClass = getProgressTextColor(percentage);
-  
+  const hasTarget = (target ?? 0) > 0;
+  const colorClass = hasTarget ? getProgressColor(percentage) : "bg-muted-foreground/40";
+  const textColorClass = hasTarget ? getProgressTextColor(percentage) : "text-muted-foreground";
+
   return (
     <div className="flex items-center gap-2">
       <div className="flex items-center gap-1.5 min-w-0">
@@ -109,7 +110,9 @@ function ProgressIndicator({
         <span className="text-xs text-muted-foreground truncate">{label}:</span>
       </div>
       <span className={`text-xs font-medium ${textColorClass} whitespace-nowrap`}>
-        {Math.round(achieved)}/{Math.round(target)} {unit}
+        {hasTarget
+          ? `${Math.round(achieved)}/${Math.round(target!)} ${unit}`
+          : `${Math.round(achieved)} ${unit}`}
       </span>
     </div>
   );
@@ -553,40 +556,39 @@ export default function MyStudentsPage() {
                               );
                             })()}
 
-                            {/* Achievement Progress Row - Only show if there's a target */}
-                            {hasTarget && todayAchievement && (
+                            {/* Achievement Progress Row - Always shown so teachers can see if the student has a record today */}
+                            {todayAchievement && (
                               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 p-3 bg-muted/30 rounded-lg border border-muted">
                                 <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
                                   <Target className="h-3 w-3" />
                                   <span>إنجاز اليوم:</span>
                                 </div>
-                                {(todayAchievement.memorizationLinesTarget ?? 0) > 0 && (
-                                  <ProgressIndicator
-                                    label="حفظ"
-                                    achieved={todayAchievement.memorizationLinesAchieved}
-                                    target={todayAchievement.memorizationLinesTarget!}
-                                    unit="سطر"
-                                    percentage={todayAchievement.memorizationPercentage}
-                                  />
+                                {!hasTarget && (
+                                  <span className="text-xs text-muted-foreground">
+                                    (لا توجد أهداف محددة)
+                                  </span>
                                 )}
-                                {(todayAchievement.revisionPagesTarget ?? 0) > 0 && (
-                                  <ProgressIndicator
-                                    label="مراجعة"
-                                    achieved={todayAchievement.revisionPagesAchieved}
-                                    target={todayAchievement.revisionPagesTarget!}
-                                    unit="صفحة"
-                                    percentage={todayAchievement.revisionPercentage}
-                                  />
-                                )}
-                                {(todayAchievement.consolidationPagesTarget ?? 0) > 0 && (
-                                  <ProgressIndicator
-                                    label="تثبيت"
-                                    achieved={todayAchievement.consolidationPagesAchieved}
-                                    target={todayAchievement.consolidationPagesTarget!}
-                                    unit="صفحة"
-                                    percentage={todayAchievement.consolidationPercentage}
-                                  />
-                                )}
+                                <ProgressIndicator
+                                  label="حفظ"
+                                  achieved={todayAchievement.memorizationLinesAchieved}
+                                  target={todayAchievement.memorizationLinesTarget}
+                                  unit="سطر"
+                                  percentage={todayAchievement.memorizationPercentage}
+                                />
+                                <ProgressIndicator
+                                  label="مراجعة"
+                                  achieved={todayAchievement.revisionPagesAchieved}
+                                  target={todayAchievement.revisionPagesTarget}
+                                  unit="صفحة"
+                                  percentage={todayAchievement.revisionPercentage}
+                                />
+                                <ProgressIndicator
+                                  label="تثبيت"
+                                  achieved={todayAchievement.consolidationPagesAchieved}
+                                  target={todayAchievement.consolidationPagesTarget}
+                                  unit="صفحة"
+                                  percentage={todayAchievement.consolidationPercentage}
+                                />
                               </div>
                             )}
                           </div>

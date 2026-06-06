@@ -563,11 +563,6 @@ export default function MyStudentsPage() {
                                   <Target className="h-3 w-3" />
                                   <span>إنجاز اليوم:</span>
                                 </div>
-                                {!hasTarget && (
-                                  <span className="text-xs text-muted-foreground">
-                                    (لا توجد أهداف محددة)
-                                  </span>
-                                )}
                                 <ProgressIndicator
                                   label="حفظ"
                                   achieved={todayAchievement.memorizationLinesAchieved}

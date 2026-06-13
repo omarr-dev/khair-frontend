@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,54 +26,37 @@ export function HierarchyView() {
   const { halaqat } = useFollowUp();
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
 
-  const [collapsedHalaqat, setCollapsedHalaqat] = useState<Set<number>>(
-    () => new Set(halaqat.map((h) => h.id))
+  // Everything starts collapsed: only halaqa headers are mounted, expanded
+  // content renders on demand (critical with hundreds of halaqat)
+  const [expandedHalaqat, setExpandedHalaqat] = useState<Set<number>>(new Set());
+
+  const allExpanded = halaqat.length > 0 && expandedHalaqat.size >= halaqat.length;
+
+  const handleNavigate = useCallback(
+    (studentId: number) => {
+      setNavigatingTo(studentId.toString());
+      router.push(`/my-students/${studentId}`);
+    },
+    [router]
   );
-  const [collapsedTeachers, setCollapsedTeachers] = useState<Set<string>>(
-    () => {
-      const teacherKeys: string[] = [];
-      halaqat.forEach((halaqa) => {
-        halaqa.teachers.forEach((teacher) => {
-          teacherKeys.push(`${halaqa.id}-${teacher.id}`);
-        });
-      });
-      return new Set(teacherKeys);
-    }
-  );
 
-  const allHalaqatCollapsed = collapsedHalaqat.size === halaqat.length;
-
-  const handleNavigate = (studentId: number) => {
-    setNavigatingTo(studentId.toString());
-    router.push(`/my-students/${studentId}`);
-  };
-
-  const toggleHalaqa = (halaqaId: number) => {
-    const newCollapsed = new Set(collapsedHalaqat);
-    if (newCollapsed.has(halaqaId)) {
-      newCollapsed.delete(halaqaId);
-    } else {
-      newCollapsed.add(halaqaId);
-    }
-    setCollapsedHalaqat(newCollapsed);
-  };
-
-  const toggleTeacher = (halaqaId: number, teacherId: number) => {
-    const key = `${halaqaId}-${teacherId}`;
-    const newCollapsed = new Set(collapsedTeachers);
-    if (newCollapsed.has(key)) {
-      newCollapsed.delete(key);
-    } else {
-      newCollapsed.add(key);
-    }
-    setCollapsedTeachers(newCollapsed);
-  };
+  const toggleHalaqa = useCallback((halaqaId: number) => {
+    setExpandedHalaqat((prev) => {
+      const next = new Set(prev);
+      if (next.has(halaqaId)) {
+        next.delete(halaqaId);
+      } else {
+        next.add(halaqaId);
+      }
+      return next;
+    });
+  }, []);
 
   const toggleAll = () => {
-    if (allHalaqatCollapsed) {
-      setCollapsedHalaqat(new Set());
+    if (allExpanded) {
+      setExpandedHalaqat(new Set());
     } else {
-      setCollapsedHalaqat(new Set(halaqat.map((h) => h.id)));
+      setExpandedHalaqat(new Set(halaqat.map((h) => h.id)));
     }
   };
 
@@ -100,15 +83,15 @@ export function HierarchyView() {
           onClick={toggleAll}
           className="gap-1.5 text-xs text-muted-foreground"
         >
-          {allHalaqatCollapsed ? (
-            <>
-              <ChevronsUpDown className="h-3.5 w-3.5" />
-              توسيع الكل
-            </>
-          ) : (
+          {allExpanded ? (
             <>
               <ChevronsDownUp className="h-3.5 w-3.5" />
               طي الكل
+            </>
+          ) : (
+            <>
+              <ChevronsUpDown className="h-3.5 w-3.5" />
+              توسيع الكل
             </>
           )}
         </Button>
@@ -118,10 +101,8 @@ export function HierarchyView() {
         <HalaqaCard
           key={halaqa.id}
           halaqa={halaqa}
-          isCollapsed={collapsedHalaqat.has(halaqa.id)}
-          onToggle={() => toggleHalaqa(halaqa.id)}
-          collapsedTeachers={collapsedTeachers}
-          onToggleTeacher={(teacherId) => toggleTeacher(halaqa.id, teacherId)}
+          isExpanded={expandedHalaqat.has(halaqa.id)}
+          onToggle={toggleHalaqa}
           onNavigateStudent={handleNavigate}
           navigatingTo={navigatingTo}
         />
@@ -130,40 +111,53 @@ export function HierarchyView() {
   );
 }
 
-// Halaqa Card Component
+// Halaqa Card Component — memoized so toggling one halaqa doesn't re-render
+// the hundreds of sibling cards
 interface HalaqaCardProps {
   halaqa: FollowUpHalaqa;
-  isCollapsed: boolean;
-  onToggle: () => void;
-  collapsedTeachers: Set<string>;
-  onToggleTeacher: (teacherId: number) => void;
+  isExpanded: boolean;
+  onToggle: (halaqaId: number) => void;
   onNavigateStudent: (studentId: number) => void;
   navigatingTo: string | null;
 }
 
-function HalaqaCard({
+const HalaqaCard = memo(function HalaqaCard({
   halaqa,
-  isCollapsed,
+  isExpanded,
   onToggle,
-  collapsedTeachers,
-  onToggleTeacher,
   onNavigateStudent,
   navigatingTo,
 }: HalaqaCardProps) {
+  // Teacher expand state is local to each halaqa card so sibling cards keep
+  // stable props (and React.memo stays effective)
+  const [expandedTeachers, setExpandedTeachers] = useState<Set<number>>(new Set());
+
+  const toggleTeacher = useCallback((teacherId: number) => {
+    setExpandedTeachers((prev) => {
+      const next = new Set(prev);
+      if (next.has(teacherId)) {
+        next.delete(teacherId);
+      } else {
+        next.add(teacherId);
+      }
+      return next;
+    });
+  }, []);
+
   return (
     <Card className="overflow-hidden transition-shadow hover:shadow-md">
       {/* Halaqa Header */}
       <div
         className="cursor-pointer"
-        onClick={onToggle}
+        onClick={() => onToggle(halaqa.id)}
         role="button"
         tabIndex={0}
-        aria-expanded={!isCollapsed}
+        aria-expanded={isExpanded}
         aria-label={`حلقة ${halaqa.name}`}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            onToggle();
+            onToggle(halaqa.id);
           }
         }}
       >
@@ -189,7 +183,7 @@ function HalaqaCard({
                 <ChevronDown
                   className={cn(
                     "h-5 w-5 text-muted-foreground transition-transform duration-200",
-                    !isCollapsed && "rotate-180"
+                    isExpanded && "rotate-180"
                   )}
                   aria-hidden="true"
                 />
@@ -228,14 +222,9 @@ function HalaqaCard({
         </CardContent>
       </div>
 
-      {/* Teachers (when expanded) */}
-      <div
-        className={cn(
-          "grid transition-[grid-template-rows] duration-300 ease-in-out",
-          isCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]"
-        )}
-      >
-        <div className="overflow-hidden">
+      {/* Teachers — rendered only when expanded */}
+      {isExpanded && (
+        <div className="animate-in fade-in slide-in-from-top-1 duration-200">
           <div className="border-t border-dashed px-3 sm:px-4 pb-3 sm:pb-4 pt-3 space-y-2">
             {halaqa.teachers.length === 0 ? (
               <div className="p-4 text-sm text-muted-foreground text-center bg-muted/30 rounded-lg">
@@ -246,9 +235,8 @@ function HalaqaCard({
                 <TeacherCard
                   key={teacher.id}
                   teacher={teacher}
-                  halaqaId={halaqa.id}
-                  isCollapsed={collapsedTeachers.has(`${halaqa.id}-${teacher.id}`)}
-                  onToggle={() => onToggleTeacher(teacher.id)}
+                  isExpanded={expandedTeachers.has(teacher.id)}
+                  onToggle={toggleTeacher}
                   onNavigateStudent={onNavigateStudent}
                   navigatingTo={navigatingTo}
                 />
@@ -256,24 +244,23 @@ function HalaqaCard({
             )}
           </div>
         </div>
-      </div>
+      )}
     </Card>
   );
-}
+});
 
 // Teacher Card Component
 interface TeacherCardProps {
   teacher: FollowUpTeacher;
-  halaqaId: number;
-  isCollapsed: boolean;
-  onToggle: () => void;
+  isExpanded: boolean;
+  onToggle: (teacherId: number) => void;
   onNavigateStudent: (studentId: number) => void;
   navigatingTo: string | null;
 }
 
-function TeacherCard({
+const TeacherCard = memo(function TeacherCard({
   teacher,
-  isCollapsed,
+  isExpanded,
   onToggle,
   onNavigateStudent,
   navigatingTo,
@@ -283,14 +270,14 @@ function TeacherCard({
       {/* Teacher Header */}
       <div
         className="p-3 sm:p-4 cursor-pointer hover:bg-amber-100/40 dark:hover:bg-amber-950/20 transition-colors"
-        onClick={onToggle}
+        onClick={() => onToggle(teacher.id)}
         role="button"
         tabIndex={0}
-        aria-expanded={!isCollapsed}
+        aria-expanded={isExpanded}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            onToggle();
+            onToggle(teacher.id);
           }
         }}
       >
@@ -314,7 +301,7 @@ function TeacherCard({
               <ChevronDown
                 className={cn(
                   "h-4 w-4 text-muted-foreground transition-transform duration-200",
-                  !isCollapsed && "rotate-180"
+                  isExpanded && "rotate-180"
                 )}
                 aria-hidden="true"
               />
@@ -341,14 +328,9 @@ function TeacherCard({
         </div>
       </div>
 
-      {/* Students (when expanded) */}
-      <div
-        className={cn(
-          "grid transition-[grid-template-rows] duration-300 ease-in-out",
-          isCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]"
-        )}
-      >
-        <div className="overflow-hidden">
+      {/* Students — rendered only when expanded */}
+      {isExpanded && (
+        <div className="animate-in fade-in slide-in-from-top-1 duration-200">
           <div className="border-t border-dashed px-3 pb-3 pt-2 space-y-1.5">
             {teacher.students.length === 0 ? (
               <div className="p-3 text-sm text-muted-foreground text-center bg-muted/20 rounded-lg">
@@ -359,26 +341,26 @@ function TeacherCard({
                 <StudentCard
                   key={student.id}
                   student={student}
-                  onNavigate={() => onNavigateStudent(student.id)}
+                  onNavigate={onNavigateStudent}
                   isNavigating={navigatingTo === student.id.toString()}
                 />
               ))
             )}
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
-}
+});
 
 // Student Card Component
 interface StudentCardProps {
   student: FollowUpStudent;
-  onNavigate: () => void;
+  onNavigate: (studentId: number) => void;
   isNavigating: boolean;
 }
 
-function StudentCard({ student, onNavigate, isNavigating }: StudentCardProps) {
+const StudentCard = memo(function StudentCard({ student, onNavigate, isNavigating }: StudentCardProps) {
   return (
     <div
       className={cn(
@@ -387,14 +369,14 @@ function StudentCard({ student, onNavigate, isNavigating }: StudentCardProps) {
         "transition-all duration-150",
         isNavigating && "opacity-60 pointer-events-none"
       )}
-      onClick={onNavigate}
+      onClick={() => onNavigate(student.id)}
       role="button"
       tabIndex={0}
       aria-label={`عرض تفاصيل الطالب ${student.fullName}`}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          onNavigate();
+          onNavigate(student.id);
         }
       }}
     >
@@ -418,7 +400,7 @@ function StudentCard({ student, onNavigate, isNavigating }: StudentCardProps) {
             className="shrink-0 h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
             onClick={(e) => {
               e.stopPropagation();
-              onNavigate();
+              onNavigate(student.id);
             }}
             disabled={isNavigating}
           >
@@ -440,4 +422,4 @@ function StudentCard({ student, onNavigate, isNavigating }: StudentCardProps) {
       </div>
     </div>
   );
-}
+});

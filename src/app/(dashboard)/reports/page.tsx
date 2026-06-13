@@ -4,8 +4,8 @@ import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { statisticsApi, halaqatApi, exportApi, teachersApi } from "@/services";
 import { ReportStats } from "@/types/statistics";
-import { Halaqa } from "@/types/halaqa";
-import { Teacher } from "@/types/teacher";
+import { Lookup } from "@/types/api";
+import { SearchableSelect } from "@/components/shared/searchable-select";
 import { useAuth } from "@/components/providers";
 import { roleUtils } from "@/types/auth";
 import { DateRangePicker, DateRange } from "@/components/shared";
@@ -67,8 +67,8 @@ export default function ReportsPage() {
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
   const [selectedHalaqa, setSelectedHalaqa] = useState<string>("all");
   const [selectedTeacher, setSelectedTeacher] = useState<string>("all");
-  const [halaqat, setHalaqat] = useState<Halaqa[]>([]);
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [halaqat, setHalaqat] = useState<Lookup[]>([]);
+  const [teachers, setTeachers] = useState<Lookup[]>([]);
   const [reportStats, setReportStats] = useState<ReportStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -92,7 +92,7 @@ export default function ReportsPage() {
 
   const fetchHalaqat = async () => {
     try {
-      const response = await halaqatApi.getAll();
+      const response = await halaqatApi.getLookup();
       setHalaqat(response.data);
     } catch (error) {
       console.error("Error fetching halaqat:", error);
@@ -101,7 +101,7 @@ export default function ReportsPage() {
 
   const fetchTeachers = async () => {
     try {
-      const response = await teachersApi.getAll();
+      const response = await teachersApi.getLookup();
       setTeachers(response.data);
     } catch (error) {
       console.error("Error fetching teachers:", error);
@@ -497,37 +497,27 @@ export default function ReportsPage() {
 
             <div className="space-y-2">
               <Label>الحلقة</Label>
-              <Select value={selectedHalaqa} onValueChange={setSelectedHalaqa}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">جميع الحلقات</SelectItem>
-                  {halaqat.map((halaqa) => (
-                    <SelectItem key={halaqa.id} value={halaqa.id.toString()}>
-                      {halaqa.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                className="w-full"
+                options={halaqat}
+                value={selectedHalaqa}
+                onValueChange={setSelectedHalaqa}
+                allLabel="جميع الحلقات"
+                searchPlaceholder="ابحث عن حلقة..."
+              />
             </div>
 
             {isSupervisor && (
               <div className="space-y-2">
                 <Label>المعلم</Label>
-                <Select value={selectedTeacher} onValueChange={setSelectedTeacher}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">جميع المعلمين</SelectItem>
-                    {teachers.map((teacher) => (
-                      <SelectItem key={teacher.id} value={teacher.id.toString()}>
-                        {teacher.fullName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  className="w-full"
+                  options={teachers}
+                  value={selectedTeacher}
+                  onValueChange={setSelectedTeacher}
+                  allLabel="جميع المعلمين"
+                  searchPlaceholder="ابحث عن معلم..."
+                />
               </div>
             )}
           </div>

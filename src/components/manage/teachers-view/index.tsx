@@ -58,6 +58,7 @@ import { ar } from "date-fns/locale";
 import { toast } from "sonner";
 import { useManage } from "../manage-context";
 import { FilterBar } from "../shared/filter-bar";
+import { SearchableSelect } from "@/components/shared/searchable-select";
 import { Pagination } from "../shared/pagination";
 
 function useDebounceValue<T>(value: T, delay: number): T {
@@ -781,25 +782,17 @@ export function TeachersView() {
                 </h4>
 
                 <div className="flex gap-2">
-                  <Select value={selectedHalaqa} onValueChange={setSelectedHalaqa}>
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="اختر حلقة لإضافتها..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {halaqat
-                        .filter((h) => !teacherHalaqat.some((th) => th.halaqaId === h.id))
-                        .map((halaqa) => (
-                          <SelectItem key={halaqa.id} value={halaqa.id.toString()}>
-                            {halaqa.name}
-                          </SelectItem>
-                        ))}
-                      {halaqat.filter((h) => !teacherHalaqat.some((th) => th.halaqaId === h.id)).length === 0 && (
-                        <div className="px-2 py-4 text-sm text-muted-foreground text-center">
-                          تم تعيين جميع الحلقات
-                        </div>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    className="flex-1"
+                    options={halaqat.filter(
+                      (h) => !teacherHalaqat.some((th) => th.halaqaId === h.id)
+                    )}
+                    value={selectedHalaqa}
+                    onValueChange={setSelectedHalaqa}
+                    placeholder="اختر حلقة لإضافتها..."
+                    searchPlaceholder="ابحث عن حلقة..."
+                    emptyText="تم تعيين جميع الحلقات"
+                  />
                   <Button onClick={handleAssignToHalaqa} disabled={!selectedHalaqa || isAssigning} className="shrink-0">
                     {isAssigning ? (
                       <Loader2 className="h-4 w-4 animate-spin" />

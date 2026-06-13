@@ -7,6 +7,7 @@ import { Student, CreateStudentDto, UpdateStudentDto, StudentAssignment } from "
 import { Teacher } from "@/types/teacher";
 import { useAuth } from "@/components/providers";
 import { useDebounce } from "@/hooks";
+import { SearchableSelect } from "@/components/shared/searchable-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -593,18 +594,14 @@ export function StudentsView() {
                       <div className="space-y-3 pr-6">
                         <div className="space-y-2">
                           <Label htmlFor="halaqa">الحلقة</Label>
-                          <Select value={selectedHalaqa} onValueChange={setSelectedHalaqa}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="اختر الحلقة (اختياري)" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {halaqat.map((halaqa) => (
-                                <SelectItem key={halaqa.id} value={halaqa.id.toString()}>
-                                  {halaqa.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <SearchableSelect
+                            className="w-full"
+                            options={halaqat}
+                            value={selectedHalaqa}
+                            onValueChange={setSelectedHalaqa}
+                            placeholder="اختر الحلقة (اختياري)"
+                            searchPlaceholder="ابحث عن حلقة..."
+                          />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="teacher">المعلم</Label>
@@ -957,18 +954,14 @@ export function StudentsView() {
               <form onSubmit={handleAddAssignment} className="space-y-3">
                 <div className="space-y-2">
                   <Label htmlFor="assignHalaqa">الحلقة</Label>
-                  <Select value={assignHalaqa} onValueChange={setAssignHalaqa}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="اختر الحلقة" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {halaqat.map((halaqa) => (
-                        <SelectItem key={halaqa.id} value={halaqa.id.toString()}>
-                          {halaqa.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    className="w-full"
+                    options={halaqat}
+                    value={assignHalaqa}
+                    onValueChange={setAssignHalaqa}
+                    placeholder="اختر الحلقة"
+                    searchPlaceholder="ابحث عن حلقة..."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="assignTeacher">المعلم</Label>

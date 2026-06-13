@@ -12,19 +12,12 @@ import {
   TargetAdoptionOverview,
   AtRiskStudent,
 } from "@/types/statistics";
-import { Halaqa } from "@/types/halaqa";
-import { Teacher } from "@/types/teacher";
+import { Lookup } from "@/types/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/shared/searchable-select";
 import { HeroBanner, TeacherCheckInCard } from "@/components/shared";
 import { cn } from "@/lib/utils";
 import {
@@ -91,8 +84,8 @@ export default function HomePage() {
   const [targetAdoption, setTargetAdoption] =
     useState<TargetAdoptionOverview | null>(null);
   const [atRiskStudents, setAtRiskStudents] = useState<AtRiskStudent[]>([]);
-  const [halaqat, setHalaqat] = useState<Halaqa[]>([]);
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [halaqat, setHalaqat] = useState<Lookup[]>([]);
+  const [teachers, setTeachers] = useState<Lookup[]>([]);
 
   // Loading states
   const [loadingAchievement, setLoadingAchievement] = useState(true);
@@ -119,15 +112,15 @@ export default function HomePage() {
     router.push(path);
   };
 
-  // Fetch halaqat and teachers for filter (supervisors only)
+  // Fetch halaqat and teachers for filter (supervisors only) — lightweight lookup lists
   useEffect(() => {
     if (isSupervisor) {
       halaqatApi
-        .getAll()
+        .getLookup()
         .then((res) => setHalaqat(res.data))
         .catch(console.error);
       teachersApi
-        .getAll()
+        .getLookup()
         .then((res) => setTeachers(res.data))
         .catch(console.error);
     }
@@ -254,24 +247,17 @@ export default function HomePage() {
           {halaqat.length > 0 && (
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">الحلقة:</span>
-              <Select
+              <SearchableSelect
+                className="w-[180px]"
+                options={halaqat}
                 value={selectedHalaqaId?.toString() ?? "all"}
                 onValueChange={(v) =>
                   setSelectedHalaqaId(v === "all" ? undefined : parseInt(v))
                 }
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="جميع الحلقات" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">جميع الحلقات</SelectItem>
-                  {halaqat.map((h) => (
-                    <SelectItem key={h.id} value={h.id.toString()}>
-                      {h.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                allLabel="جميع الحلقات"
+                placeholder="جميع الحلقات"
+                searchPlaceholder="ابحث عن حلقة..."
+              />
             </div>
           )}
 
@@ -279,24 +265,17 @@ export default function HomePage() {
           {teachers.length > 0 && (
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">المعلم:</span>
-              <Select
+              <SearchableSelect
+                className="w-[180px]"
+                options={teachers}
                 value={selectedTeacherId?.toString() ?? "all"}
                 onValueChange={(v) =>
                   setSelectedTeacherId(v === "all" ? undefined : parseInt(v))
                 }
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="جميع المعلمين" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">جميع المعلمين</SelectItem>
-                  {teachers.map((t) => (
-                    <SelectItem key={t.id} value={t.id.toString()}>
-                      {t.fullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                allLabel="جميع المعلمين"
+                placeholder="جميع المعلمين"
+                searchPlaceholder="ابحث عن معلم..."
+              />
             </div>
           )}
         </div>

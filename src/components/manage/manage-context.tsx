@@ -2,13 +2,14 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { halaqatApi } from "@/services";
-import { HalaqaHierarchy, Halaqa } from "@/types/halaqa";
+import { HalaqaHierarchy } from "@/types/halaqa";
+import { Lookup } from "@/types/api";
 import { toast } from "sonner";
 
 interface ManageContextType {
   // Hierarchy data for structure view
   halaqatHierarchy: HalaqaHierarchy[];
-  halaqat: Halaqa[];
+  halaqat: Lookup[];
   loading: boolean;
 
   // Global search
@@ -30,7 +31,7 @@ const ManageContext = createContext<ManageContextType | null>(null);
 
 export function ManageProvider({ children }: { children: ReactNode }) {
   const [halaqatHierarchy, setHalaqatHierarchy] = useState<HalaqaHierarchy[]>([]);
-  const [halaqat, setHalaqat] = useState<Halaqa[]>([]);
+  const [halaqat, setHalaqat] = useState<Lookup[]>([]);
   const [loading, setLoading] = useState(true);
   const [globalSearch, setGlobalSearch] = useState("");
 
@@ -46,7 +47,7 @@ export function ManageProvider({ children }: { children: ReactNode }) {
 
   const refreshHalaqat = useCallback(async () => {
     try {
-      const response = await halaqatApi.getAll();
+      const response = await halaqatApi.getLookup();
       setHalaqat(response.data);
     } catch (error) {
       console.error("Error fetching halaqat:", error);

@@ -1,11 +1,15 @@
 import { api } from './api-client';
 import { Teacher, CreateTeacherDto, UpdateTeacherDto } from '@/types/teacher';
-import { PaginatedResponse, TeacherFilterParams } from '@/types/api';
+import { Lookup, PaginatedResponse, TeacherFilterParams } from '@/types/api';
 
 export const teachersApi = {
-  getAll: () => 
+  getAll: () =>
     api.get<Teacher[]>('/teachers'),
-  
+
+  // Minimal id/name list for dropdowns
+  getLookup: () =>
+    api.get<Lookup[]>('/teachers/lookup'),
+
   // Paginated endpoint for supervisor
   getPaginated: (params: TeacherFilterParams) => 
     api.get<PaginatedResponse<Teacher>>('/teachers/paginated', { params }),

@@ -1,3 +1,9 @@
+// Minimal id/name pair returned by /lookup endpoints (for dropdowns)
+export interface Lookup {
+  id: number;
+  name: string;
+}
+
 // Pagination types
 export interface PaginatedResponse<T> {
   items: T[];

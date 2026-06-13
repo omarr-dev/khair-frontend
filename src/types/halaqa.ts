@@ -36,11 +36,17 @@ export interface StudentInHalaqa {
   juzMemorized: number;
 }
 
+// Student row from GET /halaqat/{id}/students (lazy-loaded by hierarchy views)
+export interface StudentInHalaqaWithTeacher extends StudentInHalaqa {
+  teacherId: number;
+}
+
 export interface TeacherInHalaqa {
   id: number;
   fullName: string;
   phoneNumber?: string;
   studentCount: number;
+  /** Always empty from the hierarchy endpoint; students load on demand via halaqatApi.getStudents */
   students: StudentInHalaqa[];
 }
 

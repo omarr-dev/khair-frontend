@@ -13,13 +13,14 @@ import {
 } from "@/components/ui/select";
 import { Search, Filter, X } from "lucide-react";
 import { useState } from "react";
-import { Halaqa } from "@/types/halaqa";
+import { Lookup } from "@/types/api";
+import { SearchableSelect } from "@/components/shared/searchable-select";
 
 interface FilterBarProps {
   searchTerm: string;
   onSearchChange: (value: string) => void;
   searchPlaceholder?: string;
-  halaqat?: Halaqa[];
+  halaqat?: Lookup[];
   filterHalaqa?: string;
   onFilterHalaqaChange?: (value: string) => void;
   sortBy?: string;
@@ -84,22 +85,15 @@ export function FilterBar({
               {halaqat && onFilterHalaqaChange && (
                 <div className="space-y-2">
                   <Label>الحلقة</Label>
-                  <Select
+                  <SearchableSelect
+                    className="w-full"
+                    options={halaqat}
                     value={filterHalaqa || "all"}
                     onValueChange={onFilterHalaqaChange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="جميع الحلقات" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">جميع الحلقات</SelectItem>
-                      {halaqat.map((halaqa) => (
-                        <SelectItem key={halaqa.id} value={halaqa.id.toString()}>
-                          {halaqa.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    allLabel="جميع الحلقات"
+                    placeholder="جميع الحلقات"
+                    searchPlaceholder="ابحث عن حلقة..."
+                  />
                 </div>
               )}
 

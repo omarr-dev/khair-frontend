@@ -1,8 +1,8 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { halaqatApi } from "@/services";
-import { HalaqaHierarchy } from "@/types/halaqa";
+import { HalaqaHierarchy, StudentInHalaqaWithTeacher } from "@/types/halaqa";
 import { Lookup } from "@/types/api";
 import { toast } from "sonner";
 
@@ -11,6 +11,10 @@ interface ManageContextType {
   halaqatHierarchy: HalaqaHierarchy[];
   halaqat: Lookup[];
   loading: boolean;
+
+  // Students per halaqa, fetched on demand when a halaqa is expanded
+  halaqaStudents: Map<number, StudentInHalaqaWithTeacher[]>;
+  loadHalaqaStudents: (halaqaId: number) => Promise<void>;
 
   // Global search
   globalSearch: string;
@@ -35,10 +39,35 @@ export function ManageProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [globalSearch, setGlobalSearch] = useState("");
 
+  const [halaqaStudents, setHalaqaStudents] = useState<Map<number, StudentInHalaqaWithTeacher[]>>(
+    new Map()
+  );
+  const inFlightStudents = useRef<Set<number>>(new Set());
+
+  const loadHalaqaStudents = useCallback(async (halaqaId: number) => {
+    if (inFlightStudents.current.has(halaqaId)) return;
+    inFlightStudents.current.add(halaqaId);
+    try {
+      const response = await halaqatApi.getStudents(halaqaId);
+      setHalaqaStudents((prev) => {
+        const next = new Map(prev);
+        next.set(halaqaId, response.data);
+        return next;
+      });
+    } catch (error) {
+      console.error("Error fetching halaqa students:", error);
+      toast.error("حدث خطأ أثناء تحميل الطلاب");
+    } finally {
+      inFlightStudents.current.delete(halaqaId);
+    }
+  }, []);
+
   const refreshHierarchy = useCallback(async () => {
     try {
       const response = await halaqatApi.getHierarchy();
       setHalaqatHierarchy(response.data);
+      // Drop cached students; expanded sections re-fetch on demand
+      setHalaqaStudents(new Map());
     } catch (error) {
       console.error("Error fetching halaqat hierarchy:", error);
       toast.error("حدث خطأ أثناء تحميل الحلقات");
@@ -75,6 +104,8 @@ export function ManageProvider({ children }: { children: ReactNode }) {
         halaqatHierarchy,
         halaqat,
         loading,
+        halaqaStudents,
+        loadHalaqaStudents,
         globalSearch,
         setGlobalSearch,
         totalStudents,

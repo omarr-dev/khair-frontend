@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/components/providers";
 import {
   AlertDialog,
@@ -66,6 +66,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/shared/empty-state";
+import { SearchableSelect } from "@/components/shared/searchable-select";
 import { DaySelector, formatActiveDays } from "@/components/shared/day-selector";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -73,7 +74,8 @@ import { useManage } from "../manage-context";
 
 export function StructureView() {
   const router = useRouter();
-  const { halaqatHierarchy, globalSearch, refreshHierarchy } = useManage();
+  const { halaqatHierarchy, globalSearch, refreshHierarchy, halaqaStudents, loadHalaqaStudents } =
+    useManage();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingHalaqa, setEditingHalaqa] = useState<HalaqaHierarchy | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -117,40 +119,37 @@ export function StructureView() {
   const [isDeleteAssignmentDialogOpen, setIsDeleteAssignmentDialogOpen] = useState(false);
   const [assignmentToDelete, setAssignmentToDelete] = useState<StudentAssignment | null>(null);
 
-  // Collapsed state for halaqat and teachers
-  // Smart default: expand all when <=5 halaqat, collapse when >5
-  const [collapsedHalaqat, setCollapsedHalaqat] = useState<Set<number>>(
-    () => new Set(halaqatHierarchy.map((h) => h.id))
-  );
-  const [collapsedTeachers, setCollapsedTeachers] = useState<Set<string>>(
-    () => {
-      const teacherKeys: string[] = [];
-      halaqatHierarchy.forEach((halaqa) => {
-        halaqa.teachers.forEach((teacher) => {
-          teacherKeys.push(`${halaqa.id}-${teacher.id}`);
-        });
-      });
-      return new Set(teacherKeys);
-    }
-  );
+  // Expanded state for halaqat and teachers — everything starts collapsed so
+  // only halaqa headers are mounted; expanded content renders on demand
+  const [expandedHalaqat, setExpandedHalaqat] = useState<Set<number>>(new Set());
+  const [expandedTeachers, setExpandedTeachers] = useState<Set<string>>(new Set());
 
-  const allExpanded = collapsedHalaqat.size === 0 && collapsedTeachers.size === 0;
+  const allExpanded =
+    halaqatHierarchy.length > 0 && expandedHalaqat.size >= halaqatHierarchy.length;
 
+  // "Expand all" opens halaqa headers only; student lists still load
+  // per-teacher on demand to avoid fetching every halaqa at once
   const expandAll = () => {
-    setCollapsedHalaqat(new Set());
-    setCollapsedTeachers(new Set());
+    setExpandedHalaqat(new Set(halaqatHierarchy.map((h) => h.id)));
   };
 
   const collapseAll = () => {
-    setCollapsedHalaqat(new Set(halaqatHierarchy.map((h) => h.id)));
-    const teacherKeys: string[] = [];
-    halaqatHierarchy.forEach((halaqa) => {
-      halaqa.teachers.forEach((teacher) => {
-        teacherKeys.push(`${halaqa.id}-${teacher.id}`);
-      });
-    });
-    setCollapsedTeachers(new Set(teacherKeys));
+    setExpandedHalaqat(new Set());
+    setExpandedTeachers(new Set());
   };
+
+  // Fetch students for any expanded teacher whose halaqa isn't loaded yet
+  // (also re-fetches after refreshHierarchy clears the cache)
+  useEffect(() => {
+    const neededHalaqaIds = new Set<number>();
+    expandedTeachers.forEach((key) => {
+      const halaqaId = parseInt(key.split("-")[0], 10);
+      if (!halaqaStudents.has(halaqaId)) {
+        neededHalaqaIds.add(halaqaId);
+      }
+    });
+    neededHalaqaIds.forEach((id) => loadHalaqaStudents(id));
+  }, [expandedTeachers, halaqaStudents, loadHalaqaStudents]);
 
   // Form state
   const [name, setName] = useState("");
@@ -442,33 +441,34 @@ export function StructureView() {
   };
 
   const toggleHalaqa = (halaqaId: number) => {
-    const newCollapsed = new Set(collapsedHalaqat);
-    if (newCollapsed.has(halaqaId)) {
-      newCollapsed.delete(halaqaId);
+    const newExpanded = new Set(expandedHalaqat);
+    if (newExpanded.has(halaqaId)) {
+      newExpanded.delete(halaqaId);
     } else {
-      newCollapsed.add(halaqaId);
+      newExpanded.add(halaqaId);
     }
-    setCollapsedHalaqat(newCollapsed);
+    setExpandedHalaqat(newExpanded);
   };
 
   const toggleTeacher = (halaqaId: number, teacherId: number) => {
     const key = `${halaqaId}-${teacherId}`;
-    const newCollapsed = new Set(collapsedTeachers);
-    if (newCollapsed.has(key)) {
-      newCollapsed.delete(key);
+    const newExpanded = new Set(expandedTeachers);
+    if (newExpanded.has(key)) {
+      newExpanded.delete(key);
     } else {
-      newCollapsed.add(key);
+      newExpanded.add(key);
+      loadHalaqaStudents(halaqaId);
     }
-    setCollapsedTeachers(newCollapsed);
+    setExpandedTeachers(newExpanded);
   };
 
-  // Filter halaqat based on global search
+  // Filter halaqat based on global search (halaqa and teacher names; students
+  // are searchable server-side in the Students tab)
   const filteredHalaqat = halaqatHierarchy.filter((halaqa) => {
     if (!globalSearch) return true;
     const searchLower = globalSearch.toLowerCase();
     if (halaqa.name.toLowerCase().includes(searchLower)) return true;
     if (halaqa.teachers.some((t) => t.fullName.toLowerCase().includes(searchLower))) return true;
-    if (halaqa.teachers.some((t) => t.students.some((s) => s.fullName.toLowerCase().includes(searchLower)))) return true;
     return false;
   });
 
@@ -595,7 +595,7 @@ export function StructureView() {
               onClick={() => toggleHalaqa(halaqa.id)}
               role="button"
               tabIndex={0}
-              aria-expanded={!collapsedHalaqat.has(halaqa.id)}
+              aria-expanded={expandedHalaqat.has(halaqa.id)}
               aria-label={`حلقة ${halaqa.name}`}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -711,21 +711,18 @@ export function StructureView() {
                       </DropdownMenu>
                     </>
                   )}
-                  {collapsedHalaqat.has(halaqa.id) ? (
-                    <ChevronDown className="h-5 w-5 text-primary" aria-hidden="true" />
-                  ) : (
+                  {expandedHalaqat.has(halaqa.id) ? (
                     <ChevronUp className="h-5 w-5 text-primary" aria-hidden="true" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-primary" aria-hidden="true" />
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Level 2: Teachers */}
-            <div
-              className="grid transition-[grid-template-rows] duration-300 ease-in-out"
-              style={{ gridTemplateRows: collapsedHalaqat.has(halaqa.id) ? "0fr" : "1fr" }}
-            >
-              <div className="overflow-hidden">
+            {/* Level 2: Teachers — rendered only when the halaqa is expanded */}
+            {expandedHalaqat.has(halaqa.id) && (
+              <div className="animate-in fade-in slide-in-from-top-1 duration-200">
               <div className="space-y-2 pr-2 sm:pr-4 lg:pr-6 border-r-2 border-primary/15 mr-4 sm:mr-5">
                 {halaqa.teachers.length === 0 ? (
                   <div className="p-4 text-sm text-muted-foreground text-center bg-muted/50 rounded-lg mr-2 sm:mr-4">
@@ -824,28 +821,35 @@ export function StructureView() {
                                 </DropdownMenu>
                               </>
                             )}
-                            {collapsedTeachers.has(`${halaqa.id}-${teacher.id}`) ? (
-                              <ChevronDown className="h-4 w-4" aria-hidden="true" />
-                            ) : (
+                            {expandedTeachers.has(`${halaqa.id}-${teacher.id}`) ? (
                               <ChevronUp className="h-4 w-4" aria-hidden="true" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" aria-hidden="true" />
                             )}
                           </div>
                         </div>
                       </div>
 
-                      {/* Level 3: Students */}
-                      <div
-                        className="grid transition-[grid-template-rows] duration-300 ease-in-out"
-                        style={{ gridTemplateRows: collapsedTeachers.has(`${halaqa.id}-${teacher.id}`) ? "0fr" : "1fr" }}
-                      >
-                        <div className="overflow-hidden">
+                      {/* Level 3: Students — fetched on demand per halaqa, rendered only when expanded */}
+                      {expandedTeachers.has(`${halaqa.id}-${teacher.id}`) && (() => {
+                        const loadedStudents = halaqaStudents.get(halaqa.id);
+                        const teacherStudents = loadedStudents?.filter(
+                          (s) => s.teacherId === teacher.id
+                        );
+                        return (
+                        <div className="animate-in fade-in slide-in-from-top-1 duration-200">
                         <div className="space-y-1 pr-2 sm:pr-4 lg:pr-6 mr-2 sm:mr-4 border-r-2 border-secondary/30 mr-6 sm:mr-8">
-                          {teacher.students.length === 0 ? (
+                          {!loadedStudents ? (
+                            <div className="p-3 flex items-center justify-center gap-2 text-sm text-muted-foreground bg-muted/30 rounded-lg mr-2 sm:mr-4">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              جارٍ تحميل الطلاب...
+                            </div>
+                          ) : !teacherStudents || teacherStudents.length === 0 ? (
                             <div className="p-3 text-sm text-muted-foreground text-center bg-muted/30 rounded-lg mr-2 sm:mr-4">
                               لا يوجد طلاب مسجلين لهذا المعلم
                             </div>
                           ) : (
-                            teacher.students.map((student) => (
+                            teacherStudents.map((student) => (
                               <Card
                                 key={student.id}
                                 className={`mr-2 sm:mr-4 cursor-pointer hover:shadow-md transition-shadow focus-visible:ring-2 focus-visible:ring-primary ${navigatingTo === student.id.toString() ? "opacity-70" : ""}`}
@@ -1011,13 +1015,14 @@ export function StructureView() {
                           )}
                         </div>
                         </div>
-                      </div>
+                        );
+                      })()}
                     </div>
                   ))
                 )}
               </div>
               </div>
-            </div>
+            )}
           </div>
         ))}
         </>
@@ -1311,25 +1316,18 @@ export function StructureView() {
               <form onSubmit={handleAddAssignment} className="space-y-3">
                 <div className="space-y-2">
                   <Label htmlFor="assignHalaqa">الحلقة</Label>
-                  <Select
+                  <SearchableSelect
+                    className="w-full"
+                    options={halaqatHierarchy}
                     value={assignHalaqa}
                     onValueChange={(val) => {
                       setAssignHalaqa(val);
                       setAssignTeacher("");
                       fetchTeachersByHalaqa(Number(val));
                     }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="اختر الحلقة" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {halaqatHierarchy.map((h) => (
-                        <SelectItem key={h.id} value={h.id.toString()}>
-                          {h.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="اختر الحلقة"
+                    searchPlaceholder="ابحث عن حلقة..."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="assignTeacher">المعلم</Label>

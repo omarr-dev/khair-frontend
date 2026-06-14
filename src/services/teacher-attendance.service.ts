@@ -19,11 +19,21 @@ export const teacherAttendanceApi = {
   checkIn: () =>
     api.post<TeacherSelfCheckInResult>('/my-attendance/check-in'),
 
-  saveBulk: (data: BulkTeacherAttendance) => 
+  // Teacher self check-out (departure)
+  checkOut: () =>
+    api.post<TeacherSelfCheckInResult>('/my-attendance/check-out'),
+
+  saveBulk: (data: BulkTeacherAttendance) =>
     api.post('/teacherattendance/bulk', data),
-    
-  update: (id: number, status: 0 | 1 | 2, notes?: string) => 
-    api.put(`/teacherattendance/${id}`, { status, notes }),
+
+  update: (
+    id: number,
+    status: 0 | 1 | 2,
+    notes?: string,
+    checkInTime?: string | null,
+    checkOutTime?: string | null,
+  ) =>
+    api.put(`/teacherattendance/${id}`, { status, notes, checkInTime, checkOutTime }),
     
   delete: (id: number) => 
     api.delete(`/teacherattendance/${id}`),

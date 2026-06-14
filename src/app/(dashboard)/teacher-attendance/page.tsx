@@ -35,7 +35,21 @@ type AttendanceStatus = 0 | 1 | 2; // 0: Present, 1: Absent, 2: Late
 interface AttendanceState {
   status: AttendanceStatus;
   notes?: string;
+  checkInTime?: string;  // "HH:mm"
+  checkOutTime?: string; // "HH:mm"
 }
+
+/** Normalize a "HH:mm:ss" (or "HH:mm") API time to the "HH:mm" used by <input type="time">. */
+const toTimeInput = (time?: string | null): string => (time ? time.slice(0, 5) : "");
+
+/** Worked hours between two "HH:mm" strings, or null when incomplete/invalid. */
+const computeHours = (inT?: string, outT?: string): number | null => {
+  if (!inT || !outT) return null;
+  const [ih, im] = inT.split(":").map(Number);
+  const [oh, om] = outT.split(":").map(Number);
+  const diff = oh * 60 + om - (ih * 60 + im);
+  return diff > 0 ? Math.round((diff / 60) * 10) / 10 : null;
+};
 
 const ARABIC_MONTHS = [
   "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
@@ -78,6 +92,8 @@ export default function TeacherAttendancePage() {
             newAttendanceData.set(key, {
               status: teacher.status !== undefined ? teacher.status : 1,
               notes: teacher.notes,
+              checkInTime: toTimeInput(teacher.checkInTime),
+              checkOutTime: toTimeInput(teacher.checkOutTime),
             });
           });
         }
@@ -118,7 +134,25 @@ export default function TeacherAttendancePage() {
     const key = `${teacherId}-${halaqaId}`;
     const newData = new Map(attendanceData);
     const current = newData.get(key) || { status: 1 };
-    newData.set(key, { ...current, status });
+    // Times only make sense for present/late; clear them when marking absent.
+    if (status === 1) {
+      newData.set(key, { ...current, status, checkInTime: "", checkOutTime: "" });
+    } else {
+      newData.set(key, { ...current, status });
+    }
+    setAttendanceData(newData);
+  };
+
+  const handleTimeChange = (
+    teacherId: number,
+    halaqaId: number,
+    field: "checkInTime" | "checkOutTime",
+    value: string,
+  ) => {
+    const key = `${teacherId}-${halaqaId}`;
+    const newData = new Map(attendanceData);
+    const current = newData.get(key) || { status: 1 };
+    newData.set(key, { ...current, [field]: value });
     setAttendanceData(newData);
   };
 
@@ -128,7 +162,8 @@ export default function TeacherAttendancePage() {
     setSaving(true);
     try {
       const attendance: TeacherAttendanceEntry[] = [];
-      
+      let invalidTime = "";
+
       data.halaqat.forEach((halaqa) => {
         if (halaqa.isActiveToday) {
           halaqa.teachers.forEach((teacher) => {
@@ -136,16 +171,32 @@ export default function TeacherAttendancePage() {
             const state = attendanceData.get(key);
             // Only include if state exists and status is a valid number
             if (state && typeof state.status === 'number') {
+              // Times only apply to present/late records
+              const withTimes = state.status !== 1;
+              const checkInTime = withTimes ? state.checkInTime || null : null;
+              const checkOutTime = withTimes ? state.checkOutTime || null : null;
+
+              if (checkInTime && checkOutTime && checkOutTime <= checkInTime) {
+                invalidTime = teacher.teacherName;
+              }
+
               attendance.push({
                 teacherId: teacher.teacherId,
                 halaqaId: halaqa.halaqaId,
                 status: state.status,
+                checkInTime,
+                checkOutTime,
                 notes: state.notes,
               });
             }
           });
         }
       });
+
+      if (invalidTime) {
+        toast.error(`وقت الانصراف يجب أن يكون بعد وقت الحضور (${invalidTime})`);
+        return;
+      }
 
       if (attendance.length === 0) {
         toast.warning("لم يتم تحديد حضور أي معلم");
@@ -385,14 +436,18 @@ export default function TeacherAttendancePage() {
                       لا يوجد معلمين في هذه الحلقة
                     </div>
                   ) : (
+                    <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[40%]">المعلم</TableHead>
-                          <TableHead className="text-center w-[15%]">حاضر</TableHead>
-                          <TableHead className="text-center w-[15%]">غائب</TableHead>
-                          <TableHead className="text-center w-[15%]">متأخر</TableHead>
-                          <TableHead className="text-center w-[15%]">الحالة</TableHead>
+                          <TableHead className="min-w-[160px]">المعلم</TableHead>
+                          <TableHead className="text-center">حاضر</TableHead>
+                          <TableHead className="text-center">غائب</TableHead>
+                          <TableHead className="text-center">متأخر</TableHead>
+                          <TableHead className="text-center">الحالة</TableHead>
+                          <TableHead className="text-center">وقت الحضور</TableHead>
+                          <TableHead className="text-center">وقت الانصراف</TableHead>
+                          <TableHead className="text-center">الساعات</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -400,6 +455,8 @@ export default function TeacherAttendancePage() {
                           const key = `${teacher.teacherId}-${halaqa.halaqaId}`;
                           const state = attendanceData.get(key);
                           const status = state?.status ?? 1;
+                          const timesDisabled = status === 1; // absent
+                          const hours = computeHours(state?.checkInTime, state?.checkOutTime);
 
                           return (
                             <TableRow key={key}>
@@ -444,11 +501,37 @@ export default function TeacherAttendancePage() {
                               <TableCell className="text-center">
                                 {getStatusBadge(status)}
                               </TableCell>
+                              <TableCell className="text-center">
+                                <input
+                                  type="time"
+                                  value={state?.checkInTime ?? ""}
+                                  disabled={timesDisabled}
+                                  onChange={(e) =>
+                                    handleTimeChange(teacher.teacherId, halaqa.halaqaId, "checkInTime", e.target.value)
+                                  }
+                                  className="h-9 rounded-md border border-input bg-background px-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                />
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <input
+                                  type="time"
+                                  value={state?.checkOutTime ?? ""}
+                                  disabled={timesDisabled}
+                                  onChange={(e) =>
+                                    handleTimeChange(teacher.teacherId, halaqa.halaqaId, "checkOutTime", e.target.value)
+                                  }
+                                  className="h-9 rounded-md border border-input bg-background px-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                />
+                              </TableCell>
+                              <TableCell className="text-center font-medium text-muted-foreground">
+                                {hours !== null ? `${hours} س` : "—"}
+                              </TableCell>
                             </TableRow>
                           );
                         })}
                       </TableBody>
                     </Table>
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -531,7 +614,7 @@ export default function TeacherAttendancePage() {
           ) : monthlyData ? (
             <>
               {/* Monthly Summary Cards */}
-              <div className="grid gap-4 md:grid-cols-4">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">عدد المعلمين</CardTitle>
@@ -583,6 +666,19 @@ export default function TeacherAttendancePage() {
                     <p className="text-xs text-muted-foreground">للشهر الحالي</p>
                   </CardContent>
                 </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">إجمالي الساعات</CardTitle>
+                    <Clock className="h-4 w-4 text-blue-600" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {(monthlyData.totalHours ?? 0).toFixed(1)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">ساعة عمل مسجّلة</p>
+                  </CardContent>
+                </Card>
               </div>
 
               {/* Teachers Table */}
@@ -606,6 +702,7 @@ export default function TeacherAttendancePage() {
                             <TableHead className="text-center">أيام الحضور</TableHead>
                             <TableHead className="text-center">أيام الغياب</TableHead>
                             <TableHead className="text-center">أيام التأخر</TableHead>
+                            <TableHead className="text-center">إجمالي الساعات</TableHead>
                             <TableHead className="text-center">نسبة الحضور</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -637,7 +734,12 @@ export default function TeacherAttendancePage() {
                                 </span>
                               </TableCell>
                               <TableCell className="text-center">
-                                <Badge 
+                                <span className="font-medium text-blue-600">
+                                  {(teacher.totalHours ?? 0).toFixed(1)} س
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge
                                   className={
                                     teacher.attendanceRate >= 90 
                                       ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"

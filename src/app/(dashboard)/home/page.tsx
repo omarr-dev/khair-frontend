@@ -112,19 +112,27 @@ export default function HomePage() {
     router.push(path);
   };
 
-  // Fetch halaqat and teachers for filter (supervisors only) — lightweight lookup lists
+  // Fetch halaqat for filter (supervisors only) — lightweight lookup list
   useEffect(() => {
     if (isSupervisor) {
       halaqatApi
         .getLookup()
         .then((res) => setHalaqat(res.data))
         .catch(console.error);
-      teachersApi
-        .getLookup()
-        .then((res) => setTeachers(res.data))
-        .catch(console.error);
     }
   }, [isSupervisor]);
+
+  // Teachers are scoped to the selected halaqa — only load them once a halaqa is chosen
+  useEffect(() => {
+    if (!isSupervisor || selectedHalaqaId === undefined) {
+      setTeachers([]);
+      return;
+    }
+    teachersApi
+      .getLookup(selectedHalaqaId)
+      .then((res) => setTeachers(res.data))
+      .catch(console.error);
+  }, [isSupervisor, selectedHalaqaId]);
 
   // Fetch daily achievement
   useEffect(() => {
@@ -251,9 +259,11 @@ export default function HomePage() {
                 className="w-[180px]"
                 options={halaqat}
                 value={selectedHalaqaId?.toString() ?? "all"}
-                onValueChange={(v) =>
-                  setSelectedHalaqaId(v === "all" ? undefined : parseInt(v))
-                }
+                onValueChange={(v) => {
+                  setSelectedHalaqaId(v === "all" ? undefined : parseInt(v));
+                  // Teacher is scoped to the halaqa — clear it when the halaqa changes
+                  setSelectedTeacherId(undefined);
+                }}
                 allLabel="جميع الحلقات"
                 placeholder="جميع الحلقات"
                 searchPlaceholder="ابحث عن حلقة..."
@@ -261,8 +271,8 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* Teacher Filter */}
-          {teachers.length > 0 && (
+          {/* Teacher Filter — only available after a halaqa is chosen */}
+          {selectedHalaqaId !== undefined && teachers.length > 0 && (
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">المعلم:</span>
               <SearchableSelect

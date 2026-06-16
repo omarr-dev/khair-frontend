@@ -78,10 +78,16 @@ export default function ReportsPage() {
 
   useEffect(() => {
     fetchHalaqat();
-    if (isSupervisor) {
-      fetchTeachers();
+  }, []);
+
+  // Teachers are scoped to the selected halaqa — only load them once a halaqa is chosen
+  useEffect(() => {
+    if (!isSupervisor || selectedHalaqa === "all") {
+      setTeachers([]);
+      return;
     }
-  }, [isSupervisor]);
+    fetchTeachers(parseInt(selectedHalaqa));
+  }, [isSupervisor, selectedHalaqa]);
 
   useEffect(() => {
     // Only fetch if not custom, or if custom and dates are set
@@ -99,9 +105,9 @@ export default function ReportsPage() {
     }
   };
 
-  const fetchTeachers = async () => {
+  const fetchTeachers = async (halaqaId: number) => {
     try {
-      const response = await teachersApi.getLookup();
+      const response = await teachersApi.getLookup(halaqaId);
       setTeachers(response.data);
     } catch (error) {
       console.error("Error fetching teachers:", error);
@@ -501,13 +507,17 @@ export default function ReportsPage() {
                 className="w-full"
                 options={halaqat}
                 value={selectedHalaqa}
-                onValueChange={setSelectedHalaqa}
+                onValueChange={(v) => {
+                  setSelectedHalaqa(v);
+                  // Teacher is scoped to the halaqa — clear it when the halaqa changes
+                  setSelectedTeacher("all");
+                }}
                 allLabel="جميع الحلقات"
                 searchPlaceholder="ابحث عن حلقة..."
               />
             </div>
 
-            {isSupervisor && (
+            {isSupervisor && selectedHalaqa !== "all" && (
               <div className="space-y-2">
                 <Label>المعلم</Label>
                 <SearchableSelect

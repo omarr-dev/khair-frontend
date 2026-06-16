@@ -6,9 +6,9 @@ export const teachersApi = {
   getAll: () =>
     api.get<Teacher[]>('/teachers'),
 
-  // Minimal id/name list for dropdowns
-  getLookup: () =>
-    api.get<Lookup[]>('/teachers/lookup'),
+  // Minimal id/name list for dropdowns. Pass halaqaId to scope to one halaqa.
+  getLookup: (halaqaId?: number) =>
+    api.get<Lookup[]>('/teachers/lookup', { params: { halaqaId } }),
 
   // Paginated endpoint for supervisor
   getPaginated: (params: TeacherFilterParams) => 

@@ -13,6 +13,33 @@ function formatTime(time?: string | null): string {
   return time ? time.slice(0, 5) : "";
 }
 
+/** Formats a duration in seconds to "HH:MM:SS". */
+function formatDuration(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const hh = String(Math.floor(s / 3600)).padStart(2, "0");
+  const mm = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
+  const ss = String(s % 60).padStart(2, "0");
+  return `${hh}:${mm}:${ss}`;
+}
+
+/**
+ * Live elapsed time since check-in, updated every second.
+ * Returns null until both the date and check-in time are available.
+ */
+function useElapsedSince(date?: string, checkInTime?: string | null): number | null {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (!date || !checkInTime) return null;
+  const start = new Date(`${date}T${checkInTime}`).getTime();
+  if (Number.isNaN(start)) return null;
+  return (now - start) / 1000;
+}
+
 /**
  * Self attendance card for teachers. Lets a teacher mark their arrival
  * (check-in) and then their departure (check-out) for the day.
@@ -84,30 +111,7 @@ export function TeacherCheckInCard() {
 
   // Checked in, awaiting departure
   if (status.checkedIn) {
-    return (
-      <div className="flex flex-wrap items-center gap-3 px-4 py-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 rounded-lg animate-in fade-in slide-in-from-top-4">
-        <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-        <div className="flex-1 min-w-[150px]">
-          <p className="font-semibold text-emerald-700 dark:text-emerald-400">
-            تم تسجيل حضورك اليوم
-          </p>
-          <p className="text-sm text-emerald-600/80 dark:text-emerald-400/70">
-            {status.checkInTime
-              ? `وقت الحضور: ${formatTime(status.checkInTime)}`
-              : status.dayName}
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          onClick={handleCheckOut}
-          loading={submittingOut}
-          className="border-emerald-300 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:text-emerald-400"
-        >
-          <LogOut className="ml-2 h-4 w-4" />
-          تسجيل الانصراف
-        </Button>
-      </div>
-    );
+    return <CheckedInCard status={status} onCheckOut={handleCheckOut} submitting={submittingOut} />;
   }
 
   // Not yet checked in
@@ -122,6 +126,54 @@ export function TeacherCheckInCard() {
       </div>
       <Button onClick={handleCheckIn} loading={submitting}>
         تسجيل حضوري
+      </Button>
+    </div>
+  );
+}
+
+/** Checked-in (awaiting departure) state, with a live elapsed timer since arrival. */
+function CheckedInCard({
+  status,
+  onCheckOut,
+  submitting,
+}: {
+  status: TeacherSelfAttendanceStatus;
+  onCheckOut: () => void;
+  submitting: boolean;
+}) {
+  const elapsed = useElapsedSince(status.date, status.checkInTime);
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 px-4 py-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 rounded-lg animate-in fade-in slide-in-from-top-4">
+      <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+      <div className="flex-1 min-w-[150px]">
+        <p className="font-semibold text-emerald-700 dark:text-emerald-400">
+          تم تسجيل حضورك اليوم
+        </p>
+        <p className="text-sm text-emerald-600/80 dark:text-emerald-400/70">
+          {status.checkInTime
+            ? `وقت الحضور: ${formatTime(status.checkInTime)}`
+            : status.dayName}
+        </p>
+      </div>
+      {elapsed !== null && (
+        <div className="flex flex-col items-center px-3 py-1 rounded-md bg-emerald-100/70 dark:bg-emerald-900/30">
+          <span className="text-[11px] text-emerald-600/80 dark:text-emerald-400/70">
+            مدة الحضور
+          </span>
+          <span className="font-mono font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
+            {formatDuration(elapsed)}
+          </span>
+        </div>
+      )}
+      <Button
+        variant="outline"
+        onClick={onCheckOut}
+        loading={submitting}
+        className="border-emerald-300 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:text-emerald-400"
+      >
+        <LogOut className="ml-2 h-4 w-4" />
+        تسجيل الانصراف
       </Button>
     </div>
   );

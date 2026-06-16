@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { studentApi, attendanceApi } from "@/services";
+import { studentApi, attendanceApi, halaqatApi } from "@/services";
 import { Student, SetStudentTargetDto } from "@/types/student";
+import { SearchableSelectOption } from "@/components/shared/searchable-select";
 import { AttendanceRecord } from "@/types/attendance";
 import { surahs } from "@/lib/quran-data";
 import { useAuth } from "@/components/providers";
@@ -39,13 +40,34 @@ import {
   Check,
   X,
   Loader2,
+  UserPlus,
+  MoreVertical,
+  Pencil,
+  UserMinus,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { extractErrorMessage } from "@/lib/error-handler";
 import { convertArabicToEnglish } from "@/lib/utils";
 import { StudentTargetDialog } from "@/components/students/student-target-dialog";
 import { ProgressRecordingDialog } from "@/components/students/progress-recording-dialog";
 import { EditMemorizationDialog } from "@/components/students/edit-memorization-dialog";
+import { StudentManageDialog } from "@/components/students/student-manage-dialog";
 
 // Helper function to get surah name by number
 const getSurahName = (number: number) => {
@@ -133,6 +155,13 @@ export default function MyStudentsPage() {
   // Edit memorization dialog state - just track which student is selected
   const [editStudent, setEditStudent] = useState<Student | null>(null);
 
+  // Add / edit-profile / remove state
+  const [halaqaOptions, setHalaqaOptions] = useState<SearchableSelectOption[]>([]);
+  const [addOpen, setAddOpen] = useState(false);
+  const [profileEditStudent, setProfileEditStudent] = useState<Student | null>(null);
+  const [removeStudent, setRemoveStudent] = useState<Student | null>(null);
+  const [removing, setRemoving] = useState(false);
+
   // Target dialog state
   // Target dialog state
   const [targetStudent, setTargetStudent] = useState<Student | null>(null);
@@ -183,6 +212,35 @@ export default function MyStudentsPage() {
   useEffect(() => {
     fetchStudents();
   }, [fetchStudents]);
+
+  // Load the teacher's own halaqat for the add / assign pickers
+  useEffect(() => {
+    halaqatApi
+      .getLookup()
+      .then((res) => setHalaqaOptions(res.data))
+      .catch(() => setHalaqaOptions([]));
+  }, []);
+
+  // Remove a student from the teacher's halaqa (unassign — does not delete the record)
+  const handleRemove = useCallback(async () => {
+    if (!removeStudent || !user?.teacherId) return;
+    const halaqaId = removeStudent.assignments.find((a) => a.isActive)?.halaqaId;
+    if (!halaqaId) {
+      toast.error("الطالب غير مسجّل في حلقة");
+      return;
+    }
+    setRemoving(true);
+    try {
+      await studentApi.deleteAssignment(removeStudent.id, halaqaId, user.teacherId);
+      toast.success("تمت إزالة الطالب من حلقتك");
+      setRemoveStudent(null);
+      fetchStudents(true);
+    } catch (error) {
+      toast.error(extractErrorMessage(error, "حدث خطأ أثناء إزالة الطالب"));
+    } finally {
+      setRemoving(false);
+    }
+  }, [removeStudent, user?.teacherId, fetchStudents]);
 
   const filteredStudents = students.filter((student) =>
     student.fullName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -347,6 +405,12 @@ export default function MyStudentsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-3xl font-bold">طلابي</h1>
+        {user?.teacherId && halaqaOptions.length > 0 && (
+          <Button onClick={() => setAddOpen(true)}>
+            <UserPlus className="ml-2 h-4 w-4" />
+            إضافة طالب
+          </Button>
+        )}
       </div>
 
       {/* Search */}
@@ -515,6 +579,26 @@ export default function MyStudentsPage() {
                                   <Eye className="h-4 w-4 ml-1.5" />
                                   عرض
                                 </Button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button size="sm" variant="ghost" className="order-5 px-2" title="المزيد">
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => setProfileEditStudent(student)}>
+                                      <Pencil className="h-4 w-4 ml-2" />
+                                      تعديل بيانات الطالب
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => setRemoveStudent(student)}
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      <UserMinus className="h-4 w-4 ml-2" />
+                                      إزالة من الحلقة
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
                             </div>
                             
@@ -650,6 +734,67 @@ export default function MyStudentsPage() {
           }}
         />
       )}
+
+      {/* Add Student Dialog (ID-first flow) */}
+      {user?.teacherId && (
+        <StudentManageDialog
+          open={addOpen}
+          onOpenChange={setAddOpen}
+          mode="add"
+          teacherId={user.teacherId}
+          halaqaOptions={halaqaOptions}
+          onSuccess={() => fetchStudents(true)}
+        />
+      )}
+
+      {/* Edit Student Profile Dialog */}
+      {user?.teacherId && profileEditStudent && (
+        <StudentManageDialog
+          open={!!profileEditStudent}
+          onOpenChange={(open) => !open && setProfileEditStudent(null)}
+          mode="edit"
+          student={profileEditStudent}
+          teacherId={user.teacherId}
+          halaqaOptions={halaqaOptions}
+          onSuccess={() => {
+            setProfileEditStudent(null);
+            fetchStudents(true);
+          }}
+        />
+      )}
+
+      {/* Remove from Halaqa confirmation */}
+      <AlertDialog open={!!removeStudent} onOpenChange={(open) => !open && setRemoveStudent(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>إزالة الطالب من الحلقة</AlertDialogTitle>
+            <AlertDialogDescription>
+              سيتم إزالة <span className="font-semibold">{removeStudent?.fullName}</span> من حلقتك فقط.
+              لن يتم حذف سجل الطالب من النظام.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removing}>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleRemove();
+              }}
+              disabled={removing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {removing ? (
+                <>
+                  <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                  جارٍ الإزالة...
+                </>
+              ) : (
+                "إزالة"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Target Dialog */}
       {targetStudent && (

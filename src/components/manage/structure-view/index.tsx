@@ -71,11 +71,23 @@ import { DaySelector, formatActiveDays } from "@/components/shared/day-selector"
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useManage } from "../manage-context";
+import { Pagination } from "../shared/pagination";
 
 export function StructureView() {
   const router = useRouter();
-  const { halaqatHierarchy, globalSearch, refreshHierarchy, halaqaStudents, loadHalaqaStudents } =
-    useManage();
+  const {
+    halaqatHierarchy,
+    halaqat,
+    globalSearch,
+    refreshHierarchy,
+    halaqaStudents,
+    loadHalaqaStudents,
+    page,
+    setPage,
+    pageSize,
+    totalCount,
+    totalPages,
+  } = useManage();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingHalaqa, setEditingHalaqa] = useState<HalaqaHierarchy | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -462,16 +474,8 @@ export function StructureView() {
     setExpandedTeachers(newExpanded);
   };
 
-  // Filter halaqat based on global search (halaqa and teacher names; students
-  // are searchable server-side in the Students tab)
-  const filteredHalaqat = halaqatHierarchy.filter((halaqa) => {
-    if (!globalSearch) return true;
-    const searchLower = globalSearch.toLowerCase();
-    if (halaqa.name.toLowerCase().includes(searchLower)) return true;
-    if (halaqa.teachers.some((t) => t.fullName.toLowerCase().includes(searchLower))) return true;
-    return false;
-  });
-
+  // Search (halaqa + teacher names) is applied server-side; this page is the
+  // current slice of results.
   return (
     <div className="space-y-4">
       {/* Add Button */}
@@ -551,7 +555,7 @@ export function StructureView() {
       )}
 
       {/* Hierarchical Tree View */}
-      {filteredHalaqat.length === 0 ? (
+      {halaqatHierarchy.length === 0 ? (
         <EmptyState
           icon={globalSearch ? Search : BookOpen}
           title={globalSearch ? "لا توجد نتائج للبحث" : "لا توجد حلقات"}
@@ -584,7 +588,7 @@ export function StructureView() {
               )}
             </Button>
           </div>
-          {filteredHalaqat.map((halaqa) => (
+          {halaqatHierarchy.map((halaqa) => (
           <div key={halaqa.id} className="space-y-2">
             {/* Level 1: Halaqa Header */}
             <div
@@ -1025,6 +1029,13 @@ export function StructureView() {
             )}
           </div>
         ))}
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          totalPages={totalPages}
+          onPageChange={setPage}
+        />
         </>
       )}
 
@@ -1318,7 +1329,7 @@ export function StructureView() {
                   <Label htmlFor="assignHalaqa">الحلقة</Label>
                   <SearchableSelect
                     className="w-full"
-                    options={halaqatHierarchy}
+                    options={halaqat}
                     value={assignHalaqa}
                     onValueChange={(val) => {
                       setAssignHalaqa(val);

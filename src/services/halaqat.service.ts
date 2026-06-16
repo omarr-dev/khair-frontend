@@ -1,6 +1,12 @@
 import { api } from './api-client';
 import { Halaqa, HalaqaHierarchy, CreateHalaqaDto, UpdateHalaqaDto, StudentInHalaqaWithTeacher } from '@/types/halaqa';
-import { Lookup } from '@/types/api';
+import { Lookup, PaginatedResponse } from '@/types/api';
+
+export interface HierarchyParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+}
 
 export const halaqatApi = {
   getAll: () =>
@@ -17,9 +23,9 @@ export const halaqatApi = {
   getById: (id: number) =>
     api.get<Halaqa>(`/halaqat/${id}`),
     
-  // Get hierarchical view with nested teachers and students (supervisor only)
-  getHierarchy: () => 
-    api.get<HalaqaHierarchy[]>('/halaqat/hierarchy'),
+  // Get paginated hierarchical view with nested teachers (supervisor only)
+  getHierarchy: (params?: HierarchyParams) =>
+    api.get<PaginatedResponse<HalaqaHierarchy>>('/halaqat/hierarchy', { params }),
     
   create: (data: CreateHalaqaDto) => 
     api.post<Halaqa>('/halaqat', data),

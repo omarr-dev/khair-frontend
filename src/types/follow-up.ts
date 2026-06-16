@@ -47,4 +47,8 @@ export interface FollowUpResponse {
   totalStudentStats: FollowUpAttendanceStats;
   totalTeacherStats: FollowUpAttendanceStats;
   totalAchievement: FollowUpAchievement;
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
 }

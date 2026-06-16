@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { AttendanceStats } from "@/components/shared/attendance-stats";
 import { AchievementBar } from "@/components/shared/achievement-bar";
 import { AttendanceBadge } from "@/components/shared/attendance-badge";
+import { Pagination } from "@/components/manage/shared/pagination";
 import { useFollowUp, FollowUpHalaqa, FollowUpTeacher, FollowUpStudent } from "./follow-up-context";
 import { cn } from "@/lib/utils";
 import {
@@ -23,7 +24,7 @@ import {
 
 export function HierarchyView() {
   const router = useRouter();
-  const { halaqat } = useFollowUp();
+  const { halaqat, page, setPage, pageSize, totalCount, totalPages } = useFollowUp();
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
 
   // Everything starts collapsed: only halaqa headers are mounted, expanded
@@ -76,7 +77,7 @@ export function HierarchyView() {
     <div className="space-y-3">
       {/* Section header with expand/collapse */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">الحلقات ({halaqat.length})</h2>
+        <h2 className="text-lg font-semibold">الحلقات ({totalCount})</h2>
         <Button
           variant="ghost"
           size="sm"
@@ -107,6 +108,14 @@ export function HierarchyView() {
           navigatingTo={navigatingTo}
         />
       ))}
+
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        totalCount={totalCount}
+        totalPages={totalPages}
+        onPageChange={setPage}
+      />
     </div>
   );
 }

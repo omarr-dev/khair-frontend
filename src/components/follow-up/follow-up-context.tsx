@@ -59,6 +59,12 @@ interface FollowUpContextType {
   error: string | null;
   selectedDate: string;
   setSelectedDate: (date: string) => void;
+  // Pagination (halaqat list is one page; the Total* stats cover all halaqat)
+  page: number;
+  setPage: (page: number) => void;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
 }
 
 const FollowUpContext = createContext<FollowUpContextType | null>(null);
@@ -93,19 +99,32 @@ export function FollowUpProvider({ children }: { children: React.ReactNode }) {
   const [totalStudentStats, setTotalStudentStats] = useState<AttendanceStats>(emptyStats);
   const [totalTeacherStats, setTotalTeacherStats] = useState<AttendanceStats>(emptyStats);
   const [totalAchievement, setTotalAchievement] = useState<Achievement>(emptyAchievement);
-  const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
+  const [selectedDate, setSelectedDateState] = useState<string>(getTodayString());
 
-  const fetchFollowUpData = useCallback(async (date: string) => {
+  const PAGE_SIZE = 20;
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
+  // Changing the date resets back to the first page
+  const setSelectedDate = useCallback((date: string) => {
+    setSelectedDateState(date);
+    setPage(1);
+  }, []);
+
+  const fetchFollowUpData = useCallback(async (date: string, pageNum: number) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await followUpApi.getFollowUpData(date);
+      const response = await followUpApi.getFollowUpData(date, pageNum, PAGE_SIZE);
       const data = response.data;
 
       setHalaqat(data.halaqat as FollowUpHalaqa[]);
       setTotalStudentStats(data.totalStudentStats);
       setTotalTeacherStats(data.totalTeacherStats);
       setTotalAchievement(data.totalAchievement);
+      setTotalCount(data.totalCount);
+      setTotalPages(data.totalPages);
     } catch (err) {
       const message = extractErrorMessage(err);
       setError(message);
@@ -116,8 +135,8 @@ export function FollowUpProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    fetchFollowUpData(selectedDate);
-  }, [selectedDate, fetchFollowUpData]);
+    fetchFollowUpData(selectedDate, page);
+  }, [selectedDate, page, fetchFollowUpData]);
 
   return (
     <FollowUpContext.Provider
@@ -130,6 +149,11 @@ export function FollowUpProvider({ children }: { children: React.ReactNode }) {
         error,
         selectedDate,
         setSelectedDate,
+        page,
+        setPage,
+        pageSize: PAGE_SIZE,
+        totalCount,
+        totalPages,
       }}
     >
       {children}

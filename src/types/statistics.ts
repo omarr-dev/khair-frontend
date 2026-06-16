@@ -1,6 +1,7 @@
 export interface DashboardStats {
   totalStudents: number;
   totalTeachers: number;
+  assignedTeachers: number;
   totalHalaqat: number;
   activeHalaqat: number;
   averageAttendanceRate: number;

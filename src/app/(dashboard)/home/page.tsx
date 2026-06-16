@@ -11,6 +11,7 @@ import {
   StreakLeaderboard,
   TargetAdoptionOverview,
   AtRiskStudent,
+  DashboardStats,
 } from "@/types/statistics";
 import { Lookup } from "@/types/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +30,7 @@ import {
   TrendingUp,
   TrendingDown,
   Users,
+  UserCheck,
   BookOpen,
   CheckCircle2,
   XCircle,
@@ -84,6 +86,7 @@ export default function HomePage() {
   const [targetAdoption, setTargetAdoption] =
     useState<TargetAdoptionOverview | null>(null);
   const [atRiskStudents, setAtRiskStudents] = useState<AtRiskStudent[]>([]);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [halaqat, setHalaqat] = useState<Lookup[]>([]);
   const [teachers, setTeachers] = useState<Lookup[]>([]);
 
@@ -217,6 +220,15 @@ export default function HomePage() {
     fetchAtRisk();
   }, []);
 
+  // Fetch overall totals (supervisors only)
+  useEffect(() => {
+    if (!isSupervisor) return;
+    statisticsApi
+      .getDashboardStats()
+      .then((res) => setDashboardStats(res.data))
+      .catch(console.error);
+  }, [isSupervisor]);
+
   return (
     <div className="space-y-6">
       {/* Simple Welcome Message */}
@@ -224,6 +236,32 @@ export default function HomePage() {
         <h1 className="text-2xl font-bold">
         حيّاك الله، {user.fullName.split(" ")[0]}
         </h1>
+      )}
+
+      {/* Overall totals (supervisors only) */}
+      {isSupervisor && dashboardStats && (
+        <div className="grid grid-cols-3 gap-3 sm:gap-4">
+          {[
+            { title: "إجمالي المعلمين", value: dashboardStats.totalTeachers, icon: UserCheck, color: "text-amber-600", bg: "bg-amber-500/10" },
+            { title: "إجمالي الطلاب", value: dashboardStats.totalStudents, icon: Users, color: "text-violet-600", bg: "bg-violet-500/10" },
+            { title: "إجمالي الحلقات", value: dashboardStats.totalHalaqat, icon: BookOpen, color: "text-blue-600", bg: "bg-blue-500/10" },
+          ].map((s) => {
+            const Icon = s.icon;
+            return (
+              <Card key={s.title}>
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">{s.title}</p>
+                    <p className="text-2xl font-bold">{toArabicNumerals(s.value)}</p>
+                  </div>
+                  <div className={cn("rounded-lg p-2", s.bg)}>
+                    <Icon className={cn("h-5 w-5", s.color)} />
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       )}
 
       {/* Hero Banner with Poem */}

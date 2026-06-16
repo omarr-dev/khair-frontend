@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
-import { halaqatApi } from "@/services";
+import { halaqatApi, statisticsApi } from "@/services";
 import { HalaqaHierarchy, StudentInHalaqaWithTeacher } from "@/types/halaqa";
 import { Lookup } from "@/types/api";
 import { toast } from "sonner";
@@ -22,7 +22,8 @@ interface ManageContextType {
 
   // Stats
   totalStudents: number;
-  totalTeachers: number;
+  assignedTeachers: number; // distinct teachers that have at least one halaqa
+  totalTeachers: number; // all teachers in the association
   totalHalaqat: number;
   activeHalaqat: number;
 
@@ -36,6 +37,7 @@ const ManageContext = createContext<ManageContextType | null>(null);
 export function ManageProvider({ children }: { children: ReactNode }) {
   const [halaqatHierarchy, setHalaqatHierarchy] = useState<HalaqaHierarchy[]>([]);
   const [halaqat, setHalaqat] = useState<Lookup[]>([]);
+  const [totalTeachers, setTotalTeachers] = useState(0);
   const [loading, setLoading] = useState(true);
   const [globalSearch, setGlobalSearch] = useState("");
 
@@ -83,18 +85,31 @@ export function ManageProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Total teachers in the association (includes teachers with no halaqa yet)
+  const refreshTotalTeachers = useCallback(async () => {
+    try {
+      const response = await statisticsApi.getDashboardStats();
+      setTotalTeachers(response.data.totalTeachers);
+    } catch (error) {
+      console.error("Error fetching dashboard stats:", error);
+    }
+  }, []);
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      await Promise.all([refreshHierarchy(), refreshHalaqat()]);
+      await Promise.all([refreshHierarchy(), refreshHalaqat(), refreshTotalTeachers()]);
       setLoading(false);
     };
     fetchData();
-  }, [refreshHierarchy, refreshHalaqat]);
+  }, [refreshHierarchy, refreshHalaqat, refreshTotalTeachers]);
 
   // Calculate stats from hierarchy
   const totalStudents = halaqatHierarchy.reduce((sum, h) => sum + h.studentCount, 0);
-  const totalTeachers = halaqatHierarchy.reduce((sum, h) => sum + h.teacherCount, 0);
+  // Distinct teachers that have a halaqa (a teacher in 2 halaqat is counted once)
+  const assignedTeachers = new Set(
+    halaqatHierarchy.flatMap((h) => h.teachers.map((t) => t.id))
+  ).size;
   const totalHalaqat = halaqatHierarchy.length;
   const activeHalaqat = halaqatHierarchy.filter((h) => h.isActive).length;
 
@@ -109,6 +124,7 @@ export function ManageProvider({ children }: { children: ReactNode }) {
         globalSearch,
         setGlobalSearch,
         totalStudents,
+        assignedTeachers,
         totalTeachers,
         totalHalaqat,
         activeHalaqat,

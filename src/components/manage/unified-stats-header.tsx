@@ -11,7 +11,7 @@ interface UnifiedStatsHeaderProps {
 }
 
 export function UnifiedStatsHeader({ activeTab, onCardClick }: UnifiedStatsHeaderProps) {
-  const { totalHalaqat, activeHalaqat, totalStudents, totalTeachers } = useManage();
+  const { totalHalaqat, activeHalaqat, totalStudents, assignedTeachers, totalTeachers } = useManage();
 
   const cards = [
     {
@@ -47,13 +47,13 @@ export function UnifiedStatsHeader({ activeTab, onCardClick }: UnifiedStatsHeade
     },
     {
       tab: "teachers",
-      title: "إجمالي المعلمين",
-      value: totalTeachers,
+      title: "المعلمون في الحلقات",
+      value: assignedTeachers,
       icon: UserCheck,
       iconColor: "text-amber-600",
       bgColor: "bg-amber-500/10",
       ringColor: "ring-amber-500/30",
-      subtitle: null,
+      subtitle: `من ${totalTeachers}`,
     },
   ];
 

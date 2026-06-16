@@ -142,6 +142,11 @@ export function StudentsView() {
   // Loading states
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // ID-first add flow: "id" = enter ID, "existing" = match found, "new" = fill new student form
+  const [addStep, setAddStep] = useState<"id" | "existing" | "new">("id");
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [existingStudent, setExistingStudent] = useState<Student | null>(null);
+
   const handleNavigate = (studentId: number) => {
     setNavigatingTo(studentId.toString());
     router.push(`/my-students/${studentId}`);
@@ -231,6 +236,9 @@ export function StudentsView() {
     setSelectedHalaqa("");
     setSelectedTeacher("");
     setEditingStudent(null);
+    setAddStep("id");
+    setExistingStudent(null);
+    setLookupLoading(false);
   };
 
   const resetAssignmentForm = () => {
@@ -390,6 +398,57 @@ export function StudentsView() {
     }
   };
 
+  // Step 1 of the add flow: check whether a student with this ID already exists
+  const handleLookup = async () => {
+    if (idNumber.length < 10) {
+      toast.error("يرجى إدخال رقم هوية صحيح (10 أرقام)");
+      return;
+    }
+    setLookupLoading(true);
+    try {
+      const response = await studentApi.lookupByIdNumber(idNumber);
+      // Student already exists → go to the assign-to-halaqa step
+      setExistingStudent(response.data);
+      setSelectedHalaqa("");
+      setSelectedTeacher("");
+      setAddStep("existing");
+    } catch (error) {
+      const axiosError = error as AxiosError;
+      if (axiosError.response?.status === 404) {
+        // No match → continue to the new-student form (ID stays pre-filled)
+        setAddStep("new");
+      } else {
+        console.error("Error looking up student:", error);
+        toast.error("حدث خطأ أثناء التحقق من رقم الهوية");
+      }
+    } finally {
+      setLookupLoading(false);
+    }
+  };
+
+  // Assign an already-existing student (found by ID) to a halaqa/teacher
+  const handleAssignExisting = async () => {
+    if (!existingStudent || !selectedHalaqa || !selectedTeacher) return;
+    setIsSubmitting(true);
+    try {
+      await studentApi.assign({
+        studentId: existingStudent.id,
+        halaqaId: parseInt(selectedHalaqa),
+        teacherId: parseInt(selectedTeacher),
+      });
+      toast.success("تم تعيين الطالب في الحلقة بنجاح");
+      setIsDialogOpen(false);
+      resetForm();
+      fetchStudents();
+    } catch (error) {
+      console.error("Error assigning existing student:", error);
+      const axiosError = error as AxiosError<{ message?: string }>;
+      toast.error(axiosError.response?.data?.message || "حدث خطأ أثناء تعيين الطالب");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const openDeleteDialog = (student: Student) => {
     setStudentToDelete(student);
     setIsDeleteDialogOpen(true);
@@ -441,9 +500,181 @@ export function StudentsView() {
                   <div className="p-2 rounded-full bg-primary/10">
                     <UserPlus className="h-5 w-5 text-primary" />
                   </div>
-                  {editingStudent ? "تعديل بيانات الطالب" : "إضافة طالب جديد"}
+                  {editingStudent
+                    ? "تعديل بيانات الطالب"
+                    : addStep === "existing"
+                    ? "الطالب مسجّل مسبقاً"
+                    : "إضافة طالب جديد"}
                 </DialogTitle>
+                <DialogDescription>
+                  {editingStudent
+                    ? "قم بتحديث بيانات الطالب ثم احفظ التغييرات"
+                    : addStep === "id"
+                    ? "أدخل رقم هوية الطالب للتحقق إن كان مسجّلاً في النظام مسبقاً"
+                    : addStep === "existing"
+                    ? "هذا الطالب موجود بالفعل — يمكنك تعيينه في إحدى الحلقات مباشرة"
+                    : "أدخل بيانات الطالب الجديد"}
+                </DialogDescription>
               </DialogHeader>
+
+              {/* Step 1: enter the ID number and check for an existing record */}
+              {!editingStudent && addStep === "id" && (
+                <div className="space-y-5 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="lookupId" className="flex items-center gap-1">
+                      رقم هوية الطالب
+                      <span className="text-destructive">*</span>
+                    </Label>
+                    <div className="relative">
+                      <IdCard className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="lookupId"
+                        value={idNumber}
+                        onChange={(e) => setIdNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleLookup();
+                          }
+                        }}
+                        placeholder="١٠ أرقام"
+                        dir="ltr"
+                        className="pr-10 text-left"
+                        maxLength={10}
+                        autoFocus
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      نتحقق أولاً من رقم الهوية لتجنّب تكرار تسجيل الطالب
+                    </p>
+                  </div>
+                  <DialogFooter className="gap-2 sm:gap-0 border-t pt-4">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setAddStep("new")}
+                      disabled={lookupLoading}
+                    >
+                      إضافة بدون رقم هوية
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleLookup}
+                      disabled={lookupLoading || idNumber.length < 10}
+                    >
+                      {lookupLoading ? (
+                        <>
+                          <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                          جارٍ التحقق...
+                        </>
+                      ) : (
+                        "تحقّق ومتابعة"
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </div>
+              )}
+
+              {/* Step 2a: an existing student matched the ID → assign to a halaqa */}
+              {!editingStudent && addStep === "existing" && existingStudent && (
+                <div className="space-y-5 py-4">
+                  <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-full bg-primary/10">
+                        <UserCheck className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-semibold">{existingStudent.fullName}</p>
+                        <p className="text-xs text-muted-foreground" dir="ltr">
+                          {existingStudent.idNumber}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      {existingStudent.currentHalaqa && (
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <GraduationCap className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{existingStudent.currentHalaqa}</span>
+                        </div>
+                      )}
+                      {existingStudent.guardianName && (
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <UserCircle className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{existingStudent.guardianName}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <GraduationCap className="h-4 w-4" />
+                      <span>التعيين في الحلقة</span>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>الحلقة</Label>
+                      <SearchableSelect
+                        className="w-full"
+                        options={halaqat}
+                        value={selectedHalaqa}
+                        onValueChange={setSelectedHalaqa}
+                        placeholder="اختر الحلقة"
+                        searchPlaceholder="ابحث عن حلقة..."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>المعلم</Label>
+                      <Select
+                        value={selectedTeacher}
+                        onValueChange={setSelectedTeacher}
+                        disabled={!selectedHalaqa}
+                      >
+                        <SelectTrigger className={!selectedHalaqa ? "opacity-60" : ""}>
+                          <SelectValue placeholder={selectedHalaqa ? "اختر المعلم" : "اختر الحلقة أولاً"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {teachers.map((teacher) => (
+                            <SelectItem key={teacher.id} value={teacher.id.toString()}>
+                              {teacher.fullName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <DialogFooter className="gap-2 sm:gap-0 border-t pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setExistingStudent(null);
+                        setAddStep("id");
+                      }}
+                      disabled={isSubmitting}
+                    >
+                      رجوع
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleAssignExisting}
+                      disabled={isSubmitting || !selectedHalaqa || !selectedTeacher}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                          جارٍ الإضافة...
+                        </>
+                      ) : (
+                        "إضافة إلى الحلقة"
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </div>
+              )}
+
+              {/* Step 2b: no match (or editing) → full student form */}
+              {(editingStudent || addStep === "new") && (
               <form onSubmit={handleSubmit}>
                 <div className="space-y-6 py-4 max-h-[60vh] overflow-y-auto px-1">
                   {/* Student Info Section */}
@@ -716,17 +947,28 @@ export function StudentsView() {
                   )}
                 </div>
                 <DialogFooter className="gap-2 sm:gap-0 border-t pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setIsDialogOpen(false);
-                      resetForm();
-                    }}
-                    disabled={isSubmitting}
-                  >
-                    إلغاء
-                  </Button>
+                  {!editingStudent ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setAddStep("id")}
+                      disabled={isSubmitting}
+                    >
+                      رجوع
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setIsDialogOpen(false);
+                        resetForm();
+                      }}
+                      disabled={isSubmitting}
+                    >
+                      إلغاء
+                    </Button>
+                  )}
                   <Button type="submit" disabled={isSubmitting}>
                     {isSubmitting ? (
                       <>
@@ -741,6 +983,7 @@ export function StudentsView() {
                   </Button>
                 </DialogFooter>
               </form>
+              )}
             </DialogContent>
           </Dialog>
         </div>

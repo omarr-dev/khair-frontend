@@ -23,9 +23,13 @@ export const studentApi = {
   getPaginated: (params: StudentFilterParams) => 
     api.get<PaginatedResponse<Student>>('/students/paginated', { params }),
     
-  getById: (id: number) => 
+  getById: (id: number) =>
     api.get<Student>(`/students/${id}`),
-    
+
+  /** Look up an existing student by national ID number (returns 404 if none) */
+  lookupByIdNumber: (idNumber: string) =>
+    api.get<Student>('/students/lookup', { params: { idNumber } }),
+
   getByHalaqa: (halaqaId: number) => 
     api.get<Student[]>(`/students/halaqa/${halaqaId}`),
     

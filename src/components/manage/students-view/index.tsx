@@ -510,7 +510,7 @@ export function StudentsView() {
                   {editingStudent
                     ? "قم بتحديث بيانات الطالب ثم احفظ التغييرات"
                     : addStep === "id"
-                    ? "أدخل رقم هوية الطالب للتحقق إن كان مسجّلاً في النظام مسبقاً"
+                    ? "أدخل رقم هوية الطالب"
                     : addStep === "existing"
                     ? "هذا الطالب موجود بالفعل — يمكنك تعيينه في إحدى الحلقات مباشرة"
                     : "أدخل بيانات الطالب الجديد"}
@@ -545,18 +545,10 @@ export function StudentsView() {
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      نتحقق أولاً من رقم الهوية لتجنّب تكرار تسجيل الطالب
+                      رقم الهوية مكوّن من ١٠ أرقام
                     </p>
                   </div>
                   <DialogFooter className="gap-2 sm:gap-0 border-t pt-4">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setAddStep("new")}
-                      disabled={lookupLoading}
-                    >
-                      إضافة بدون رقم هوية
-                    </Button>
                     <Button
                       type="button"
                       onClick={handleLookup}

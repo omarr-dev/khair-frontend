@@ -243,7 +243,7 @@ export function StudentManageDialog({
             {isEditing
               ? "قم بتحديث بيانات الطالب ثم احفظ التغييرات"
               : step === "id"
-              ? "أدخل رقم هوية الطالب للتحقق إن كان مسجّلاً في النظام مسبقاً"
+              ? "أدخل رقم هوية الطالب"
               : step === "existing"
               ? "هذا الطالب موجود بالفعل — يمكنك إضافته إلى حلقتك مباشرة"
               : "أدخل بيانات الطالب الجديد"}
@@ -278,13 +278,10 @@ export function StudentManageDialog({
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                نتحقق أولاً من رقم الهوية لتجنّب تكرار تسجيل الطالب
+                رقم الهوية مكوّن من ١٠ أرقام
               </p>
             </div>
             <DialogFooter className="gap-2 sm:gap-0 border-t pt-4">
-              <Button type="button" variant="ghost" onClick={() => setStep("new")} disabled={lookupLoading}>
-                إضافة بدون رقم هوية
-              </Button>
               <Button type="button" onClick={handleLookup} disabled={lookupLoading || idNumber.length < 10}>
                 {lookupLoading ? (
                   <>

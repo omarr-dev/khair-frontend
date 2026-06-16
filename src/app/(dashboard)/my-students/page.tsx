@@ -279,19 +279,31 @@ export default function MyStudentsPage() {
     return groups;
   }, [filteredStudents, attendanceOrder]);
 
-  // Fetch today's attendance for all halaqas when students load
+  // Stable key of the distinct active halaqa IDs. Recording a recitation/edit
+  // refreshes the student list (new array reference) without changing which
+  // halaqat exist, so keying the attendance fetch off this — instead of the
+  // whole `students` array — stops it from re-firing one request per halaqa on
+  // every action. It only refetches when the set of halaqat actually changes.
+  const halaqaIdsKey = useMemo(() => {
+    const ids = new Set<number>();
+    for (const s of students) {
+      const active = s.assignments.find(a => a.isActive);
+      if (active?.halaqaId) ids.add(active.halaqaId);
+    }
+    return Array.from(ids).sort((a, b) => a - b).join(",");
+  }, [students]);
+
+  // Fetch today's attendance for the teacher's halaqat (once per halaqa set)
   useEffect(() => {
+    if (!halaqaIdsKey) return;
+
     const fetchAttendance = async () => {
       const today = getTodayDate();
-      const halaqaIds = new Set<number>();
-      for (const s of students) {
-        const active = s.assignments.find(a => a.isActive);
-        if (active?.halaqaId) halaqaIds.add(active.halaqaId);
-      }
+      const halaqaIds = halaqaIdsKey.split(",").map(Number);
 
       const map: Record<number, AttendanceRecord> = {};
       await Promise.all(
-        Array.from(halaqaIds).map(async (halaqaId) => {
+        halaqaIds.map(async (halaqaId) => {
           try {
             const response = await attendanceApi.getByDate(halaqaId, today);
             for (const record of response.data.records) {
@@ -305,10 +317,8 @@ export default function MyStudentsPage() {
       setAttendanceMap(map);
     };
 
-    if (students.length > 0) {
-      fetchAttendance();
-    }
-  }, [students]);
+    fetchAttendance();
+  }, [halaqaIdsKey]);
 
   // Handle recording attendance
   const handleAttendance = useCallback(async (studentId: number, halaqaId: number, status: 0 | 1) => {

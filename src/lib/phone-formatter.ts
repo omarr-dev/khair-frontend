@@ -49,12 +49,16 @@ export function formatSaudiPhoneNumber(value: string): string {
 
 /**
  * Formats a login identifier that can be EITHER a Saudi phone number OR a
- * National ID / Iqama number.
+ * National ID / Iqama number, using the local format people actually type.
  *
  * Saudi National IDs start with 1, Iqama (residency) numbers start with 2,
- * and are 10 digits. Phone numbers start with 0, 5, 966 or +966. We use the
- * first digit to decide: IDs are passed through as raw digits (so they are not
- * mangled into a +966 phone), everything else goes through phone formatting.
+ * and are 10 digits -> kept as raw digits.
+ *
+ * Phone numbers are shown in the familiar local grouping "050 000 0000"
+ * (10 digits starting with 0). Anything pasted in international form
+ * (+966 / 966 / leading 5) is converted back to the local 05X form so the
+ * user always sees the number the way they know it. The backend strips the
+ * spaces and normalizes to +966 on its side.
  *
  * Used on the login screen, where imported teachers sign in with their ID
  * until they set a real phone number.
@@ -66,13 +70,27 @@ export function formatPhoneOrNationalId(value: string): string {
   };
 
   const converted = value.split('').map(char => arabicToEnglishMap[char] || char).join('');
-  const digits = converted.replace(/[^\d]/g, "");
+  let digits = converted.replace(/[^\d]/g, "");
 
   // National ID (1...) or Iqama (2...) -> keep raw digits, max 10
   if (/^[12]/.test(digits)) {
     return digits.substring(0, 10);
   }
 
-  // Otherwise treat it as a phone number
-  return formatSaudiPhoneNumber(value);
+  // Normalize any international form to the local 05X form
+  if (digits.startsWith("966")) {
+    digits = "0" + digits.substring(3);
+  } else if (digits.startsWith("5")) {
+    digits = "0" + digits;
+  }
+
+  // Keep a local Saudi mobile number: 10 digits (05X XXX XXXX)
+  digits = digits.substring(0, 10);
+
+  // Group as "050 000 0000" while typing
+  const parts: string[] = [digits.substring(0, 3)];
+  if (digits.length > 3) parts.push(digits.substring(3, 6));
+  if (digits.length > 6) parts.push(digits.substring(6, 10));
+
+  return parts.join(" ");
 }

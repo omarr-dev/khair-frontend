@@ -122,17 +122,17 @@ export default function LoginPage() {
               <Input
                 id="phoneNumber"
                 type="tel"
-                placeholder="+966 5XXXXXXXX أو رقم الهوية"
+                inputMode="numeric"
+                autoComplete="tel"
+                placeholder="050 000 0000"
                 value={phoneNumber}
                 onChange={handlePhoneNumberChange}
                 required
                 disabled={loading}
-                className="text-right h-12 text-lg"
+                maxLength={12}
+                className="text-center h-12 text-lg tracking-wider"
                 dir="ltr"
               />
-              <p className="text-xs text-muted-foreground">
-                المعلّم الذي لم يُسجّل رقم جواله بعد يسجّل الدخول برقم الهوية.
-              </p>
             </div>
             {error && (
               <div className="text-sm text-red-500 text-center bg-red-50 dark:bg-red-950/30 p-3 rounded-md border border-red-200 dark:border-red-900">

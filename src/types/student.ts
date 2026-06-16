@@ -18,6 +18,12 @@ export interface Student {
   guardianPhone?: string;
   phone?: string; // رقم هاتف الطالب
   idNumber?: string; // رقم الهوية
+  // Demographic / administrative info
+  nationality?: string; // الجنسية
+  office?: string; // المكتب / القسم
+  center?: string; // المجمع / المركز
+  socialStatus?: string; // الحالة الاجتماعية
+  healthStatus?: string; // الحالة الصحية
   // Memorization tracking
   memorizationDirection: 'Forward' | 'Backward';
   currentSurahNumber: number;
@@ -59,6 +65,11 @@ export interface CreateStudentDto {
   guardianPhone?: string;
   phone?: string; // رقم هاتف الطالب
   idNumber?: string; // رقم الهوية
+  nationality?: string; // الجنسية
+  office?: string; // المكتب / القسم
+  center?: string; // المجمع / المركز
+  socialStatus?: string; // الحالة الاجتماعية
+  healthStatus?: string; // الحالة الصحية
   memorizationDirection?: 'Forward' | 'Backward';
   currentSurahNumber?: number;
   currentVerse?: number;
@@ -74,6 +85,11 @@ export interface UpdateStudentDto {
   guardianPhone?: string;
   phone?: string; // رقم هاتف الطالب
   idNumber?: string; // رقم الهوية
+  nationality?: string; // الجنسية
+  office?: string; // المكتب / القسم
+  center?: string; // المجمع / المركز
+  socialStatus?: string; // الحالة الاجتماعية
+  healthStatus?: string; // الحالة الصحية
 }
 
 export interface UpdateMemorizationDto {
@@ -152,6 +168,12 @@ export interface StudentDetail {
   guardianPhone?: string;
   phone?: string; // رقم هاتف الطالب
   idNumber?: string; // رقم الهوية
+  // Demographic / administrative info
+  nationality?: string; // الجنسية
+  office?: string; // المكتب / القسم
+  center?: string; // المجمع / المركز
+  socialStatus?: string; // الحالة الاجتماعية
+  healthStatus?: string; // الحالة الصحية
   // Memorization tracking
   memorizationDirection: 'Forward' | 'Backward';
   currentSurahNumber: number;

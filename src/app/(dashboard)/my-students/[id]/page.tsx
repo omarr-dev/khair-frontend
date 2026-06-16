@@ -594,6 +594,17 @@ export default function StudentProfilePage() {
               </div>
             )}
 
+            {/* Demographic / administrative info */}
+            {(student.nationality || student.office || student.center || student.socialStatus || student.healthStatus) && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground border-t pt-4 mt-2 w-full justify-center">
+                {student.nationality && <span>الجنسية: {student.nationality}</span>}
+                {student.office && <span>القسم: {student.office}</span>}
+                {student.center && <span>المركز: {student.center}</span>}
+                {student.socialStatus && <span>الحالة الاجتماعية: {student.socialStatus}</span>}
+                {student.healthStatus && <span>الحالة الصحية: {student.healthStatus}</span>}
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex flex-wrap items-center justify-center gap-3 pt-4 mt-4 border-t w-full">
               <Button

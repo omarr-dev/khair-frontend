@@ -109,6 +109,10 @@ export function TeachersView() {
   const [email, setEmail] = useState("");
   const [idNumber, setIdNumber] = useState("");
   const [qualification, setQualification] = useState("");
+  const [nationality, setNationality] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
+  const [contractType, setContractType] = useState("");
+  const [payrollGroup, setPayrollGroup] = useState("");
   const [selectedHalaqa, setSelectedHalaqa] = useState("");
   const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -148,6 +152,10 @@ export function TeachersView() {
     setEmail("");
     setIdNumber("");
     setQualification("");
+    setNationality("");
+    setJobTitle("");
+    setContractType("");
+    setPayrollGroup("");
     setEditingTeacher(null);
     setValidationErrors({});
   };
@@ -241,6 +249,10 @@ export function TeachersView() {
     setEmail(teacher.email || "");
     setIdNumber(teacher.idNumber || "");
     setQualification(teacher.qualification || "");
+    setNationality(teacher.nationality || "");
+    setJobTitle(teacher.jobTitle || "");
+    setContractType(teacher.contractType || "");
+    setPayrollGroup(teacher.payrollGroup || "");
     setIsDialogOpen(true);
   };
 
@@ -255,6 +267,10 @@ export function TeachersView() {
           email: email || undefined,
           idNumber: idNumber || undefined,
           qualification: qualification || undefined,
+          nationality: nationality || undefined,
+          jobTitle: jobTitle || undefined,
+          contractType: contractType || undefined,
+          payrollGroup: payrollGroup || undefined,
         });
         toast.success("تم تحديث بيانات المعلم بنجاح");
       } else {
@@ -264,6 +280,10 @@ export function TeachersView() {
           email: email || undefined,
           idNumber: idNumber || undefined,
           qualification: qualification || undefined,
+          nationality: nationality || undefined,
+          jobTitle: jobTitle || undefined,
+          contractType: contractType || undefined,
+          payrollGroup: payrollGroup || undefined,
         });
         toast.success("تم إضافة المعلم بنجاح");
       }
@@ -535,6 +555,56 @@ export function TeachersView() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Administrative Info Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <IdCard className="h-4 w-4" />
+                      <span>معلومات إدارية</span>
+                    </div>
+                    <div className="space-y-3 pr-6">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="nationality">الجنسية</Label>
+                          <Input
+                            id="nationality"
+                            value={nationality}
+                            onChange={(e) => setNationality(e.target.value)}
+                            placeholder="مثال: سعودي"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="jobTitle">المسمى الوظيفي</Label>
+                          <Input
+                            id="jobTitle"
+                            value={jobTitle}
+                            onChange={(e) => setJobTitle(e.target.value)}
+                            placeholder="مثال: معلم"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="contractType">نوع العقد</Label>
+                          <Input
+                            id="contractType"
+                            value={contractType}
+                            onChange={(e) => setContractType(e.target.value)}
+                            placeholder="مثال: متعاون"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="payrollGroup">المسير</Label>
+                          <Input
+                            id="payrollGroup"
+                            value={payrollGroup}
+                            onChange={(e) => setPayrollGroup(e.target.value)}
+                            placeholder="اسم المسير / القطاع"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <DialogFooter className="gap-2 sm:gap-0 border-t pt-4">
                   <Button
@@ -661,6 +731,27 @@ export function TeachersView() {
                   <div className="flex items-center gap-2 text-sm">
                     <Award className="h-4 w-4 text-muted-foreground" />
                     <span>{teacher.qualification}</span>
+                  </div>
+                )}
+                {teacher.jobTitle && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <IdCard className="h-4 w-4 text-muted-foreground" />
+                    <span>{teacher.jobTitle}</span>
+                  </div>
+                )}
+                {teacher.nationality && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>الجنسية: {teacher.nationality}</span>
+                  </div>
+                )}
+                {teacher.contractType && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>نوع العقد: {teacher.contractType}</span>
+                  </div>
+                )}
+                {teacher.payrollGroup && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>المسير: {teacher.payrollGroup}</span>
                   </div>
                 )}
                 <div className="flex gap-2 pt-2">

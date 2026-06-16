@@ -46,3 +46,33 @@ export function formatSaudiPhoneNumber(value: string): string {
 
   return formattedValue;
 }
+
+/**
+ * Formats a login identifier that can be EITHER a Saudi phone number OR a
+ * National ID / Iqama number.
+ *
+ * Saudi National IDs start with 1, Iqama (residency) numbers start with 2,
+ * and are 10 digits. Phone numbers start with 0, 5, 966 or +966. We use the
+ * first digit to decide: IDs are passed through as raw digits (so they are not
+ * mangled into a +966 phone), everything else goes through phone formatting.
+ *
+ * Used on the login screen, where imported teachers sign in with their ID
+ * until they set a real phone number.
+ */
+export function formatPhoneOrNationalId(value: string): string {
+  const arabicToEnglishMap: { [key: string]: string } = {
+    '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
+    '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9'
+  };
+
+  const converted = value.split('').map(char => arabicToEnglishMap[char] || char).join('');
+  const digits = converted.replace(/[^\d]/g, "");
+
+  // National ID (1...) or Iqama (2...) -> keep raw digits, max 10
+  if (/^[12]/.test(digits)) {
+    return digits.substring(0, 10);
+  }
+
+  // Otherwise treat it as a phone number
+  return formatSaudiPhoneNumber(value);
+}

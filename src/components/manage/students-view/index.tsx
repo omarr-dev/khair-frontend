@@ -124,6 +124,11 @@ export function StudentsView() {
   const [guardianPhone, setGuardianPhone] = useState("");
   const [phone, setPhone] = useState("");
   const [idNumber, setIdNumber] = useState("");
+  const [nationality, setNationality] = useState("");
+  const [office, setOffice] = useState("");
+  const [center, setCenter] = useState("");
+  const [socialStatus, setSocialStatus] = useState("");
+  const [healthStatus, setHealthStatus] = useState("");
   const [memorizationDirection, setMemorizationDirection] = useState<"Forward" | "Backward">("Forward");
   const [currentSurahNumber, setCurrentSurahNumber] = useState("1");
   const [currentVerse, setCurrentVerse] = useState("0");
@@ -215,6 +220,11 @@ export function StudentsView() {
     setGuardianPhone("");
     setPhone("");
     setIdNumber("");
+    setNationality("");
+    setOffice("");
+    setCenter("");
+    setSocialStatus("");
+    setHealthStatus("");
     setMemorizationDirection("Forward");
     setCurrentSurahNumber("1");
     setCurrentVerse("0");
@@ -297,6 +307,11 @@ export function StudentsView() {
     setGuardianPhone(student.guardianPhone || "");
     setPhone(student.phone || "");
     setIdNumber(student.idNumber || "");
+    setNationality(student.nationality || "");
+    setOffice(student.office || "");
+    setCenter(student.center || "");
+    setSocialStatus(student.socialStatus || "");
+    setHealthStatus(student.healthStatus || "");
     setMemorizationDirection(student.memorizationDirection as "Forward" | "Backward");
     setCurrentSurahNumber(student.currentSurahNumber.toString());
     setCurrentVerse(student.currentVerse.toString());
@@ -315,6 +330,11 @@ export function StudentsView() {
         guardianPhone: guardianPhone || undefined,
         phone: phone || undefined,
         idNumber: idNumber || undefined,
+        nationality: nationality || undefined,
+        office: office || undefined,
+        center: center || undefined,
+        socialStatus: socialStatus || undefined,
+        healthStatus: healthStatus || undefined,
         memorizationDirection,
         currentSurahNumber: parseInt(currentSurahNumber),
         currentVerse: parseInt(currentVerse),
@@ -331,6 +351,11 @@ export function StudentsView() {
           guardianPhone: guardianPhone || undefined,
           phone: phone || undefined,
           idNumber: idNumber || undefined,
+          nationality: nationality || undefined,
+          office: office || undefined,
+          center: center || undefined,
+          socialStatus: socialStatus || undefined,
+          healthStatus: healthStatus || undefined,
         };
         await studentApi.update(editingStudent.id, updateData);
         toast.success("تم تحديث بيانات الطالب بنجاح");
@@ -505,6 +530,65 @@ export function StudentsView() {
                             placeholder="+966 5X XXX XXXX"
                             dir="ltr"
                             className="pr-10 text-left"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Additional Info Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <IdCard className="h-4 w-4" />
+                      <span>معلومات إضافية</span>
+                    </div>
+                    <div className="space-y-3 pr-6">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="nationality">الجنسية</Label>
+                          <Input
+                            id="nationality"
+                            value={nationality}
+                            onChange={(e) => setNationality(e.target.value)}
+                            placeholder="مثال: سعودي"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="office">المكتب / القسم</Label>
+                          <Input
+                            id="office"
+                            value={office}
+                            onChange={(e) => setOffice(e.target.value)}
+                            placeholder="مثال: القسم الرجالي"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="center">المجمع / المركز</Label>
+                        <Input
+                          id="center"
+                          value={center}
+                          onChange={(e) => setCenter(e.target.value)}
+                          placeholder="اسم المجمع أو المركز"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="socialStatus">الحالة الاجتماعية</Label>
+                          <Input
+                            id="socialStatus"
+                            value={socialStatus}
+                            onChange={(e) => setSocialStatus(e.target.value)}
+                            placeholder="مثال: طبيعي / محتاج"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="healthStatus">الحالة الصحية</Label>
+                          <Input
+                            id="healthStatus"
+                            value={healthStatus}
+                            onChange={(e) => setHealthStatus(e.target.value)}
+                            placeholder="مثال: سليم"
                           />
                         </div>
                       </div>

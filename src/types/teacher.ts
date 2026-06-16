@@ -6,6 +6,10 @@ export interface Teacher {
   idNumber?: string;
   phoneNumber?: string;
   qualification?: string;
+  nationality?: string; // الجنسية
+  jobTitle?: string; // المسمى الوظيفي
+  contractType?: string; // نوع العقد
+  payrollGroup?: string; // المسير
   joinDate: string;
   halaqatCount: number;
   studentsCount: number;
@@ -17,6 +21,10 @@ export interface CreateTeacherDto {
   email?: string;
   idNumber?: string;
   qualification?: string;
+  nationality?: string;
+  jobTitle?: string;
+  contractType?: string;
+  payrollGroup?: string;
 }
 
 export interface UpdateTeacherDto {
@@ -25,6 +33,10 @@ export interface UpdateTeacherDto {
   email?: string;
   idNumber?: string;
   qualification?: string;
+  nationality?: string;
+  jobTitle?: string;
+  contractType?: string;
+  payrollGroup?: string;
 }
 
 export interface TeacherHalaqa {

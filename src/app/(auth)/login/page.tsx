@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { toast } from "sonner";
 import Image from "next/image";
-import { formatSaudiPhoneNumber } from "@/lib/phone-formatter";
+import { formatPhoneOrNationalId } from "@/lib/phone-formatter";
 import { extractErrorMessage } from "@/lib/error-handler";
 import { Loader2 } from "lucide-react";
 import { TenantLoadingScreen } from "@/components/shared/tenant-loading-screen";
@@ -45,7 +45,7 @@ export default function LoginPage() {
   };
 
   const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formattedValue = formatSaudiPhoneNumber(e.target.value);
+    const formattedValue = formatPhoneOrNationalId(e.target.value);
     setPhoneNumber(formattedValue);
     if (error) setError(""); // Clear error when user starts typing
   };
@@ -118,11 +118,11 @@ export default function LoginPage() {
         <CardContent className="pb-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="phoneNumber" className="text-base">رقم الجوال</Label>
+              <Label htmlFor="phoneNumber" className="text-base">رقم الجوال أو رقم الهوية</Label>
               <Input
                 id="phoneNumber"
                 type="tel"
-                placeholder="+966 5XXXXXXXX"
+                placeholder="+966 5XXXXXXXX أو رقم الهوية"
                 value={phoneNumber}
                 onChange={handlePhoneNumberChange}
                 required
@@ -130,6 +130,9 @@ export default function LoginPage() {
                 className="text-right h-12 text-lg"
                 dir="ltr"
               />
+              <p className="text-xs text-muted-foreground">
+                المعلّم الذي لم يُسجّل رقم جواله بعد يسجّل الدخول برقم الهوية.
+              </p>
             </div>
             {error && (
               <div className="text-sm text-red-500 text-center bg-red-50 dark:bg-red-950/30 p-3 rounded-md border border-red-200 dark:border-red-900">

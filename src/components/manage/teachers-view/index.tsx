@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatSaudiPhoneNumber } from "@/lib/phone-formatter";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -73,7 +74,8 @@ function useDebounceValue<T>(value: T, delay: number): T {
 export function TeachersView() {
   const { halaqat, globalSearch } = useManage();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // first load only — list placeholder
+  const [isFetching, setIsFetching] = useState(false); // refetch (search/filter) — dim in place
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -119,7 +121,7 @@ export function TeachersView() {
 
   const fetchTeachers = useCallback(async () => {
     try {
-      setLoading(true);
+      setIsFetching(true);
 
       const params: TeacherFilterParams = {
         page,
@@ -138,6 +140,7 @@ export function TeachersView() {
       console.error("Error fetching teachers:", error);
       toast.error("حدث خطأ أثناء تحميل المعلمين");
     } finally {
+      setIsFetching(false);
       setLoading(false);
     }
   }, [page, pageSize, debouncedSearch, filterHalaqa, sortBy, sortOrder]);
@@ -672,7 +675,18 @@ export function TeachersView() {
       />
 
       {/* Teachers Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="relative">
+        {isFetching && !loading && (
+          <div className="absolute inset-0 z-10 flex items-start justify-center pt-16">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        )}
+        <div
+          className={cn(
+            "grid gap-4 md:grid-cols-2 lg:grid-cols-3 transition-opacity",
+            isFetching && !loading && "pointer-events-none opacity-50"
+          )}
+        >
         {loading ? (
           <div className="col-span-full text-center py-8">جاري التحميل...</div>
         ) : teachers.length === 0 ? (
@@ -768,6 +782,7 @@ export function TeachersView() {
             </Card>
           ))
         )}
+        </div>
       </div>
 
       {/* Pagination */}

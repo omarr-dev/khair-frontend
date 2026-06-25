@@ -11,7 +11,8 @@ interface ManageContextType {
   // Hierarchy data for structure view (paginated)
   halaqatHierarchy: HalaqaHierarchy[];
   halaqat: Lookup[];
-  loading: boolean;
+  loading: boolean; // first load only — drives the full-page skeleton
+  isFetching: boolean; // background refetch (search / pagination) — keeps page mounted
 
   // Pagination for the hierarchy list
   page: number;
@@ -46,6 +47,7 @@ export function ManageProvider({ children }: { children: ReactNode }) {
   const [halaqatHierarchy, setHalaqatHierarchy] = useState<HalaqaHierarchy[]>([]);
   const [halaqat, setHalaqat] = useState<Lookup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
   const debouncedSearch = useDebounce(globalSearch, 300);
 
@@ -136,13 +138,18 @@ export function ManageProvider({ children }: { children: ReactNode }) {
     setPage(1);
   }, [debouncedSearch]);
 
-  // Re-fetch the hierarchy page on page/search change
+  // Re-fetch the hierarchy page on page/search change.
+  // The first load shows the full-page skeleton; subsequent refetches keep the
+  // page (and the focused search box) mounted and only flag a background fetch.
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      setLoading(true);
+      setIsFetching(true);
       await refreshHierarchy();
-      if (!cancelled) setLoading(false);
+      if (!cancelled) {
+        setIsFetching(false);
+        setLoading(false);
+      }
     };
     run();
     return () => {
@@ -161,6 +168,7 @@ export function ManageProvider({ children }: { children: ReactNode }) {
         halaqatHierarchy,
         halaqat,
         loading,
+        isFetching,
         page,
         setPage,
         pageSize: PAGE_SIZE,

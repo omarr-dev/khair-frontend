@@ -78,6 +78,7 @@ export function StructureView() {
   const {
     halaqatHierarchy,
     halaqat,
+    isFetching,
     globalSearch,
     refreshHierarchy,
     halaqaStudents,
@@ -561,6 +562,15 @@ export function StructureView() {
       )}
 
       {/* Hierarchical Tree View */}
+      <div className="relative">
+        {/* Background refetch (search / pagination): dim the current results and
+            show a spinner in place instead of unmounting the whole page. */}
+        {isFetching && (
+          <div className="absolute inset-0 z-10 flex items-start justify-center pt-16">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        )}
+        <div className={cn("transition-opacity", isFetching && "pointer-events-none opacity-50")}>
       {halaqatHierarchy.length === 0 ? (
         <EmptyState
           icon={globalSearch ? Search : BookOpen}
@@ -1044,6 +1054,8 @@ export function StructureView() {
         />
         </>
       )}
+        </div>
+      </div>
 
       {/* Halaqa Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

@@ -86,7 +86,8 @@ export function StudentsView() {
   const { halaqat, globalSearch } = useManage();
   const [students, setStudents] = useState<Student[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // first load only — list placeholder
+  const [isFetching, setIsFetching] = useState(false); // refetch (search/filter) — dim in place
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [isAssignmentDialogOpen, setIsAssignmentDialogOpen] = useState(false);
@@ -154,7 +155,7 @@ export function StudentsView() {
 
   const fetchStudents = useCallback(async () => {
     try {
-      setLoading(true);
+      setIsFetching(true);
 
       const params: StudentFilterParams = {
         page,
@@ -174,6 +175,7 @@ export function StudentsView() {
       console.error("Error fetching students:", error);
       toast.error("حدث خطأ أثناء تحميل الطلاب");
     } finally {
+      setIsFetching(false);
       setLoading(false);
     }
   }, [page, pageSize, debouncedSearch, filterHalaqa, filterTeacher, sortBy, sortOrder]);
@@ -1026,7 +1028,13 @@ export function StudentsView() {
           {loading ? (
             <div className="text-center py-8">جاري التحميل...</div>
           ) : (
-            <>
+            <div className="relative">
+              {isFetching && (
+                <div className="absolute inset-0 z-10 flex items-start justify-center pt-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              )}
+              <div className={cn("transition-opacity", isFetching && "pointer-events-none opacity-50")}>
               {/* Mobile Card View */}
               <div className="md:hidden space-y-3">
                 {students.length === 0 ? (
@@ -1225,7 +1233,8 @@ export function StudentsView() {
                 totalPages={totalPages}
                 onPageChange={setPage}
               />
-            </>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

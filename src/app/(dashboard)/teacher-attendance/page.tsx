@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { teacherAttendanceApi, exportApi } from "@/services";
-import { 
-  TodayTeacherAttendanceResponse, 
+import {
+  TodayTeacherAttendanceResponse,
   TeacherAttendanceEntry,
-  MonthlyAttendanceReport 
+  MonthlyAttendanceReport,
+  HalaqaTeachersAttendance,
+  TeacherWithAttendance
 } from "@/types/teacher-attendance";
 import { useAuth } from "@/components/providers";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -27,16 +30,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Check, X, Clock, Save, Users, AlertTriangle, CalendarDays, Download, Calendar, Loader2 } from "lucide-react";
-import { Pagination } from "@/components/manage/shared/pagination";
+import { Check, X, Clock, Save, Users, AlertTriangle, CalendarDays, Download, Calendar, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
-
-const DAILY_PAGE_SIZE = 10;
 
 type AttendanceStatus = 0 | 1 | 2; // 0: Present, 1: Absent, 2: Late
 
 interface AttendanceState {
-  status: AttendanceStatus;
+  status: AttendanceStatus | null; // null = not recorded yet (supervisor hasn't chosen)
   notes?: string;
   checkInTime?: string;  // "HH:mm"
   checkOutTime?: string; // "HH:mm"
@@ -59,6 +59,198 @@ const ARABIC_MONTHS = [
   "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"
 ];
 
+const getStatusBadge = (status: AttendanceStatus | null) => {
+  switch (status) {
+    case 0:
+      return <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">حاضر</Badge>;
+    case 1:
+      return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">غائب</Badge>;
+    case 2:
+      return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">متأخر</Badge>;
+    default:
+      return <Badge variant="outline" className="text-muted-foreground">لم يُسجّل</Badge>;
+  }
+};
+
+type StatusChangeHandler = (teacherId: number, halaqaId: number, status: AttendanceStatus) => void;
+type TimeChangeHandler = (
+  teacherId: number,
+  halaqaId: number,
+  field: "checkInTime" | "checkOutTime",
+  value: string,
+) => void;
+
+interface TeacherRowProps {
+  teacher: TeacherWithAttendance;
+  halaqaId: number;
+  state: AttendanceState | undefined;
+  onStatusChange: StatusChangeHandler;
+  onTimeChange: TimeChangeHandler;
+}
+
+/**
+ * One teacher's attendance row. Memoized so that editing a single teacher only
+ * re-renders that row — not all rows on the page. This relies on the parent
+ * keeping `state` object identity stable for untouched teachers and passing
+ * referentially-stable handlers.
+ */
+const TeacherRow = memo(function TeacherRow({
+  teacher,
+  halaqaId,
+  state,
+  onStatusChange,
+  onTimeChange,
+}: TeacherRowProps) {
+  const status: AttendanceStatus | null = state?.status ?? null;
+  const timesDisabled = status === 1 || status === null; // absent or not recorded
+  const hours = computeHours(state?.checkInTime, state?.checkOutTime);
+
+  return (
+    <TableRow>
+      <TableCell>
+        <div>
+          <p className="font-medium">{teacher.teacherName}</p>
+          {teacher.phoneNumber && (
+            <p className="text-sm text-muted-foreground">{teacher.phoneNumber}</p>
+          )}
+        </div>
+      </TableCell>
+      <TableCell className="text-center">
+        <Button
+          variant={status === 0 ? "default" : "outline"}
+          size="sm"
+          onClick={() => onStatusChange(teacher.teacherId, halaqaId, 0)}
+          className={`h-10 w-10 p-0 ${status === 0 ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}
+        >
+          <Check className="h-4 w-4" />
+        </Button>
+      </TableCell>
+      <TableCell className="text-center">
+        <Button
+          variant={status === 1 ? "destructive" : "outline"}
+          size="sm"
+          onClick={() => onStatusChange(teacher.teacherId, halaqaId, 1)}
+          className="h-10 w-10 p-0"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </TableCell>
+      <TableCell className="text-center">
+        <Button
+          variant={status === 2 ? "secondary" : "outline"}
+          size="sm"
+          onClick={() => onStatusChange(teacher.teacherId, halaqaId, 2)}
+          className={`h-10 w-10 p-0 ${status === 2 ? "bg-amber-500 hover:bg-amber-600 text-white" : ""}`}
+        >
+          <Clock className="h-4 w-4" />
+        </Button>
+      </TableCell>
+      <TableCell className="text-center">{getStatusBadge(status)}</TableCell>
+      <TableCell className="text-center">
+        <input
+          type="time"
+          value={state?.checkInTime ?? ""}
+          disabled={timesDisabled}
+          onChange={(e) => onTimeChange(teacher.teacherId, halaqaId, "checkInTime", e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        />
+      </TableCell>
+      <TableCell className="text-center">
+        <input
+          type="time"
+          value={state?.checkOutTime ?? ""}
+          disabled={timesDisabled}
+          onChange={(e) => onTimeChange(teacher.teacherId, halaqaId, "checkOutTime", e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        />
+      </TableCell>
+      <TableCell className="text-center font-medium text-muted-foreground">
+        {hours !== null ? `${hours} س` : "—"}
+      </TableCell>
+    </TableRow>
+  );
+});
+
+interface HalaqaCardProps {
+  halaqa: HalaqaTeachersAttendance;
+  attendanceData: Map<string, AttendanceState>;
+  onStatusChange: StatusChangeHandler;
+  onTimeChange: TimeChangeHandler;
+}
+
+/** One halaqa card with its teacher table. */
+const HalaqaCard = memo(function HalaqaCard({
+  halaqa,
+  attendanceData,
+  onStatusChange,
+  onTimeChange,
+}: HalaqaCardProps) {
+  return (
+    <Card className={!halaqa.isActiveToday ? "opacity-60" : ""}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <CardTitle className="text-xl">{halaqa.halaqaName}</CardTitle>
+            {!halaqa.isActiveToday && (
+              <Badge variant="outline" className="text-muted-foreground">
+                غير نشطة اليوم
+              </Badge>
+            )}
+          </div>
+          {(halaqa.location || halaqa.timeSlot) && (
+            <div className="text-sm text-muted-foreground">
+              {halaqa.location && <span>{halaqa.location}</span>}
+              {halaqa.location && halaqa.timeSlot && <span> • </span>}
+              {halaqa.timeSlot && <span>{halaqa.timeSlot}</span>}
+            </div>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {!halaqa.isActiveToday ? (
+          <div className="text-center py-4 text-muted-foreground">
+            <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-amber-500" />
+            <p>هذه الحلقة غير نشطة اليوم</p>
+          </div>
+        ) : halaqa.teachers.length === 0 ? (
+          <div className="text-center py-4 text-muted-foreground">
+            لا يوجد معلمين في هذه الحلقة
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[160px]">المعلم</TableHead>
+                  <TableHead className="text-center">حاضر</TableHead>
+                  <TableHead className="text-center">غائب</TableHead>
+                  <TableHead className="text-center">متأخر</TableHead>
+                  <TableHead className="text-center">الحالة</TableHead>
+                  <TableHead className="text-center">وقت الحضور</TableHead>
+                  <TableHead className="text-center">وقت الانصراف</TableHead>
+                  <TableHead className="text-center">الساعات</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {halaqa.teachers.map((teacher) => (
+                  <TeacherRow
+                    key={`${teacher.teacherId}-${halaqa.halaqaId}`}
+                    teacher={teacher}
+                    halaqaId={halaqa.halaqaId}
+                    state={attendanceData.get(`${teacher.teacherId}-${halaqa.halaqaId}`)}
+                    onStatusChange={onStatusChange}
+                    onTimeChange={onTimeChange}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+});
+
 export default function TeacherAttendancePage() {
   const [activeTab, setActiveTab] = useState("daily");
   
@@ -67,7 +259,7 @@ export default function TeacherAttendancePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [attendanceData, setAttendanceData] = useState<Map<string, AttendanceState>>(new Map());
-  const [dailyPage, setDailyPage] = useState(1);
+  const [halaqaSearch, setHalaqaSearch] = useState(""); // client-side filter over the loaded halaqat
 
   // Monthly state
   const [monthlyData, setMonthlyData] = useState<MonthlyAttendanceReport | null>(null);
@@ -94,7 +286,7 @@ export default function TeacherAttendancePage() {
           halaqa.teachers.forEach((teacher) => {
             const key = `${teacher.teacherId}-${halaqa.halaqaId}`;
             newAttendanceData.set(key, {
-              status: teacher.status !== undefined ? teacher.status : 1,
+              status: teacher.status ?? null, // keep saved status; leave unset when no record yet
               notes: teacher.notes,
               checkInTime: toTimeInput(teacher.checkInTime),
               checkOutTime: toTimeInput(teacher.checkOutTime),
@@ -103,7 +295,6 @@ export default function TeacherAttendancePage() {
         }
       });
       setAttendanceData(newAttendanceData);
-      setDailyPage(1);
     } catch (error) {
       console.error("Error fetching teacher attendance:", error);
       toast.error("حدث خطأ أثناء جلب بيانات الحضور");
@@ -135,31 +326,45 @@ export default function TeacherAttendancePage() {
     }
   }, [activeTab, fetchMonthlyData]);
 
-  const handleAttendanceChange = (teacherId: number, halaqaId: number, status: AttendanceStatus) => {
-    const key = `${teacherId}-${halaqaId}`;
-    const newData = new Map(attendanceData);
-    const current = newData.get(key) || { status: 1 };
-    // Times only make sense for present/late; clear them when marking absent.
-    if (status === 1) {
-      newData.set(key, { ...current, status, checkInTime: "", checkOutTime: "" });
-    } else {
-      newData.set(key, { ...current, status });
-    }
-    setAttendanceData(newData);
-  };
+  // Functional updates keep these handlers referentially stable across renders, which is what
+  // lets the memoized TeacherRow skip re-rendering untouched rows. `new Map(prev)` preserves the
+  // object identity of every entry except the one we replace, so only the edited row's `state`
+  // prop changes.
+  const handleAttendanceChange = useCallback(
+    (teacherId: number, halaqaId: number, status: AttendanceStatus) => {
+      const key = `${teacherId}-${halaqaId}`;
+      setAttendanceData((prev) => {
+        const newData = new Map(prev);
+        const current = newData.get(key) || { status: null };
+        // Times only make sense for present/late; clear them when marking absent.
+        if (status === 1) {
+          newData.set(key, { ...current, status, checkInTime: "", checkOutTime: "" });
+        } else {
+          newData.set(key, { ...current, status });
+        }
+        return newData;
+      });
+    },
+    [],
+  );
 
-  const handleTimeChange = (
-    teacherId: number,
-    halaqaId: number,
-    field: "checkInTime" | "checkOutTime",
-    value: string,
-  ) => {
-    const key = `${teacherId}-${halaqaId}`;
-    const newData = new Map(attendanceData);
-    const current = newData.get(key) || { status: 1 };
-    newData.set(key, { ...current, [field]: value });
-    setAttendanceData(newData);
-  };
+  const handleTimeChange = useCallback(
+    (
+      teacherId: number,
+      halaqaId: number,
+      field: "checkInTime" | "checkOutTime",
+      value: string,
+    ) => {
+      const key = `${teacherId}-${halaqaId}`;
+      setAttendanceData((prev) => {
+        const newData = new Map(prev);
+        const current = newData.get(key) || { status: null };
+        newData.set(key, { ...current, [field]: value });
+        return newData;
+      });
+    },
+    [],
+  );
 
   const handleSaveAttendance = async () => {
     if (!data) return;
@@ -244,19 +449,9 @@ export default function TeacherAttendancePage() {
     }
   };
 
-  const getStatusBadge = (status: AttendanceStatus) => {
-    switch (status) {
-      case 0:
-        return <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">حاضر</Badge>;
-      case 1:
-        return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">غائب</Badge>;
-      case 2:
-        return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">متأخر</Badge>;
-    }
-  };
-
-  // Calculate daily statistics
-  const calculateStats = () => {
+  // Daily statistics — recomputed only when the data or recorded attendance changes.
+  // Always derived from the FULL halaqat list (not the filtered view) so the totals stay correct.
+  const stats = useMemo(() => {
     let total = 0;
     let present = 0;
     let absent = 0;
@@ -285,19 +480,22 @@ export default function TeacherAttendancePage() {
       }
     });
 
-    return { total, present, absent, late };
-  };
+    const unrecorded = total - present - absent - late;
+    return { total, present, absent, late, unrecorded };
+  }, [data, attendanceData]);
 
-  const stats = calculateStats();
-
-  // Client-side pagination over the halaqat cards. All attendance state lives in
-  // `attendanceData`, so saving still covers every halaqa regardless of the page shown.
-  const allHalaqat = data?.halaqat ?? [];
-  const dailyTotalPages = Math.max(1, Math.ceil(allHalaqat.length / DAILY_PAGE_SIZE));
-  const pagedHalaqat = allHalaqat.slice(
-    (dailyPage - 1) * DAILY_PAGE_SIZE,
-    dailyPage * DAILY_PAGE_SIZE,
-  );
+  // Client-side filter: only changes WHAT IS RENDERED, never the underlying data or edits.
+  // Filtering here (instead of refetching a server-side slice) means unsaved attendance survives.
+  const visibleHalaqat = useMemo(() => {
+    const all = data?.halaqat ?? [];
+    const q = halaqaSearch.trim().toLowerCase();
+    if (!q) return all;
+    return all.filter(
+      (h) =>
+        h.halaqaName.toLowerCase().includes(q) ||
+        (h.location?.toLowerCase().includes(q) ?? false),
+    );
+  }, [data, halaqaSearch]);
 
   if (loading) {
     return (
@@ -348,10 +546,18 @@ export default function TeacherAttendancePage() {
         <TabsContent value="daily" className="space-y-6">
           {/* Daily Header with Save Button */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <p className="text-muted-foreground flex items-center gap-2">
-              <CalendarDays className="h-4 w-4" />
-              اليوم: {data?.dayName} - {data?.date ? new Date(data.date).toLocaleDateString('ar-SA') : ''}
-            </p>
+            <div className="space-y-1">
+              <p className="text-muted-foreground flex items-center gap-2">
+                <CalendarDays className="h-4 w-4" />
+                اليوم: {data?.dayName} - {data?.date ? new Date(data.date).toLocaleDateString('ar-SA') : ''}
+              </p>
+              {stats.unrecorded > 0 && (
+                <p className="text-sm text-amber-600 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  {stats.unrecorded} معلم لم يُسجّل حضوره بعد
+                </p>
+              )}
+            </div>
             <Button
               onClick={handleSaveAttendance}
               disabled={saving || !data}
@@ -416,139 +622,34 @@ export default function TeacherAttendancePage() {
             </Card>
           </div>
 
+          {/* Halaqa search filter */}
+          {data && data.halaqat.length > 0 && (
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="relative w-full sm:max-w-sm">
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={halaqaSearch}
+                  onChange={(e) => setHalaqaSearch(e.target.value)}
+                  placeholder="بحث باسم الحلقة أو الموقع..."
+                  className="pr-9"
+                />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                عرض {visibleHalaqat.length} من {data.halaqat.length} حلقة
+              </p>
+            </div>
+          )}
+
           {/* Halaqat with Teachers */}
           <div className="space-y-6">
-            {data?.halaqat.map((halaqa) => (
-              <Card key={halaqa.halaqaId} className={!halaqa.isActiveToday ? "opacity-60" : ""}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <CardTitle className="text-xl">{halaqa.halaqaName}</CardTitle>
-                      {!halaqa.isActiveToday && (
-                        <Badge variant="outline" className="text-muted-foreground">
-                          غير نشطة اليوم
-                        </Badge>
-                      )}
-                    </div>
-                    {(halaqa.location || halaqa.timeSlot) && (
-                      <div className="text-sm text-muted-foreground">
-                        {halaqa.location && <span>{halaqa.location}</span>}
-                        {halaqa.location && halaqa.timeSlot && <span> • </span>}
-                        {halaqa.timeSlot && <span>{halaqa.timeSlot}</span>}
-                      </div>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {!halaqa.isActiveToday ? (
-                    <div className="text-center py-4 text-muted-foreground">
-                      <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-amber-500" />
-                      <p>هذه الحلقة غير نشطة اليوم</p>
-                    </div>
-                  ) : halaqa.teachers.length === 0 ? (
-                    <div className="text-center py-4 text-muted-foreground">
-                      لا يوجد معلمين في هذه الحلقة
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="min-w-[160px]">المعلم</TableHead>
-                          <TableHead className="text-center">حاضر</TableHead>
-                          <TableHead className="text-center">غائب</TableHead>
-                          <TableHead className="text-center">متأخر</TableHead>
-                          <TableHead className="text-center">الحالة</TableHead>
-                          <TableHead className="text-center">وقت الحضور</TableHead>
-                          <TableHead className="text-center">وقت الانصراف</TableHead>
-                          <TableHead className="text-center">الساعات</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {halaqa.teachers.map((teacher) => {
-                          const key = `${teacher.teacherId}-${halaqa.halaqaId}`;
-                          const state = attendanceData.get(key);
-                          const status = state?.status ?? 1;
-                          const timesDisabled = status === 1; // absent
-                          const hours = computeHours(state?.checkInTime, state?.checkOutTime);
-
-                          return (
-                            <TableRow key={key}>
-                              <TableCell>
-                                <div>
-                                  <p className="font-medium">{teacher.teacherName}</p>
-                                  {teacher.phoneNumber && (
-                                    <p className="text-sm text-muted-foreground">{teacher.phoneNumber}</p>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Button
-                                  variant={status === 0 ? "default" : "outline"}
-                                  size="sm"
-                                  onClick={() => handleAttendanceChange(teacher.teacherId, halaqa.halaqaId, 0)}
-                                  className={`h-10 w-10 p-0 ${status === 0 ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}
-                                >
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Button
-                                  variant={status === 1 ? "destructive" : "outline"}
-                                  size="sm"
-                                  onClick={() => handleAttendanceChange(teacher.teacherId, halaqa.halaqaId, 1)}
-                                  className="h-10 w-10 p-0"
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Button
-                                  variant={status === 2 ? "secondary" : "outline"}
-                                  size="sm"
-                                  onClick={() => handleAttendanceChange(teacher.teacherId, halaqa.halaqaId, 2)}
-                                  className={`h-10 w-10 p-0 ${status === 2 ? "bg-amber-500 hover:bg-amber-600 text-white" : ""}`}
-                                >
-                                  <Clock className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {getStatusBadge(status)}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <input
-                                  type="time"
-                                  value={state?.checkInTime ?? ""}
-                                  disabled={timesDisabled}
-                                  onChange={(e) =>
-                                    handleTimeChange(teacher.teacherId, halaqa.halaqaId, "checkInTime", e.target.value)
-                                  }
-                                  className="h-9 rounded-md border border-input bg-background px-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                />
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <input
-                                  type="time"
-                                  value={state?.checkOutTime ?? ""}
-                                  disabled={timesDisabled}
-                                  onChange={(e) =>
-                                    handleTimeChange(teacher.teacherId, halaqa.halaqaId, "checkOutTime", e.target.value)
-                                  }
-                                  className="h-9 rounded-md border border-input bg-background px-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                />
-                              </TableCell>
-                              <TableCell className="text-center font-medium text-muted-foreground">
-                                {hours !== null ? `${hours} س` : "—"}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+            {visibleHalaqat.map((halaqa) => (
+              <HalaqaCard
+                key={halaqa.halaqaId}
+                halaqa={halaqa}
+                attendanceData={attendanceData}
+                onStatusChange={handleAttendanceChange}
+                onTimeChange={handleTimeChange}
+              />
             ))}
           </div>
 
@@ -557,6 +658,15 @@ export default function TeacherAttendancePage() {
               <CardContent className="text-center py-12">
                 <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-lg text-muted-foreground">لا توجد حلقات</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {data && data.halaqat.length > 0 && visibleHalaqat.length === 0 && (
+            <Card>
+              <CardContent className="text-center py-12">
+                <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-lg text-muted-foreground">لا توجد حلقات مطابقة للبحث</p>
               </CardContent>
             </Card>
           )}

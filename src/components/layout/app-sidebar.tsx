@@ -26,6 +26,7 @@ import {
   UsersRound,
   ClipboardCheck,
   ClipboardList,
+  UserCog,
 } from "lucide-react";
 import { useAuth, useTenant } from "@/components/providers";
 
@@ -48,6 +49,7 @@ const halaqaSupervisorMenuItems = [
 const supervisorMenuItems = [
   { title: "الرئيسية", href: "/home", icon: Home },
   { title: "إدارة الحلقات", href: "/halaqat", icon: BookOpen },
+  { title: "مشرفو الحلقات", href: "/manage-supervisors", icon: UserCog },
   { title: "المتابعة", href: "/follow-up", icon: ClipboardList },
   { title: "حضور المعلمين", href: "/teacher-attendance", icon: ClipboardCheck },
   { title: "التقارير", href: "/reports", icon: ChartBar },

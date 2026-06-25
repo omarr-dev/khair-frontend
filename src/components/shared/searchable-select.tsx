@@ -23,6 +23,24 @@ export interface SearchableSelectOption {
   name: string
 }
 
+/**
+ * Normalize Arabic text so search ignores diacritics, tatweel, and the
+ * common letter variations users don't type consistently
+ * (أإآ→ا, ى→ي, ة→ه, ؤ→و, ئ→ي). Also lowercases and collapses whitespace.
+ */
+function normalizeArabic(value: string): string {
+  return value
+    .replace(/[ً-ْٰـ]/g, "") // tashkeel + tatweel
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ة/g, "ه")
+    .replace(/ؤ/g, "و")
+    .replace(/ئ/g, "ي")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase()
+}
+
 interface SearchableSelectProps {
   options: SearchableSelectOption[]
   value: string
@@ -48,15 +66,17 @@ export function SearchableSelect({
   emptyText = "لا توجد نتائج",
   className,
   disabled,
-  maxVisible = 100,
+  maxVisible = 300,
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState("")
 
-  const normalizedSearch = search.trim()
+  const normalizedSearch = normalizeArabic(search)
   const filtered = React.useMemo(() => {
     if (!normalizedSearch) return options
-    return options.filter((o) => o.name.includes(normalizedSearch))
+    return options.filter((o) =>
+      normalizeArabic(o.name).includes(normalizedSearch)
+    )
   }, [options, normalizedSearch])
 
   const visible = filtered.slice(0, maxVisible)

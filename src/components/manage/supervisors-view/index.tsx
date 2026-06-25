@@ -6,6 +6,7 @@ import { supervisorsApi, halaqatApi } from "@/services";
 import { HalaqaSupervisor } from "@/types/supervisor";
 import { Lookup } from "@/types/api";
 import { convertArabicToEnglish, cn } from "@/lib/utils";
+import { formatSaudiMobile, isValidSaudiMobile } from "@/lib/phone-formatter";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -57,8 +58,19 @@ import {
 
 /** Pull a backend Arabic error message off an axios error, with a fallback. */
 function errorMessage(error: unknown, fallback: string): string {
-  const ax = error as { response?: { data?: { message?: string } } };
-  return ax?.response?.data?.message || fallback;
+  const data = (error as {
+    response?: { data?: { message?: string; errors?: Record<string, string[]> } };
+  })?.response?.data;
+
+  if (data?.message) return data.message;
+
+  // ASP.NET model-validation responses use { errors: { Field: ["msg"] } }
+  if (data?.errors) {
+    const first = Object.values(data.errors).find((m) => m?.length)?.[0];
+    if (first) return first;
+  }
+
+  return fallback;
 }
 
 export function SupervisorsView() {
@@ -147,7 +159,8 @@ export function SupervisorsView() {
   const openEdit = (s: HalaqaSupervisor) => {
     setEditing(s);
     setFormName(s.fullName);
-    setFormPhone(s.phoneNumber);
+    // Stored as +9665XXXXXXXX — show it in the local form the user expects.
+    setFormPhone(formatSaudiMobile(s.phoneNumber));
     setFormOpen(true);
   };
 
@@ -162,6 +175,10 @@ export function SupervisorsView() {
     }
     if (!phone) {
       toast.error("رقم الجوال مطلوب");
+      return;
+    }
+    if (!isValidSaudiMobile(formPhone)) {
+      toast.error("رقم الجوال يجب أن يكون رقم جوال سعودي صحيح (مثال: 0501234567)");
       return;
     }
 
@@ -412,10 +429,13 @@ export function SupervisorsView() {
                 </Label>
                 <Input
                   id="phoneNumber"
+                  type="tel"
+                  inputMode="numeric"
                   value={formPhone}
-                  onChange={(e) => setFormPhone(e.target.value)}
-                  placeholder="05XXXXXXXX"
+                  onChange={(e) => setFormPhone(formatSaudiMobile(e.target.value))}
+                  placeholder="050 000 0000"
                   dir="ltr"
+                  maxLength={12}
                   className="text-right"
                   required
                 />

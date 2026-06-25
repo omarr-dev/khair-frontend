@@ -11,9 +11,42 @@ import { extractErrorMessage } from "@/lib/error-handler";
 import { toast } from "sonner";
 import { CalendarCheck, CheckCircle2, Clock, LogOut, XCircle } from "lucide-react";
 
-/** Formats a "HH:mm:ss" time string to "HH:mm" for display. */
+/** Formats a "HH:mm:ss" time string to 12-hour "h:mm ص/م" for display. */
 function formatTime(time?: string | null): string {
-  return time ? time.slice(0, 5) : "";
+  if (!time) return "";
+  const [h, m] = time.split(":");
+  const hour24 = parseInt(h, 10);
+  if (Number.isNaN(hour24)) return time;
+  const period = hour24 >= 12 ? "م" : "ص";
+  const hour12 = hour24 % 12 || 12;
+  return `${hour12}:${m} ${period}`;
+}
+
+/** Seconds elapsed since a "HH:mm:ss" time today (never negative). */
+function elapsedSeconds(time: string): number {
+  const [h, m, s] = time.split(":").map(Number);
+  const start = new Date();
+  start.setHours(h || 0, m || 0, s || 0, 0);
+  return Math.max(0, Math.floor((Date.now() - start.getTime()) / 1000));
+}
+
+/** Formats a seconds count as "HH:mm:ss". */
+function formatDuration(total: number): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(Math.floor(total / 3600))}:${pad(Math.floor((total % 3600) / 60))}:${pad(total % 60)}`;
+}
+
+/** Live timer counting up (h:m:s) from a "HH:mm:ss" check-in time. */
+function ElapsedTimer({ since }: { since: string }) {
+  const [seconds, setSeconds] = useState(() => elapsedSeconds(since));
+
+  useEffect(() => {
+    setSeconds(elapsedSeconds(since));
+    const id = setInterval(() => setSeconds(elapsedSeconds(since)), 1000);
+    return () => clearInterval(id);
+  }, [since]);
+
+  return <span className="tabular-nums">{formatDuration(seconds)}</span>;
 }
 
 /**
@@ -125,8 +158,14 @@ function HalaqaRow({
       ) : halaqa.checkedIn ? (
         // Checked in, awaiting departure
         <div className="flex items-center gap-2">
-          <span className="text-sm text-emerald-700 dark:text-emerald-400">
-            حضرت {formatTime(halaqa.checkInTime)}
+          <span className="flex flex-col text-sm text-emerald-700 dark:text-emerald-400">
+            <span>حضرت {formatTime(halaqa.checkInTime)}</span>
+            {halaqa.checkInTime && (
+              <span className="flex items-center gap-1 font-medium">
+                <Clock className="h-3.5 w-3.5" />
+                <ElapsedTimer since={halaqa.checkInTime} />
+              </span>
+            )}
           </span>
           <Button
             size="sm"

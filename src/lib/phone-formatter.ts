@@ -63,14 +63,58 @@ export function formatSaudiPhoneNumber(value: string): string {
  * Used on the login screen, where imported teachers sign in with their ID
  * until they set a real phone number.
  */
-export function formatPhoneOrNationalId(value: string): string {
-  const arabicToEnglishMap: { [key: string]: string } = {
-    '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
-    '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9'
-  };
+const ARABIC_TO_ENGLISH: { [key: string]: string } = {
+  '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
+  '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9'
+};
 
-  const converted = value.split('').map(char => arabicToEnglishMap[char] || char).join('');
-  let digits = converted.replace(/[^\d]/g, "");
+/** Convert Arabic-Indic digits to Western and keep digits only. */
+function toEnglishDigits(value: string): string {
+  return value
+    .split('')
+    .map((c) => ARABIC_TO_ENGLISH[c] ?? c)
+    .join('')
+    .replace(/[^\d]/g, '');
+}
+
+/**
+ * Reduce any Saudi mobile input to the local 10-digit form "05XXXXXXXX".
+ * Accepts local (05…), bare (5…), and international (+966…/966…/00966…).
+ * Returns digits only (no spaces). Empty string if nothing usable.
+ */
+function toLocalSaudiDigits(value: string): string {
+  let digits = toEnglishDigits(value);
+  if (digits.startsWith("00966")) digits = "0" + digits.substring(5);
+  else if (digits.startsWith("966")) digits = "0" + digits.substring(3);
+  else if (digits.startsWith("5")) digits = "0" + digits;
+  return digits.substring(0, 10);
+}
+
+/**
+ * Format a Saudi mobile number for display in the local grouped form
+ * "050 000 0000". Accepts every input form (05…, 5…, +966…, 966…, 00966…)
+ * and always shows the number the way Saudis read it. The backend strips the
+ * spaces and normalizes to +966 on its side.
+ */
+export function formatSaudiMobile(value: string): string {
+  const digits = toLocalSaudiDigits(value);
+  if (!digits) return "";
+
+  const parts: string[] = [digits.substring(0, 3)];
+  if (digits.length > 3) parts.push(digits.substring(3, 6));
+  if (digits.length > 6) parts.push(digits.substring(6, 10));
+  return parts.join(" ");
+}
+
+/** True when the value is a valid Saudi mobile number in any accepted form. */
+export function isValidSaudiMobile(value: string): boolean {
+  const local = toLocalSaudiDigits(value);
+  const validPrefixes = ["50", "53", "54", "55", "56", "57", "58", "59"];
+  return /^05[0-9]{8}$/.test(local) && validPrefixes.includes(local.substring(1, 3));
+}
+
+export function formatPhoneOrNationalId(value: string): string {
+  let digits = toEnglishDigits(value);
 
   // National ID (1...) or Iqama (2...) -> keep raw digits, max 10
   if (/^[12]/.test(digits)) {

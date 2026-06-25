@@ -16,12 +16,12 @@ export const teacherAttendanceApi = {
   getMyStatus: () =>
     api.get<TeacherSelfAttendanceStatus>('/my-attendance/today'),
 
-  checkIn: () =>
-    api.post<TeacherSelfCheckInResult>('/my-attendance/check-in'),
+  checkIn: (halaqaId: number) =>
+    api.post<TeacherSelfCheckInResult>(`/my-attendance/check-in/${halaqaId}`),
 
-  // Teacher self check-out (departure)
-  checkOut: () =>
-    api.post<TeacherSelfCheckInResult>('/my-attendance/check-out'),
+  // Teacher self check-out (departure) for a single halaqa
+  checkOut: (halaqaId: number) =>
+    api.post<TeacherSelfCheckInResult>(`/my-attendance/check-out/${halaqaId}`),
 
   saveBulk: (data: BulkTeacherAttendance) =>
     api.post('/teacherattendance/bulk', data),

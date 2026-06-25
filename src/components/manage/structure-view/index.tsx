@@ -89,6 +89,7 @@ export function StructureView() {
     totalPages,
   } = useManage();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isHalaqaSubmitting, setIsHalaqaSubmitting] = useState(false);
   const [editingHalaqa, setEditingHalaqa] = useState<HalaqaHierarchy | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [halaqaToDelete, setHalaqaToDelete] = useState<HalaqaHierarchy | null>(null);
@@ -193,6 +194,8 @@ export function StructureView() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isHalaqaSubmitting) return;
+    setIsHalaqaSubmitting(true);
     try {
       if (editingHalaqa) {
         await halaqatApi.update(editingHalaqa.id, {
@@ -218,6 +221,8 @@ export function StructureView() {
     } catch (error) {
       console.error("Error saving halaqa:", error);
       toast.error("حدث خطأ أثناء حفظ الحلقة");
+    } finally {
+      setIsHalaqaSubmitting(false);
     }
   };
 
@@ -544,7 +549,8 @@ export function StructureView() {
                   </div>
                 </div>
                 <DialogFooter className="gap-2">
-                  <Button type="submit" className="w-full sm:w-auto">
+                  <Button type="submit" disabled={isHalaqaSubmitting} className="w-full sm:w-auto">
+                    {isHalaqaSubmitting ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : null}
                     {editingHalaqa ? "تحديث" : "حفظ"}
                   </Button>
                 </DialogFooter>

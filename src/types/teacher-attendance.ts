@@ -59,16 +59,26 @@ export interface TeacherAttendanceRecord {
   createdAt: string;
 }
 
-// Teacher self check-in
-export interface TeacherSelfAttendanceStatus {
-  date: string;
-  dayName: string;
+// Teacher self check-in — one entry per halaqa active today
+export interface TeacherSelfHalaqaAttendance {
+  halaqaId: number;
+  halaqaName: string;
+  timeSlot?: string | null;
+  status?: 0 | 1 | 2 | null; // 0: Present, 1: Absent, 2: Late; null = not recorded
   checkedIn: boolean;
   checkedOut: boolean;
   checkInTime?: string | null;
   checkOutTime?: string | null;
+}
+
+export interface TeacherSelfAttendanceStatus {
+  date: string;
+  dayName: string;
+  checkedIn: boolean;  // true when every halaqa active today is checked in
+  checkedOut: boolean; // true when every halaqa active today is checked out
   hasActiveHalaqaToday: boolean;
   halaqatCount: number;
+  halaqat: TeacherSelfHalaqaAttendance[];
 }
 
 export interface TeacherSelfCheckInResult {

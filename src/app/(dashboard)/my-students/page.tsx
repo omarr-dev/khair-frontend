@@ -7,6 +7,7 @@ import { Student, SetStudentTargetDto } from "@/types/student";
 import { SearchableSelectOption } from "@/components/shared/searchable-select";
 import { AttendanceRecord } from "@/types/attendance";
 import { surahs } from "@/lib/quran-data";
+import { normalizeArabic } from "@/lib/arabic";
 import { useAuth } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -243,7 +244,7 @@ export default function MyStudentsPage() {
   }, [removeStudent, user?.teacherId, fetchStudents]);
 
   const filteredStudents = students.filter((student) =>
-    student.fullName.toLowerCase().includes(searchTerm.toLowerCase())
+    normalizeArabic(student.fullName).includes(normalizeArabic(searchTerm))
   );
 
   // Ordering for attendance: present first, then late, then not-recorded, then absent.

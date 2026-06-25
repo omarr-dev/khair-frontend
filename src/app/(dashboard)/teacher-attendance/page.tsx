@@ -28,7 +28,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Check, X, Clock, Save, Users, AlertTriangle, CalendarDays, Download, Calendar, Loader2 } from "lucide-react";
+import { Pagination } from "@/components/manage/shared/pagination";
 import { toast } from "sonner";
+
+const DAILY_PAGE_SIZE = 10;
 
 type AttendanceStatus = 0 | 1 | 2; // 0: Present, 1: Absent, 2: Late
 
@@ -64,7 +67,8 @@ export default function TeacherAttendancePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [attendanceData, setAttendanceData] = useState<Map<string, AttendanceState>>(new Map());
-  
+  const [dailyPage, setDailyPage] = useState(1);
+
   // Monthly state
   const [monthlyData, setMonthlyData] = useState<MonthlyAttendanceReport | null>(null);
   const [monthlyLoading, setMonthlyLoading] = useState(false);
@@ -99,6 +103,7 @@ export default function TeacherAttendancePage() {
         }
       });
       setAttendanceData(newAttendanceData);
+      setDailyPage(1);
     } catch (error) {
       console.error("Error fetching teacher attendance:", error);
       toast.error("حدث خطأ أثناء جلب بيانات الحضور");
@@ -284,6 +289,15 @@ export default function TeacherAttendancePage() {
   };
 
   const stats = calculateStats();
+
+  // Client-side pagination over the halaqat cards. All attendance state lives in
+  // `attendanceData`, so saving still covers every halaqa regardless of the page shown.
+  const allHalaqat = data?.halaqat ?? [];
+  const dailyTotalPages = Math.max(1, Math.ceil(allHalaqat.length / DAILY_PAGE_SIZE));
+  const pagedHalaqat = allHalaqat.slice(
+    (dailyPage - 1) * DAILY_PAGE_SIZE,
+    dailyPage * DAILY_PAGE_SIZE,
+  );
 
   if (loading) {
     return (

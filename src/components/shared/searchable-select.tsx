@@ -75,6 +75,7 @@ export function SearchableSelect({
 
   return (
     <Popover
+      modal
       open={open}
       onOpenChange={(isOpen) => {
         setOpen(isOpen)

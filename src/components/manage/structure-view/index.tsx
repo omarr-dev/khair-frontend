@@ -27,6 +27,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { formatSaudiMobile } from "@/lib/phone-formatter";
+import { extractErrorMessage } from "@/lib/error-handler";
 import { halaqatApi, studentApi, teachersApi } from "@/services";
 import { HalaqaHierarchy, TeacherInHalaqa, StudentInHalaqa } from "@/types/halaqa";
 import { Student, StudentAssignment } from "@/types/student";
@@ -242,8 +244,7 @@ export function StructureView() {
       setIsDeleteDialogOpen(false);
       setHalaqaToDelete(null);
     } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { message?: string } } };
-      toast.error(axiosError.response?.data?.message || "حدث خطأ أثناء الحذف");
+      toast.error(extractErrorMessage(error, "حدث خطأ أثناء الحذف"));
     }
   };
 
@@ -254,7 +255,7 @@ export function StructureView() {
       const response = await teachersApi.getById(teacher.id);
       const fullTeacher = response.data;
       setTeacherFullName(fullTeacher.fullName);
-      setTeacherPhone(fullTeacher.phoneNumber || "");
+      setTeacherPhone(formatSaudiMobile(fullTeacher.phoneNumber || ""));
       setTeacherEmail(fullTeacher.email || "");
       setTeacherIdNumber(fullTeacher.idNumber || "");
       setTeacherQualification(fullTeacher.qualification || "");
@@ -290,8 +291,7 @@ export function StructureView() {
       resetTeacherForm();
       refreshHierarchy();
     } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { message?: string } } };
-      toast.error(axiosError.response?.data?.message || "حدث خطأ أثناء تحديث بيانات المعلم");
+      toast.error(extractErrorMessage(error, "حدث خطأ أثناء تحديث بيانات المعلم"));
     } finally {
       setIsTeacherSubmitting(false);
     }
@@ -311,8 +311,7 @@ export function StructureView() {
       setIsTeacherDeleteDialogOpen(false);
       setTeacherToDelete(null);
     } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { message?: string } } };
-      toast.error(axiosError.response?.data?.message || "حدث خطأ أثناء حذف المعلم");
+      toast.error(extractErrorMessage(error, "حدث خطأ أثناء حذف المعلم"));
     }
   };
 
@@ -326,8 +325,8 @@ export function StructureView() {
       setStudentLastName(fullStudent.lastName);
       setStudentDateOfBirth(fullStudent.dateOfBirth || "");
       setStudentGuardianName(fullStudent.guardianName || "");
-      setStudentGuardianPhone(fullStudent.guardianPhone || "");
-      setStudentPhone(fullStudent.phone || "");
+      setStudentGuardianPhone(formatSaudiMobile(fullStudent.guardianPhone || ""));
+      setStudentPhone(formatSaudiMobile(fullStudent.phone || ""));
       setStudentIdNumber(fullStudent.idNumber || "");
       setIsStudentEditDialogOpen(true);
     } catch {
@@ -365,8 +364,7 @@ export function StructureView() {
       resetStudentForm();
       refreshHierarchy();
     } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { message?: string } } };
-      toast.error(axiosError.response?.data?.message || "حدث خطأ أثناء تحديث بيانات الطالب");
+      toast.error(extractErrorMessage(error, "حدث خطأ أثناء تحديث بيانات الطالب"));
     } finally {
       setIsStudentSubmitting(false);
     }
@@ -386,8 +384,7 @@ export function StructureView() {
       setIsStudentDeleteDialogOpen(false);
       setStudentToDelete(null);
     } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { message?: string } } };
-      toast.error(axiosError.response?.data?.message || "حدث خطأ أثناء حذف الطالب");
+      toast.error(extractErrorMessage(error, "حدث خطأ أثناء حذف الطالب"));
     }
   };
 
@@ -1110,8 +1107,12 @@ export function StructureView() {
                 <Label htmlFor="teacherPhone">رقم الجوال</Label>
                 <Input
                   id="teacherPhone"
+                  type="tel"
+                  inputMode="numeric"
                   value={teacherPhone}
-                  onChange={(e) => setTeacherPhone(e.target.value)}
+                  onChange={(e) => setTeacherPhone(formatSaudiMobile(e.target.value))}
+                  placeholder="050 000 0000"
+                  maxLength={12}
                   dir="ltr"
                   className="h-11 text-left"
                 />
@@ -1245,8 +1246,12 @@ export function StructureView() {
                 <Label htmlFor="studentGuardianPhone">رقم ولي الأمر</Label>
                 <Input
                   id="studentGuardianPhone"
+                  type="tel"
+                  inputMode="numeric"
                   value={studentGuardianPhone}
-                  onChange={(e) => setStudentGuardianPhone(e.target.value)}
+                  onChange={(e) => setStudentGuardianPhone(formatSaudiMobile(e.target.value))}
+                  placeholder="050 000 0000"
+                  maxLength={12}
                   dir="ltr"
                   className="h-11 text-left"
                 />
@@ -1255,8 +1260,12 @@ export function StructureView() {
                 <Label htmlFor="studentPhone">رقم هاتف الطالب</Label>
                 <Input
                   id="studentPhone"
+                  type="tel"
+                  inputMode="numeric"
                   value={studentPhone}
-                  onChange={(e) => setStudentPhone(e.target.value)}
+                  onChange={(e) => setStudentPhone(formatSaudiMobile(e.target.value))}
+                  placeholder="050 000 0000"
+                  maxLength={12}
                   dir="ltr"
                   className="h-11 text-left"
                 />

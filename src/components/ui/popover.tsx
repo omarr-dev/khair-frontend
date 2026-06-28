@@ -21,10 +21,16 @@ function PopoverContent({
   className,
   align = "center",
   sideOffset = 4,
+  container,
   ...props
-}: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+}: React.ComponentProps<typeof PopoverPrimitive.Content> & {
+  /** Portal target. Set to the host Dialog so the popover stays inside the
+   * dialog's interactive/focus region — a modal Dialog disables pointer events
+   * on everything outside its own DOM, which otherwise breaks the popover. */
+  container?: HTMLElement | null
+}) {
   return (
-    <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Portal container={container}>
       <PopoverPrimitive.Content
         data-slot="popover-content"
         align={align}

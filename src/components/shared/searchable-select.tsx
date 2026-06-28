@@ -53,6 +53,11 @@ export function SearchableSelect({
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState("")
+  const triggerRef = React.useRef<HTMLButtonElement>(null)
+  // When this select lives inside a modal Dialog, portal the popover into the
+  // dialog so its input stays clickable/typeable (a modal Dialog blocks pointer
+  // events outside its own DOM). Computed on open so the DOM is mounted.
+  const [container, setContainer] = React.useState<HTMLElement | null>(null)
 
   const normalizedSearch = normalizeArabic(search)
   const filtered = React.useMemo(() => {
@@ -81,12 +86,18 @@ export function SearchableSelect({
       modal
       open={open}
       onOpenChange={(isOpen) => {
+        if (isOpen) {
+          setContainer(
+            (triggerRef.current?.closest('[role="dialog"]') as HTMLElement) ?? null
+          )
+        }
         setOpen(isOpen)
         if (!isOpen) setSearch("")
       }}
     >
       <PopoverTrigger asChild>
         <Button
+          ref={triggerRef}
           variant="outline"
           role="combobox"
           aria-expanded={open}
@@ -101,7 +112,7 @@ export function SearchableSelect({
           <ChevronDownIcon className="size-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-56 p-0" align="start">
+      <PopoverContent container={container} className="w-[var(--radix-popover-trigger-width)] min-w-56 p-0" align="start">
         {/* Filtering is done manually so only a bounded slice is mounted */}
         <Command shouldFilter={false}>
           <CommandInput

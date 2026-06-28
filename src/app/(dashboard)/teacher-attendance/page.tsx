@@ -394,22 +394,25 @@ export default function TeacherAttendancePage() {
     setSaving(true);
     try {
       const attendance: TeacherAttendanceEntry[] = [];
-      let invalidTime = "";
+      let timeError = "";
 
       data.halaqat.forEach((halaqa) => {
         if (halaqa.isActiveToday) {
           halaqa.teachers.forEach((teacher) => {
             const key = `${teacher.teacherId}-${halaqa.halaqaId}`;
             const state = attendanceData.get(key);
-            // Only include if state exists and status is a valid number
+            // Only include teachers the supervisor has actually marked (status is a number; null = untouched).
             if (state && typeof state.status === 'number') {
-              // Times only apply to present/late records
+              // Times only apply to present/late records.
               const withTimes = state.status !== 1;
               const checkInTime = withTimes ? state.checkInTime || null : null;
               const checkOutTime = withTimes ? state.checkOutTime || null : null;
 
-              if (checkInTime && checkOutTime && checkOutTime <= checkInTime) {
-                invalidTime = teacher.teacherName;
+              // A departure time with no arrival time is invalid; keep the first offender.
+              if (!timeError && checkOutTime && !checkInTime) {
+                timeError = `يرجى إدخال وقت الحضور قبل وقت الانصراف (${teacher.teacherName})`;
+              } else if (!timeError && checkInTime && checkOutTime && checkOutTime <= checkInTime) {
+                timeError = `وقت الانصراف يجب أن يكون بعد وقت الحضور (${teacher.teacherName})`;
               }
 
               attendance.push({
@@ -425,8 +428,8 @@ export default function TeacherAttendancePage() {
         }
       });
 
-      if (invalidTime) {
-        toast.error(`وقت الانصراف يجب أن يكون بعد وقت الحضور (${invalidTime})`);
+      if (timeError) {
+        toast.error(timeError);
         return;
       }
 

@@ -364,7 +364,7 @@ export function TeachersView() {
   return (
     <div className="space-y-6">
       {/* Add Button */}
-      {(user?.role === "Supervisor" || user?.role === "HalaqaSupervisor") && (
+      {user?.role === "Supervisor" && (
         <div className="flex justify-end">
           <Dialog
             open={isDialogOpen}

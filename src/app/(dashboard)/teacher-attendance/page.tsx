@@ -45,6 +45,28 @@ interface AttendanceState {
 /** Normalize a "HH:mm:ss" (or "HH:mm") API time to the "HH:mm" used by <input type="time">. */
 const toTimeInput = (time?: string | null): string => (time ? time.slice(0, 5) : "");
 
+/**
+ * Normalize an attendance status from the API into the numeric code (0/1/2) the
+ * page is built around. The backend serializes the enum as a string
+ * ("Present"/"Absent"/"Late") via JsonStringEnumConverter, so coerce both the
+ * string and (defensively) the numeric forms; null/unknown → null (not recorded).
+ */
+const toStatusCode = (status: unknown): AttendanceStatus | null => {
+  switch (status) {
+    case 0:
+    case "Present":
+      return 0;
+    case 1:
+    case "Absent":
+      return 1;
+    case 2:
+    case "Late":
+      return 2;
+    default:
+      return null;
+  }
+};
+
 /** Worked hours between two "HH:mm" strings, or null when incomplete/invalid. */
 const computeHours = (inT?: string, outT?: string): number | null => {
   if (!inT || !outT) return null;
@@ -286,7 +308,7 @@ export default function TeacherAttendancePage() {
           halaqa.teachers.forEach((teacher) => {
             const key = `${teacher.teacherId}-${halaqa.halaqaId}`;
             newAttendanceData.set(key, {
-              status: teacher.status ?? null, // keep saved status; leave unset when no record yet
+              status: toStatusCode(teacher.status), // keep saved status; leave unset when no record yet
               notes: teacher.notes,
               checkInTime: toTimeInput(teacher.checkInTime),
               checkOutTime: toTimeInput(teacher.checkOutTime),

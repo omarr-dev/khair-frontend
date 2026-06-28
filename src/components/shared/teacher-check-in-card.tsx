@@ -123,7 +123,9 @@ export function TeacherCheckInCard() {
   );
 }
 
-const ABSENT = 1;
+// The API serializes the status enum as a string ("Absent"); accept the numeric
+// form too in case the serialization ever changes.
+const isAbsent = (status: unknown) => status === 1 || status === "Absent";
 
 /** A single halaqa row with its own check-in / check-out state. */
 function HalaqaRow({
@@ -178,7 +180,7 @@ function HalaqaRow({
             انصراف
           </Button>
         </div>
-      ) : halaqa.status === ABSENT ? (
+      ) : isAbsent(halaqa.status) ? (
         // Supervisor marked the teacher absent for this halaqa
         <span className="flex items-center gap-1.5 text-sm font-medium text-destructive">
           <XCircle className="h-4 w-4" />

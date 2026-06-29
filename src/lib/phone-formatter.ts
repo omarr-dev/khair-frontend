@@ -109,7 +109,7 @@ export function formatSaudiMobile(value: string): string {
 /** True when the value is a valid Saudi mobile number in any accepted form. */
 export function isValidSaudiMobile(value: string): boolean {
   const local = toLocalSaudiDigits(value);
-  const validPrefixes = ["50", "53", "54", "55", "56", "57", "58", "59"];
+  const validPrefixes = ["50", "51", "52", "53", "54", "55", "56", "57", "58", "59"];
   return /^05[0-9]{8}$/.test(local) && validPrefixes.includes(local.substring(1, 3));
 }
 

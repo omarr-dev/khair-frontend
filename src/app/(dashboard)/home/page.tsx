@@ -248,8 +248,8 @@ export default function HomePage() {
           ].map((s) => {
             const Icon = s.icon;
             return (
-              <Card key={s.title} className="min-w-0">
-                <CardContent className="p-3 sm:p-4 flex items-center justify-between gap-2 min-w-0">
+              <Card key={s.title}>
+                <CardContent className="p-4 flex items-center justify-between">
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">{s.title}</p>
                     <p className="text-2xl font-bold">{toArabicNumerals(s.value)}</p>

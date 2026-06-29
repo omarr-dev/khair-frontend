@@ -25,7 +25,7 @@ export default function DashboardLayout({
               <ThemeToggle />
             </div>
           </header>
-          <main className="p-6">{children}</main>
+          <main className="p-4 sm:p-6 w-full max-w-full overflow-x-hidden">{children}</main>
         </AppSidebarLayout>
       </AppSidebarProvider>
     </ProtectedRoute>

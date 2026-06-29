@@ -518,7 +518,7 @@ export function ProgressRecordingDialog({
                 return Boolean(hasEmptyFields || invalidVerseRange);
               })()}
               loading={submitting}
-              className="bg-gradient-to-l from-black to-gray-900 hover:from-gray-800 hover:to-black"
+              className="bg-gradient-to-l from-emerald-600 to-emerald-700 text-white hover:from-emerald-700 hover:to-emerald-800"
             >
               حفظ التسميع
             </Button>

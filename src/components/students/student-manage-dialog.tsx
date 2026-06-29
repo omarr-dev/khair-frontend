@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SearchableSelect, SearchableSelectOption } from "@/components/shared/searchable-select";
+import { surahs } from "@/lib/quran-data";
 import {
   UserPlus,
   UserCheck,
@@ -81,7 +82,9 @@ export function StudentManageDialog({
   const [healthStatus, setHealthStatus] = useState("");
   const [guardianName, setGuardianName] = useState("");
   const [guardianPhone, setGuardianPhone] = useState("");
-  const [memorizationDirection, setMemorizationDirection] = useState<"Forward" | "Backward">("Forward");
+  const [memorizationDirection, setMemorizationDirection] = useState<"Forward" | "Backward">("Backward");
+  const [currentSurahNumber, setCurrentSurahNumber] = useState("114");
+  const [currentVerse, setCurrentVerse] = useState("0");
   const [selectedHalaqa, setSelectedHalaqa] = useState("");
 
   // (Re)initialise the dialog whenever it opens
@@ -116,7 +119,9 @@ export function StudentManageDialog({
       setHealthStatus("");
       setGuardianName("");
       setGuardianPhone("");
-      setMemorizationDirection("Forward");
+      setMemorizationDirection("Backward");
+      setCurrentSurahNumber("114");
+      setCurrentVerse("0");
       // Pre-select the teacher's halaqa if they only have one
       setSelectedHalaqa(halaqaOptions.length === 1 ? halaqaOptions[0].id.toString() : "");
     }
@@ -208,8 +213,8 @@ export function StudentManageDialog({
           socialStatus: socialStatus || undefined,
           healthStatus: healthStatus || undefined,
           memorizationDirection,
-          currentSurahNumber: 1,
-          currentVerse: 0,
+          currentSurahNumber: parseInt(currentSurahNumber),
+          currentVerse: parseInt(currentVerse),
           halaqaId: parseInt(selectedHalaqa),
           teacherId,
         };
@@ -473,6 +478,45 @@ export function StudentManageDialog({
                         <SelectItem value="Backward">من الناس إلى الفاتحة</SelectItem>
                       </SelectContent>
                     </Select>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label>السورة الحالية</Label>
+                        <Select value={currentSurahNumber} onValueChange={setCurrentSurahNumber}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="اختر السورة" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {surahs.map((s) => (
+                              <SelectItem key={s.id} value={s.id.toString()}>
+                                {s.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>الآية الحالية</Label>
+                        <Select value={currentVerse} onValueChange={setCurrentVerse} disabled={!currentSurahNumber}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="اختر الآية" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">0 - لم يبدأ بعد</SelectItem>
+                            {currentSurahNumber && Array.from(
+                              { length: surahs.find((s) => s.id === parseInt(currentSurahNumber))?.versesCount || 0 },
+                              (_, i) => i + 1
+                            ).map((v) => (
+                              <SelectItem key={v} value={v.toString()}>
+                                {v}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      اختر 0 إذا لم يبدأ الطالب بهذه السورة بعد
+                    </p>
                   </div>
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">

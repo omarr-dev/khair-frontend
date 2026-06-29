@@ -300,13 +300,15 @@ export function AppSidebarTrigger() {
 }
 
 export function AppSidebarLayout({ children }: { children: React.ReactNode }) {
-  const { isCollapsed, isMobile } = useSidebar();
+  const { isCollapsed } = useSidebar();
 
   return (
     <div
       className={cn(
-        "min-h-screen transition-all duration-300",
-        !isMobile && (isCollapsed ? "mr-16" : "mr-64")
+        // Margin is breakpoint-driven (md:) so the desktop sidebar gap is never
+        // applied on mobile — avoids a hydration flash that pushed content off-screen.
+        "min-h-screen overflow-x-hidden transition-all duration-300",
+        isCollapsed ? "md:mr-16" : "md:mr-64"
       )}
     >
       {children}

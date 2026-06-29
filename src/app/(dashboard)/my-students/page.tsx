@@ -378,9 +378,9 @@ export default function MyStudentsPage() {
     try {
       // Use the teacher-specific endpoint which sets targets for all their students
       const data: SetStudentTargetDto = {
-        memorizationLinesTarget: parseInt(bulkMemorizationTarget) || null,
-        revisionPagesTarget: parseInt(bulkRevisionTarget) || null,
-        consolidationPagesTarget: parseInt(bulkConsolidationTarget) || null,
+        memorizationLinesTarget: bulkMemorizationTarget ? parseInt(bulkMemorizationTarget) : null,
+        revisionPagesTarget: bulkRevisionTarget ? parseInt(bulkRevisionTarget) : null,
+        consolidationPagesTarget: bulkConsolidationTarget ? parseInt(bulkConsolidationTarget) : null,
       };
       
       const response = await studentApi.bulkSetMyStudentsTargets(data);

@@ -78,7 +78,7 @@ export function TeacherCheckInCard() {
     try {
       const res = await teacherAttendanceApi.checkIn(halaqaId);
       await refresh();
-      toast.success(res.data.message || "تم تسجيل حضورك بنجاح");
+      toast.success(res.data?.message || "تم تسجيل حضورك بنجاح");
     } catch (error) {
       toast.error(extractErrorMessage(error, "تعذّر تسجيل الحضور"));
     } finally {
@@ -91,7 +91,7 @@ export function TeacherCheckInCard() {
     try {
       const res = await teacherAttendanceApi.checkOut(halaqaId);
       await refresh();
-      toast.success(res.data.message || "تم تسجيل انصرافك بنجاح");
+      toast.success(res.data?.message || "تم تسجيل انصرافك بنجاح");
     } catch (error) {
       toast.error(extractErrorMessage(error, "تعذّر تسجيل الانصراف"));
     } finally {

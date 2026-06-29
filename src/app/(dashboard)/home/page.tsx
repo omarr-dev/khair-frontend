@@ -330,11 +330,11 @@ export default function HomePage() {
       )}
 
       {/* Main Grid - 2 columns on desktop */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         {/* Daily Achievement Card */}
         <Card className="animate-in fade-in slide-in-from-bottom-4 duration-500">
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Target className="h-5 w-5 text-primary" />
                 إنجاز اليوم

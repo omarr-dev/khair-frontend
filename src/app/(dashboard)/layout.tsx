@@ -1,6 +1,7 @@
 "use client";
 
 import { ProtectedRoute } from "@/components/shared/protected-route";
+import { RoleGuard } from "@/components/shared/role-guard";
 import { ThemeToggle } from "@/components/providers";
 import {
   AppSidebar,
@@ -16,18 +17,20 @@ export default function DashboardLayout({
 }) {
   return (
     <ProtectedRoute>
-      <AppSidebarProvider>
-        <AppSidebar />
-        <AppSidebarLayout>
-          <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-6">
-            <AppSidebarTrigger />
-            <div className="mr-auto">
-              <ThemeToggle />
-            </div>
-          </header>
-          <main className="p-6">{children}</main>
-        </AppSidebarLayout>
-      </AppSidebarProvider>
+      <RoleGuard>
+        <AppSidebarProvider>
+          <AppSidebar />
+          <AppSidebarLayout>
+            <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-6">
+              <AppSidebarTrigger />
+              <div className="mr-auto">
+                <ThemeToggle />
+              </div>
+            </header>
+            <main className="p-6">{children}</main>
+          </AppSidebarLayout>
+        </AppSidebarProvider>
+      </RoleGuard>
     </ProtectedRoute>
   );
 }

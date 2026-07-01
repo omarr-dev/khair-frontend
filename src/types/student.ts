@@ -191,6 +191,19 @@ export interface StudentDetail {
   // Recent records
   recentProgress: StudentProgressRecord[];
   recentAttendance: StudentAttendanceRecord[];
+  // Daily target (populated by the backend detail endpoint)
+  target?: StudentTarget | null;
+}
+
+/** The current student's standing in their halaqa's streak leaderboard (own data only). */
+export interface MyRank {
+  rank: number | null;
+  totalInScope: number;
+  studentsWithActiveStreaks: number;
+  currentStreak: number;
+  longestStreak: number;
+  isStreakActive: boolean;
+  halaqaName?: string | null;
 }
 
 // ================== STUDENT TARGETS ==================

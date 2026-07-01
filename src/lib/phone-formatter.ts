@@ -113,6 +113,19 @@ export function isValidSaudiMobile(value: string): boolean {
   return /^05[0-9]{8}$/.test(local) && validPrefixes.includes(local.substring(1, 3));
 }
 
+/**
+ * Format a National ID / Iqama for input: Arabic digits → Western, digits only, max 10.
+ * Saudi National IDs start with 1, Iqama (residency) with 2.
+ */
+export function formatNationalId(value: string): string {
+  return toEnglishDigits(value).substring(0, 10);
+}
+
+/** True when the value is a valid 10-digit National ID / Iqama (starts with 1 or 2). */
+export function isValidNationalId(value: string): boolean {
+  return /^[12][0-9]{9}$/.test(toEnglishDigits(value));
+}
+
 export function formatPhoneOrNationalId(value: string): string {
   let digits = toEnglishDigits(value);
 

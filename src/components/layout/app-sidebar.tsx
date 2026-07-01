@@ -27,6 +27,9 @@ import {
   ClipboardCheck,
   ClipboardList,
   UserCog,
+  CalendarCheck,
+  Trophy,
+  UserRound,
 } from "lucide-react";
 import { useAuth, useTenant } from "@/components/providers";
 
@@ -43,6 +46,15 @@ const halaqaSupervisorMenuItems = [
   { title: "المتابعة", href: "/follow-up", icon: ClipboardList },
   { title: "حضور المعلمين", href: "/teacher-attendance", icon: ClipboardCheck },
   { title: "التقارير", href: "/reports", icon: ChartBar },
+];
+
+// Menu items for students - read-only self-service portal (own data only)
+const studentMenuItems = [
+  { title: "الرئيسية", href: "/home", icon: Home },
+  { title: "حفظي", href: "/my-progress", icon: BookOpen },
+  { title: "حضوري", href: "/my-attendance", icon: CalendarCheck },
+  { title: "إنجازاتي", href: "/my-achievements", icon: Trophy },
+  { title: "ملفي", href: "/my-profile", icon: UserRound },
 ];
 
 // Menu items for full supervisors - full access including teacher attendance
@@ -113,6 +125,8 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
         return supervisorMenuItems;
       case "HalaqaSupervisor":
         return halaqaSupervisorMenuItems;
+      case "Student":
+        return studentMenuItems;
       case "Teacher":
       default:
         return teacherMenuItems;
@@ -127,6 +141,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
       case 'Supervisor': return 'مشرف';
       case 'HalaqaSupervisor': return 'مشرف حلقة';
       case 'Teacher': return 'معلم';
+      case 'Student': return 'طالب';
       default: return role ?? '';
     }
   }, []);

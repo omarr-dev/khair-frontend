@@ -3,7 +3,7 @@ export { api } from './api-client';
 
 // Services
 export { authApi } from './auth.service';
-export { studentApi } from './students.service';
+export { studentApi, studentPortalApi } from './students.service';
 export { teachersApi } from './teachers.service';
 export { halaqatApi } from './halaqat.service';
 export { attendanceApi } from './attendance.service';

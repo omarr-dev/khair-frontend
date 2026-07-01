@@ -15,25 +15,51 @@ import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { toast } from "sonner";
 import Image from "next/image";
-import { formatPhoneOrNationalId } from "@/lib/phone-formatter";
+import { cn } from "@/lib/utils";
+import {
+  formatPhoneOrNationalId,
+  formatNationalId,
+  isValidNationalId,
+} from "@/lib/phone-formatter";
 import { extractErrorMessage } from "@/lib/error-handler";
-import { Loader2 } from "lucide-react";
+import { GraduationCap, User as UserIcon } from "lucide-react";
 import { TenantLoadingScreen } from "@/components/shared/tenant-loading-screen";
 
+type LoginMode = "teacher" | "student";
+
 export default function LoginPage() {
+  const [mode, setMode] = useState<LoginMode>("teacher");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [nationalId, setNationalId] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, studentLogin } = useAuth();
   const { tenant, loading: tenantLoading, error: tenantError } = useTenant();
+
+  const isStudent = mode === "student";
+
+  const switchMode = (next: LoginMode) => {
+    if (next === mode) return;
+    setMode(next);
+    setError("");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
 
+    if (isStudent && !isValidNationalId(nationalId)) {
+      setError("رقم الهوية يجب أن يكون 10 أرقام ويبدأ بـ 1 أو 2");
+      return;
+    }
+
+    setLoading(true);
     try {
-      await login(phoneNumber);
+      if (isStudent) {
+        await studentLogin(nationalId);
+      } else {
+        await login(phoneNumber);
+      }
       toast.success("تم تسجيل الدخول بنجاح");
     } catch (err: unknown) {
       const errorMessage = extractErrorMessage(err, "فشل تسجيل الدخول");
@@ -48,6 +74,11 @@ export default function LoginPage() {
     const formattedValue = formatPhoneOrNationalId(e.target.value);
     setPhoneNumber(formattedValue);
     if (error) setError(""); // Clear error when user starts typing
+  };
+
+  const handleNationalIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNationalId(formatNationalId(e.target.value));
+    if (error) setError("");
   };
 
   // Show loading state while tenant is being resolved
@@ -117,23 +148,83 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent className="pb-6">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="phoneNumber" className="text-base">رقم الجوال أو رقم الهوية</Label>
-              <Input
-                id="phoneNumber"
-                type="tel"
-                inputMode="numeric"
-                autoComplete="tel"
-                placeholder="050 000 0000"
-                value={phoneNumber}
-                onChange={handlePhoneNumberChange}
-                required
+            {/* Account type toggle: Teacher / Student */}
+            <div
+              role="tablist"
+              aria-label="نوع الحساب"
+              className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={!isStudent}
+                onClick={() => switchMode("teacher")}
                 disabled={loading}
-                maxLength={12}
-                className="text-center h-12 text-lg tracking-wider"
-                dir="ltr"
-              />
+                className={cn(
+                  "flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  !isStudent
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <UserIcon className="h-4 w-4" aria-hidden="true" />
+                معلم
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={isStudent}
+                onClick={() => switchMode("student")}
+                disabled={loading}
+                className={cn(
+                  "flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  isStudent
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <GraduationCap className="h-4 w-4" aria-hidden="true" />
+                طالب
+              </button>
             </div>
+
+            {isStudent ? (
+              <div className="space-y-2">
+                <Label htmlFor="nationalId" className="text-base">رقم الهوية الوطنية</Label>
+                <Input
+                  id="nationalId"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  placeholder="1XXXXXXXXX"
+                  value={nationalId}
+                  onChange={handleNationalIdChange}
+                  required
+                  disabled={loading}
+                  maxLength={10}
+                  className="text-center h-12 text-lg tracking-wider"
+                  dir="ltr"
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="phoneNumber" className="text-base">رقم الجوال أو رقم الهوية</Label>
+                <Input
+                  id="phoneNumber"
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  placeholder="050 000 0000"
+                  value={phoneNumber}
+                  onChange={handlePhoneNumberChange}
+                  required
+                  disabled={loading}
+                  maxLength={12}
+                  className="text-center h-12 text-lg tracking-wider"
+                  dir="ltr"
+                />
+              </div>
+            )}
             {error && (
               <div className="text-sm text-red-500 text-center bg-red-50 dark:bg-red-950/30 p-3 rounded-md border border-red-200 dark:border-red-900">
                 {error}

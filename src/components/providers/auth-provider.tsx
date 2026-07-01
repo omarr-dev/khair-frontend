@@ -4,11 +4,13 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { authApi } from '@/services';
 import { User, AuthResponse } from '@/types/auth';
+import { extractErrorMessage } from '@/lib/error-handler';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (phoneNumber: string) => Promise<void>;
+  studentLogin: (nationalId: string) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
@@ -40,18 +42,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth();
   }, []);
 
+  const applySession = (data: AuthResponse) => {
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('refreshToken', data.refreshToken);
+    setUser(data.user);
+    router.push('/');
+  };
+
   const login = async (phoneNumber: string) => {
     try {
       const response = await authApi.login(phoneNumber);
-      const data: AuthResponse = response.data;
+      applySession(response.data);
+    } catch (error: unknown) {
+      throw new Error(extractErrorMessage(error, 'فشل تسجيل الدخول'));
+    }
+  };
 
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('refreshToken', data.refreshToken);
-      setUser(data.user);
-
-      router.push('/');
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'فشل تسجيل الدخول');
+  const studentLogin = async (nationalId: string) => {
+    try {
+      const response = await authApi.studentLogin(nationalId);
+      applySession(response.data);
+    } catch (error: unknown) {
+      throw new Error(extractErrorMessage(error, 'فشل تسجيل الدخول'));
     }
   };
 
@@ -74,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         loading,
         login,
+        studentLogin,
         logout,
         isAuthenticated: !!user,
       }}

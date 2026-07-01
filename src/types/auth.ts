@@ -1,4 +1,4 @@
-export type UserRole = 'Teacher' | 'Supervisor' | 'HalaqaSupervisor';
+export type UserRole = 'Teacher' | 'Supervisor' | 'HalaqaSupervisor' | 'Student';
 
 export interface User {
   id: number;
@@ -6,6 +6,8 @@ export interface User {
   fullName: string;
   role: UserRole;
   teacherId?: number;
+  /** Only populated for the Student role - the student's own id (student self-service portal) */
+  studentId?: number;
   /** Only populated for HalaqaSupervisor role - list of halaqa IDs they can manage */
   supervisedHalaqaIds?: number[];
 }
@@ -27,7 +29,10 @@ export const roleUtils = {
   
   /** Check if user is a Teacher */
   isTeacher: (role?: string) => role === 'Teacher',
-  
+
+  /** Check if user is a Student (self-service portal, read-only) */
+  isStudent: (role?: string) => role === 'Student',
+
   /** Check if user has any supervisor role (Supervisor or HalaqaSupervisor) */
   hasAnySupervisorRole: (role?: string) => role === 'Supervisor' || role === 'HalaqaSupervisor',
   
@@ -53,6 +58,7 @@ export const roleUtils = {
       case 'Supervisor': return 'مشرف';
       case 'HalaqaSupervisor': return 'مشرف حلقة';
       case 'Teacher': return 'معلم';
+      case 'Student': return 'طالب';
       default: return role ?? '';
     }
   }

@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SearchableSelect } from "@/components/shared/searchable-select";
 import { HeroBanner, TeacherCheckInCard } from "@/components/shared";
+import { StudentHome } from "@/components/student/student-home";
 import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
@@ -74,7 +75,17 @@ function getDateRange(period: "today" | "week") {
 
 type DatePeriod = "today" | "week";
 
+// Role dispatcher: students get their own read-only portal home; everyone else
+// gets the staff dashboard below. ProtectedRoute guarantees `user` is loaded here.
 export default function HomePage() {
+  const { user } = useAuth();
+  if (user?.role === "Student") {
+    return <StudentHome />;
+  }
+  return <StaffHome />;
+}
+
+function StaffHome() {
   const { user } = useAuth();
   const router = useRouter();
 

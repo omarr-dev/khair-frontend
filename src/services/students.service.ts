@@ -11,7 +11,10 @@ import {
   StudentTarget,
   SetStudentTargetDto,
   BulkSetTargetDto,
-  AchievementHistory
+  AchievementHistory,
+  StudentProgressRecord,
+  StudentAttendanceRecord,
+  MyRank
 } from '@/types/student';
 import { PaginatedResponse, StudentFilterParams } from '@/types/api';
 
@@ -95,4 +98,32 @@ export const studentApi = {
     api.get<AchievementHistory>(`/students/${studentId}/achievement-history`, {
       params: { startDate, endDate }
     }),
+};
+
+// ================== STUDENT SELF-SERVICE (PORTAL) ==================
+// All endpoints resolve the student from the JWT server-side — no id is ever passed.
+export const studentPortalApi = {
+  /** Own full profile: info, halaqa/teacher, memorization position, stats, recent records, target */
+  getMyProfile: () =>
+    api.get<StudentDetail>('/students/me'),
+
+  /** Own progress (recitation) records, optionally from a date */
+  getMyProgress: (fromDate?: string) =>
+    api.get<StudentProgressRecord[]>('/students/me/progress', { params: { fromDate } }),
+
+  /** Own attendance records for a date range */
+  getMyAttendance: (fromDate?: string, toDate?: string) =>
+    api.get<StudentAttendanceRecord[]>('/students/me/attendance', { params: { fromDate, toDate } }),
+
+  /** Own daily target */
+  getMyTarget: () =>
+    api.get<StudentTarget>('/students/me/target'),
+
+  /** Own achievement history + streak info for a date range (calendar heatmap) */
+  getMyAchievementHistory: (startDate: string, endDate: string) =>
+    api.get<AchievementHistory>('/students/me/achievement-history', { params: { startDate, endDate } }),
+
+  /** Own rank within the halaqa streak leaderboard (own entry only) */
+  getMyRank: () =>
+    api.get<MyRank>('/students/me/rank'),
 };

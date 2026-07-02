@@ -31,6 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Check, X, Clock, Save, Users, AlertTriangle, CalendarDays, Download, Calendar, Loader2, Search } from "lucide-react";
+import { extractErrorMessage } from "@/lib/error-handler";
 import { toast } from "sonner";
 
 type AttendanceStatus = 0 | 1 | 2; // 0: Present, 1: Absent, 2: Late
@@ -126,6 +127,12 @@ const TeacherRow = memo(function TeacherRow({
   const status: AttendanceStatus | null = state?.status ?? null;
   const timesDisabled = status === 1 || status === null; // absent or not recorded
   const hours = computeHours(state?.checkInTime, state?.checkOutTime);
+  // Inline time validation so the supervisor sees the problem on the row itself,
+  // not only as a toast at save time.
+  const missingCheckIn = !!state?.checkOutTime && !state?.checkInTime;
+  const invalidRange =
+    !!state?.checkInTime && !!state?.checkOutTime && state.checkOutTime <= state.checkInTime;
+  const timeInvalid = missingCheckIn || invalidRange;
 
   return (
     <TableRow>
@@ -183,8 +190,15 @@ const TeacherRow = memo(function TeacherRow({
           value={state?.checkOutTime ?? ""}
           disabled={timesDisabled}
           onChange={(e) => onTimeChange(teacher.teacherId, halaqaId, "checkOutTime", e.target.value)}
-          className="h-9 rounded-md border border-input bg-background px-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          className={`h-9 rounded-md border bg-background px-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
+            timeInvalid ? "border-red-500 focus-visible:ring-red-500" : "border-input"
+          }`}
         />
+        {timeInvalid && (
+          <p className="mt-1 text-xs text-red-600">
+            {missingCheckIn ? "أدخل وقت الحضور أولاً" : "يجب أن يكون بعد وقت الحضور"}
+          </p>
+        )}
       </TableCell>
       <TableCell className="text-center font-medium text-muted-foreground">
         {hours !== null ? `${hours} س` : "—"}
@@ -281,6 +295,9 @@ export default function TeacherAttendancePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [attendanceData, setAttendanceData] = useState<Map<string, AttendanceState>>(new Map());
+  // Rows the supervisor edited this session. Only these are sent on save — re-sending
+  // untouched saved rows let a single bad old record block every save with its error.
+  const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(new Set());
   const [halaqaSearch, setHalaqaSearch] = useState(""); // client-side filter over the loaded halaqat
 
   // Monthly state
@@ -317,9 +334,10 @@ export default function TeacherAttendancePage() {
         }
       });
       setAttendanceData(newAttendanceData);
+      setDirtyKeys(new Set());
     } catch (error) {
       console.error("Error fetching teacher attendance:", error);
-      toast.error("حدث خطأ أثناء جلب بيانات الحضور");
+      toast.error(extractErrorMessage(error, "حدث خطأ أثناء جلب بيانات الحضور"));
     } finally {
       setLoading(false);
     }
@@ -332,7 +350,7 @@ export default function TeacherAttendancePage() {
       setMonthlyData(response.data);
     } catch (error) {
       console.error("Error fetching monthly report:", error);
-      toast.error("حدث خطأ أثناء جلب التقرير الشهري");
+      toast.error(extractErrorMessage(error, "حدث خطأ أثناء جلب التقرير الشهري"));
     } finally {
       setMonthlyLoading(false);
     }
@@ -347,6 +365,16 @@ export default function TeacherAttendancePage() {
       fetchMonthlyData();
     }
   }, [activeTab, fetchMonthlyData]);
+
+  // Warn before closing/refreshing the tab while there are unsaved edits.
+  useEffect(() => {
+    if (dirtyKeys.size === 0) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirtyKeys.size]);
 
   // Functional updates keep these handlers referentially stable across renders, which is what
   // lets the memoized TeacherRow skip re-rendering untouched rows. `new Map(prev)` preserves the
@@ -366,6 +394,7 @@ export default function TeacherAttendancePage() {
         }
         return newData;
       });
+      setDirtyKeys((prev) => new Set(prev).add(key));
     },
     [],
   );
@@ -384,6 +413,7 @@ export default function TeacherAttendancePage() {
         newData.set(key, { ...current, [field]: value });
         return newData;
       });
+      setDirtyKeys((prev) => new Set(prev).add(key));
     },
     [],
   );
@@ -401,8 +431,9 @@ export default function TeacherAttendancePage() {
           halaqa.teachers.forEach((teacher) => {
             const key = `${teacher.teacherId}-${halaqa.halaqaId}`;
             const state = attendanceData.get(key);
-            // Only include teachers the supervisor has actually marked (status is a number; null = untouched).
-            if (state && typeof state.status === 'number') {
+            // Only send rows the supervisor edited this session (and that have a status).
+            // Untouched rows stay as they are on the server.
+            if (state && typeof state.status === 'number' && dirtyKeys.has(key)) {
               // Times only apply to present/late records.
               const withTimes = state.status !== 1;
               const checkInTime = withTimes ? state.checkInTime || null : null;
@@ -410,9 +441,9 @@ export default function TeacherAttendancePage() {
 
               // A departure time with no arrival time is invalid; keep the first offender.
               if (!timeError && checkOutTime && !checkInTime) {
-                timeError = `يرجى إدخال وقت الحضور قبل وقت الانصراف (${teacher.teacherName})`;
+                timeError = `يرجى إدخال وقت الحضور قبل وقت الانصراف (${teacher.teacherName} — ${halaqa.halaqaName})`;
               } else if (!timeError && checkInTime && checkOutTime && checkOutTime <= checkInTime) {
-                timeError = `وقت الانصراف يجب أن يكون بعد وقت الحضور (${teacher.teacherName})`;
+                timeError = `وقت الانصراف يجب أن يكون بعد وقت الحضور (${teacher.teacherName} — ${halaqa.halaqaName})`;
               }
 
               attendance.push({
@@ -434,7 +465,7 @@ export default function TeacherAttendancePage() {
       }
 
       if (attendance.length === 0) {
-        toast.warning("لم يتم تحديد حضور أي معلم");
+        toast.warning("لا توجد تغييرات لحفظها");
         return;
       }
 
@@ -443,7 +474,7 @@ export default function TeacherAttendancePage() {
       await fetchDailyData();
     } catch (error) {
       console.error("Error saving attendance:", error);
-      toast.error("حدث خطأ أثناء حفظ الحضور");
+      toast.error(extractErrorMessage(error, "حدث خطأ أثناء حفظ الحضور"));
     } finally {
       setSaving(false);
     }
@@ -468,7 +499,7 @@ export default function TeacherAttendancePage() {
       toast.success("تم تصدير التقرير بنجاح");
     } catch (error) {
       console.error("Error exporting report:", error);
-      toast.error("حدث خطأ أثناء تصدير التقرير");
+      toast.error(extractErrorMessage(error, "حدث خطأ أثناء تصدير التقرير"));
     } finally {
       setExporting(false);
     }
@@ -585,12 +616,16 @@ export default function TeacherAttendancePage() {
             </div>
             <Button
               onClick={handleSaveAttendance}
-              disabled={saving || !data}
+              disabled={saving || !data || dirtyKeys.size === 0}
               size="lg"
               className="w-full sm:w-auto"
             >
               <Save className="ml-2 h-5 w-5" />
-              {saving ? "جاري الحفظ..." : "حفظ الحضور"}
+              {saving
+                ? "جاري الحفظ..."
+                : dirtyKeys.size > 0
+                ? `حفظ الحضور (${dirtyKeys.size})`
+                : "حفظ الحضور"}
             </Button>
           </div>
 
